@@ -499,17 +499,12 @@ import time
 import ogl_viewer.viewer as gl
 import numpy as np
 
-if __name__ == "__main__":
-
-    if len(sys.argv) < 2:
-        print("This sample display the fused body tracking of multiple cameras.")
-        print("It needs a Localization file in input. Generate it with ZED 360.")
-        print("The cameras can either be plugged to your devices, or already running on the local network.")
-        filepath = '/usr/local/zed/tools/zed_calib.json'
-        # exit(1)
-
-    else:
-        filepath = sys.argv[1]
+def main():
+    
+    print("This sample display the fused body tracking of multiple cameras.")
+    print("It needs a Localization file in input. Generate it with ZED 360.")
+    print("The cameras can either be plugged to your devices, or already running on the local network.")
+    filepath = '/usr/local/zed/tools/zed_calib.json'
     fusion_configurations = sl.read_fusion_configuration_file(filepath, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
     if len(fusion_configurations) <= 0:
         print("Invalid file.")
@@ -666,5 +661,12 @@ if __name__ == "__main__":
         senders[sender].close()
         
     viewer.exit()
+
+
+if __name__ == "__main__":
+    
+    main()
+
+    
 
 
