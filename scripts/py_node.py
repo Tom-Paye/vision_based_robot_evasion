@@ -120,8 +120,14 @@ def main():
             senders[conf.serial_number] = sl.Camera()
 
             # zed_params.init.set_from_serial_number(conf.serial_number)
-            zed_params.init.set_from_svo_file('/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'+str(conf.serial_number)+'_720p_30fps.svo')
+            if user_params.video_src == 'SVO':
+                zed_params.init.set_from_svo_file(user_params.svo_pth + '/' \
+                          + str(conf.serial_number) + user_params.svo_suffix)
+            else:
+                zed_params.init.set_from_serial_number(conf.serial_number)
+                
             status = senders[conf.serial_number].open(zed_params.init)
+            
             if status != sl.ERROR_CODE.SUCCESS:
                 print("Error opening the camera", conf.serial_number, status)
                 del senders[conf.serial_number]
