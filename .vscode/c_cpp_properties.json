@@ -1,0 +1,30 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "${default}",
+                "limitSymbolsToIncludedHeaders": false
+            },
+            "includePath": [
+                "/home/tom/ros2_ws/install/zed_topic_benchmark_component/include/**",
+                "/home/tom/ros2_ws/install/zed_topic_benchmark_interfaces/include/**",
+                "/home/tom/ros2_ws/install/zed_rgb_convert/include/**",
+                "/home/tom/ros2_ws/install/zed_aruco_localization/include/**",
+                "/home/tom/ros2_ws/install/zed_components/include/**",
+                "/home/tom/ros2_ws/install/rviz_plugin_zed_od/include/**",
+                "/home/tom/ros2_ws/install/zed_interfaces/include/**",
+                "/home/tom/ros2_ws/install/examples_rclcpp_cbg_executor/include/**",
+                "/opt/ros/humble/include/**",
+                "/usr/include/**",
+                "/opt/ros/humble/include/sensor_msgs",
+                "/usr/local/zed/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "c++14"
+        }
+    ],
+    "version": 4
+}
