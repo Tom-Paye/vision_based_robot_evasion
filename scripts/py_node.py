@@ -110,7 +110,7 @@ def main():
         print("Try to open ZED", conf.serial_number)
         zed_params.init.input = sl.InputType()
         # network cameras are already running, or so they should
-        if conf.communication_parameters.communication.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
+        if conf.communication_parameters.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
             network_senders[conf.serial_number] = conf.serial_number
 
         # local camera needs to be run form here, in the same process than the fusion
@@ -176,9 +176,9 @@ def main():
         conf = zed_params.fusion[i]
         uuid = sl.CameraIdentifier()
         uuid.serial_number = conf.serial_number
-        print("Subscribing to", conf.serial_number, conf.communication_parameters.communication.comm_type)
+        print("Subscribing to", conf.serial_number, conf.communication_parameters.comm_type)
 
-        status = fusion.subscribe(uuid, conf.communication_parameters.communication, conf.pose)
+        status = fusion.subscribe(uuid, conf.communication_parameters, conf.pose)
         if status != sl.FUSION_ERROR_CODE.SUCCESS:
             print("Unable to subscribe to", uuid.serial_number, status)
         else:
