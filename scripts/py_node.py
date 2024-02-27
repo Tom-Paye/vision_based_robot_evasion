@@ -93,7 +93,7 @@ def init_zed_params():
     zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_18
     zed_params.body_tracking.enable_body_fitting = False
     zed_params.body_tracking.enable_tracking = False
-    # return user_params
+    return zed_params
 
 
 
@@ -110,7 +110,7 @@ def main():
         print("Try to open ZED", conf.serial_number)
         zed_params.init.input = sl.InputType()
         # network cameras are already running, or so they should
-        if conf.zed_params.communication.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
+        if conf.fusion_configurations.communication.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
             network_senders[conf.serial_number] = conf.serial_number
 
         # local camera needs to be run form here, in the same process than the fusion
@@ -176,9 +176,9 @@ def main():
         conf = zed_params.fusion[i]
         uuid = sl.CameraIdentifier()
         uuid.serial_number = conf.serial_number
-        print("Subscribing to", conf.serial_number, conf.zed_params.communication.comm_type)
+        print("Subscribing to", conf.serial_number, conf.fusion_configurations.communication.comm_type)
 
-        status = fusion.subscribe(uuid, conf.zed_params.communication, conf.pose)
+        status = fusion.subscribe(uuid, conf.fusion_configurations.communication, conf.pose)
         if status != sl.FUSION_ERROR_CODE.SUCCESS:
             print("Unable to subscribe to", uuid.serial_number, status)
         else:
