@@ -64,37 +64,35 @@ def init_user_params():
     
 def init_zed_params():
     # For now, all parameters are defined in this script
-    global fusion_configurations, senders, network_senders, init_params, communication_parameters, \
-        positional_tracking_parameters, body_tracking_parameters
     print("This sample display the fused body tracking of multiple cameras.")
     print("It needs a Localization file in input. Generate it with ZED 360.")
     print("The cameras can either be plugged to your devices, or already running on the local network.")
-    fusion_configurations = sl.read_fusion_configuration_file(user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
-    if len(fusion_configurations) <= 0:
+    global zed_params
+    zed_params.fusion = sl.read_fusion_configuration_file(user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
+    if len(zed_params.fusion) <= 0:
         print("Invalid config file.")
         exit(1)
 
-    senders = {}
-    network_senders = {}
+    
     
     # common parameters
-    init_params = sl.InitParameters()
-    init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
-    init_params.coordinate_units = sl.UNIT.METER
-    init_params.depth_mode = sl.DEPTH_MODE.ULTRA
-    init_params.camera_resolution = sl.RESOLUTION.HD1080
+    zed_params.init = sl.InitParameters()
+    zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+    zed_params.init.coordinate_units = sl.UNIT.METER
+    zed_params.init.depth_mode = sl.DEPTH_MODE.ULTRA
+    zed_params.init.camera_resolution = sl.RESOLUTION.HD1080
 
-    communication_parameters = sl.CommunicationParameters()
-    communication_parameters.set_for_shared_memory()
+    zed_params.communication = sl.CommunicationParameters()
+    zed_params.communication.set_for_shared_memory()
 
-    positional_tracking_parameters = sl.PositionalTrackingParameters()
-    positional_tracking_parameters.set_as_static = True
+    zed_params.positional_tracking = sl.PositionalTrackingParameters()
+    zed_params.positional_tracking.set_as_static = True
 
-    body_tracking_parameters = sl.BodyTrackingParameters()
-    body_tracking_parameters.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
-    body_tracking_parameters.body_format = sl.BODY_FORMAT.BODY_18
-    body_tracking_parameters.enable_body_fitting = False
-    body_tracking_parameters.enable_tracking = False
+    zed_params.body_tracking = sl.BodyTrackingParameters()
+    zed_params.body_tracking.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
+    zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_18
+    zed_params.body_tracking.enable_body_fitting = False
+    zed_params.body_tracking.enable_tracking = False
     # return user_params
 
 
@@ -103,44 +101,46 @@ def init_zed_params():
 def main():
     
     init_user_params()
-    init_zed_params()
+    zed_params = init_zed_params()
+    senders = {}
+    network_senders = {}
     
 
-    for conf in fusion_configurations:
+    for conf in zed_params.fusion:
         print("Try to open ZED", conf.serial_number)
-        init_params.input = sl.InputType()
+        zed_params.init.input = sl.InputType()
         # network cameras are already running, or so they should
-        if conf.communication_parameters.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
+        if conf.zed_params.communication.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
             network_senders[conf.serial_number] = conf.serial_number
 
         # local camera needs to be run form here, in the same process than the fusion
         else:
-            init_params.input = conf.input_type
+            zed_params.init.input = conf.input_type
             
             senders[conf.serial_number] = sl.Camera()
 
-            # init_params.set_from_serial_number(conf.serial_number)
-            init_params.set_from_svo_file('/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'+str(conf.serial_number)+'_720p_30fps.svo')
-            status = senders[conf.serial_number].open(init_params)
+            # zed_params.init.set_from_serial_number(conf.serial_number)
+            zed_params.init.set_from_svo_file('/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'+str(conf.serial_number)+'_720p_30fps.svo')
+            status = senders[conf.serial_number].open(zed_params.init)
             if status != sl.ERROR_CODE.SUCCESS:
                 print("Error opening the camera", conf.serial_number, status)
                 del senders[conf.serial_number]
                 continue
             
 
-            status = senders[conf.serial_number].enable_positional_tracking(positional_tracking_parameters)
+            status = senders[conf.serial_number].enable_positional_tracking(zed_params.positional_tracking)
             if status != sl.ERROR_CODE.SUCCESS:
                 print("Error enabling the positional tracking of camera", conf.serial_number)
                 del senders[conf.serial_number]
                 continue
 
-            status = senders[conf.serial_number].enable_body_tracking(body_tracking_parameters)
+            status = senders[conf.serial_number].enable_body_tracking(zed_params.body_tracking)
             if status != sl.ERROR_CODE.SUCCESS:
                 print("Error enabling the body tracking of camera", conf.serial_number)
                 del senders[conf.serial_number]
                 continue
 
-            senders[conf.serial_number].start_publishing(communication_parameters)
+            senders[conf.serial_number].start_publishing(globals()['zed_params.communication'])
 
         print("Camera", conf.serial_number, "is open")
         
@@ -156,13 +156,13 @@ def main():
     init_fusion_parameters.coordinate_units = sl.UNIT.METER
     init_fusion_parameters.output_performance_metrics = False
     init_fusion_parameters.verbose = True
-    communication_parameters = sl.CommunicationParameters()
+    zed_params.communication = sl.CommunicationParameters()
     fusion = sl.Fusion()
     camera_identifiers = []
 
     fusion.init(init_fusion_parameters)
         
-    print("Cameras in this configuration : ", len(fusion_configurations))
+    print("Cameras in this configuration : ", len(zed_params.fusion))
 
     # warmup
     bodies = sl.Bodies()        
@@ -171,14 +171,14 @@ def main():
         if zed.grab() == sl.ERROR_CODE.SUCCESS:
             zed.retrieve_bodies(bodies)
 
-    svo_image = [None] * len(fusion_configurations)
-    for i in range(0, len(fusion_configurations)):
-        conf = fusion_configurations[i]
+    svo_image = [None] * len(zed_params.fusion)
+    for i in range(0, len(zed_params.fusion)):
+        conf = zed_params.fusion[i]
         uuid = sl.CameraIdentifier()
         uuid.serial_number = conf.serial_number
-        print("Subscribing to", conf.serial_number, conf.communication_parameters.comm_type)
+        print("Subscribing to", conf.serial_number, conf.zed_params.communication.comm_type)
 
-        status = fusion.subscribe(uuid, conf.communication_parameters, conf.pose)
+        status = fusion.subscribe(uuid, conf.zed_params.communication, conf.pose)
         if status != sl.FUSION_ERROR_CODE.SUCCESS:
             print("Unable to subscribe to", uuid.serial_number, status)
         else:
