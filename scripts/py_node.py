@@ -121,7 +121,7 @@ def main():
 
             # zed_params.init.set_from_serial_number(conf.serial_number)
             if user_params.video_src == 'SVO':
-                zed_params.init.set_from_svo_file(user_params.svo_pth + '/' \
+                zed_params.init.set_from_svo_file(user_params.svo_pth \
                           + str(conf.serial_number) + user_params.svo_suffix)
             else:
                 zed_params.init.set_from_serial_number(conf.serial_number)
