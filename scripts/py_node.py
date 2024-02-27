@@ -140,7 +140,7 @@ def main():
                 del senders[conf.serial_number]
                 continue
 
-            senders[conf.serial_number].start_publishing(globals()['zed_params.communication'])
+            senders[conf.serial_number].start_publishing(zed_params.communication)
 
         print("Camera", conf.serial_number, "is open")
         
