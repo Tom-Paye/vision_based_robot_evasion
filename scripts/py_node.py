@@ -253,7 +253,7 @@ def main():
                     for idx, cam_id in enumerate(camera_identifiers):
                         chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
                         if chk == [True, True]:
-                            if svo_image[idx] != 0 and (idx==user_params.display_video+1 or user_params.display_video=='All'):
+                            if (svo_image[idx] != 0) and (idx==user_params.display_video+1 or user_params.display_video=='All'):
                                 cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
                                 cv2.waitKey(1) 
 
