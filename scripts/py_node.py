@@ -58,7 +58,7 @@ def init_user_params():
     user_params.video_src = 'SVO'                                       # SVO, Live
     user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'
     user_params.svo_suffix = '_720p_30fps.svo'
-    user_params.display_video = 'All'                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
+    user_params.display_video = 3                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
     user_params.display_skeleton = True
     
     # return user_params
