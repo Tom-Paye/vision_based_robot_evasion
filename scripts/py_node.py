@@ -93,56 +93,65 @@ def init_zed_params():
     zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_18
     zed_params.body_tracking.enable_body_fitting = False
     zed_params.body_tracking.enable_tracking = False
+    
+    zed_params.fusion_init = sl.InitFusionParameters()
+    zed_params.fusion_init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+    zed_params.fusion_init.coordinate_units = sl.UNIT.METER
+    zed_params.fusion_init.output_performance_metrics = False
+    zed_params.fusion_init.verbose = True
+    
     return zed_params
 
 
 def connect_cams(conf):
 
-    err = 0
-    print("Try to open ZED", conf.serial_number)
-    zed_params.init.input = sl.InputType()
-    # network cameras are already running, or so they should
-    if conf.communication_parameters.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
-        network_senders[conf.serial_number] = conf.serial_number
-
-    # local camera needs to be run form here, in the same process than the fusion
-    else:
-        zed_params.init.input = conf.input_type
-        
-        senders[conf.serial_number] = sl.Camera()
-
-        # zed_params.init.set_from_serial_number(conf.serial_number)
-        if user_params.video_src == 'SVO':
-            zed_params.init.set_from_svo_file(user_params.svo_pth \
-                      + str(conf.serial_number) + user_params.svo_suffix)
+    for conf in zed_params.fusion:
+        print("Try to open ZED", conf.serial_number)
+        zed_params.init.input = sl.InputType()
+        # network cameras are already running, or so they should
+        if conf.communication_parameters.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
+            network_senders[conf.serial_number] = conf.serial_number
+    
+        # local camera needs to be run form here, in the same process than the fusion
         else:
-            zed_params.init.set_from_serial_number(conf.serial_number)
+            zed_params.init.input = conf.input_type
             
-        status = senders[conf.serial_number].open(zed_params.init)
-        
-        if status != sl.ERROR_CODE.SUCCESS:
-            print("Error opening the camera", conf.serial_number, status)
-            del senders[conf.serial_number]
-            err = 1
-        
-
-        status = senders[conf.serial_number].enable_positional_tracking(zed_params.positional_tracking)
-        if status != sl.ERROR_CODE.SUCCESS:
-            print("Error enabling the positional tracking of camera", conf.serial_number)
-            del senders[conf.serial_number]
-            err = 1
-
-        status = senders[conf.serial_number].enable_body_tracking(zed_params.body_tracking)
-        if status != sl.ERROR_CODE.SUCCESS:
-            print("Error enabling the body tracking of camera", conf.serial_number)
-            del senders[conf.serial_number]
-            err = 1
-
-        senders[conf.serial_number].start_publishing(zed_params.communication)
-
-    if err == 0:
+            senders[conf.serial_number] = sl.Camera()
+    
+            # zed_params.init.set_from_serial_number(conf.serial_number)
+            if user_params.video_src == 'SVO':
+                zed_params.init.set_from_svo_file(user_params.svo_pth \
+                          + str(conf.serial_number) + user_params.svo_suffix)
+            else:
+                zed_params.init.set_from_serial_number(conf.serial_number)
+                
+            status = senders[conf.serial_number].open(zed_params.init)
+            
+            if status != sl.ERROR_CODE.SUCCESS:
+                print("Error opening the camera", conf.serial_number, status)
+                del senders[conf.serial_number]
+                continue
+            
+    
+            status = senders[conf.serial_number].enable_positional_tracking(zed_params.positional_tracking)
+            if status != sl.ERROR_CODE.SUCCESS:
+                print("Error enabling the positional tracking of camera", conf.serial_number)
+                del senders[conf.serial_number]
+                continue
+    
+            status = senders[conf.serial_number].enable_body_tracking(zed_params.body_tracking)
+            if status != sl.ERROR_CODE.SUCCESS:
+                print("Error enabling the body tracking of camera", conf.serial_number)
+                del senders[conf.serial_number]
+                continue
+    
+            senders[conf.serial_number].start_publishing(zed_params.communication)
+    
         print("Camera", conf.serial_number, "is open")
-        return conf
+        
+    if len(senders) + len(network_senders) < 1:
+        print("Not enough cameras")
+        exit(1)
     
     
 
@@ -157,70 +166,18 @@ def main():
     network_senders = {}
     
 
-    for conf in zed_params.fusion:
+    # for conf in zed_params.fusion:
         
-        conf = connect_cams(conf)
-        
-        # print("Try to open ZED", conf.serial_number)
-        # zed_params.init.input = sl.InputType()
-        # # network cameras are already running, or so they should
-        # if conf.communication_parameters.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
-        #     network_senders[conf.serial_number] = conf.serial_number
-
-        # # local camera needs to be run form here, in the same process than the fusion
-        # else:
-        #     zed_params.init.input = conf.input_type
-            
-        #     senders[conf.serial_number] = sl.Camera()
-
-        #     # zed_params.init.set_from_serial_number(conf.serial_number)
-        #     if user_params.video_src == 'SVO':
-        #         zed_params.init.set_from_svo_file(user_params.svo_pth \
-        #                   + str(conf.serial_number) + user_params.svo_suffix)
-        #     else:
-        #         zed_params.init.set_from_serial_number(conf.serial_number)
-                
-        #     status = senders[conf.serial_number].open(zed_params.init)
-            
-        #     if status != sl.ERROR_CODE.SUCCESS:
-        #         print("Error opening the camera", conf.serial_number, status)
-        #         del senders[conf.serial_number]
-        #         continue
-            
-
-        #     status = senders[conf.serial_number].enable_positional_tracking(zed_params.positional_tracking)
-        #     if status != sl.ERROR_CODE.SUCCESS:
-        #         print("Error enabling the positional tracking of camera", conf.serial_number)
-        #         del senders[conf.serial_number]
-        #         continue
-
-        #     status = senders[conf.serial_number].enable_body_tracking(zed_params.body_tracking)
-        #     if status != sl.ERROR_CODE.SUCCESS:
-        #         print("Error enabling the body tracking of camera", conf.serial_number)
-        #         del senders[conf.serial_number]
-        #         continue
-
-        #     senders[conf.serial_number].start_publishing(zed_params.communication)
-
-        # print("Camera", conf.serial_number, "is open")
-        
-    
-    if len(senders) + len(network_senders) < 1:
-        print("No enough cameras")
-        exit(1)
+    connect_cams()
 
     print("Senders started, running the fusion...")
         
-    init_fusion_parameters = sl.InitFusionParameters()
-    init_fusion_parameters.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
-    init_fusion_parameters.coordinate_units = sl.UNIT.METER
-    init_fusion_parameters.output_performance_metrics = False
-    init_fusion_parameters.verbose = True
+    
     zed_params.communication = sl.CommunicationParameters()
     fusion = sl.Fusion()
     camera_identifiers = []
 
-    fusion.init(init_fusion_parameters)
+    fusion.init(zed_params.fusion_init)
         
     print("Cameras in this configuration : ", len(zed_params.fusion))
 
