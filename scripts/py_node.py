@@ -17,7 +17,11 @@ import ogl_viewer.viewer as gl
 import numpy as np
 import os
 import copy
+import _thread
 
+def input_thread(a_list):
+    input()             # use input() in Python3
+    a_list.append(True)
 
 class MinimalPublisher(Node):
 
@@ -58,8 +62,8 @@ def init_user_params():
     user_params.video_src = 'SVO'                                       # SVO, Live
     user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'
     user_params.svo_suffix = '_720p_30fps.svo'
-    user_params.display_video = 2                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
-    user_params.display_skeleton = True
+    user_params.display_video = 2                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
+    user_params.display_skeleton = False
     
     # return user_params
     
@@ -82,6 +86,9 @@ def init_zed_params():
     zed_params.init.coordinate_units = sl.UNIT.METER
     zed_params.init.depth_mode = sl.DEPTH_MODE.ULTRA
     zed_params.init.camera_resolution = sl.RESOLUTION.HD720
+    # zed_params.init.camera_fps = 30
+    if user_params.video_src == 'SVO':
+        zed_params.init.svo_real_time_mode = True
 
     zed_params.communication = sl.CommunicationParameters()
     zed_params.communication.set_for_shared_memory()
@@ -242,41 +249,50 @@ def main():
     init_body_tracking_and_viewer()
     
     
-    
+    # a_list = []
+    # _thread.start_new_thread(input_thread, (a_list,))
 
     chk = [False, False]
+    if user_params.display_video < 3:
+        chk = [True, True]
     key = ''
     # while (viewer.is_available()):
-
+    checkpoint = time.time()
     while (True):
 
+        checkpoint_2 = time.time()
+        print(checkpoint_2-checkpoint)
+        checkpoint = checkpoint_2
+        # if a_list: # key == ord("q"):
+        #     break
         if key == ord("q"):
             break
 
-        for serial in senders:
-            zed = senders[serial]
-            if zed.grab() == sl.ERROR_CODE.SUCCESS:
-                zed.retrieve_bodies(bodies)
-                # zed.retrieve_image(svo_image, sl.VIEW.SIDE_BY_SIDE)
-                if user_params.display_video > 0:
-                    for idx, cam_id in enumerate(camera_identifiers):
-                        chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
-                        if chk == [True, True]:
-                            if svo_image[idx] != 0:
-                                if (idx+1 == user_params.display_video) or (user_params.display_video == 3):
-                                    cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
-                                    # key = cv2.waitKey(1) 
+        zed = senders[30635524]
+        zed.retrieve_image(svo_image[1], sl.VIEW.SIDE_BY_SIDE)
+        cv2.imshow("View"+str(1), svo_image[1].get_data())
+        
+        # for idx, serial in enumerate(senders):
+        #     zed = senders[serial]
+        #     if zed.grab() == sl.ERROR_CODE.SUCCESS:
+                # zed.retrieve_bodies(bodies)
+                # if (idx+1 == user_params.display_video) or (user_params.display_video == 3):
+                #     chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
+                #     if chk == [True, True]:
+                #         if svo_image[idx] != 0:
+                #             cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
+                #                 # key = cv2.waitKey(1) 
 
-        if fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
+        # if fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
             
-            # Retrieve detected objects
-            fusion.retrieve_bodies(bodies, rt)
+        #     # Retrieve detected objects
+        #     fusion.retrieve_bodies(bodies, rt)
             
-            # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
-            # for cam in camera_identifiers:
-            #     fusion.retrieveBodies(single_bodies, rt, cam); 
-            if (user_params.display_skeleton == True) and (viewer.is_available()):
-                viewer.update_bodies(bodies)
+        #     # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
+        #     # for cam in camera_identifiers:
+        #     #     fusion.retrieveBodies(single_bodies, rt, cam); 
+        #     if (user_params.display_skeleton == True) and (viewer.is_available()):
+        #         viewer.update_bodies(bodies)
 
         key = cv2.pollKey()
             
@@ -284,8 +300,10 @@ def main():
     cv2.destroyAllWindows()
     for sender in senders:
         senders[sender].close()
-        
-    viewer.exit()
+
+
+    if (user_params.display_skeleton == True) and (viewer.is_available()):
+        viewer.exit()
 
 
 if __name__ == "__main__":
