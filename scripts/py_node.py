@@ -254,7 +254,7 @@ def main():
                         if chk == [True, True]:
                             if svo_image[idx] != 0:
                                 cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
-                                cv2.waitKey(0) 
+                                cv2.waitKey(1) 
 
         if fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
             
