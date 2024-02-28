@@ -100,6 +100,10 @@ def init_zed_params():
     zed_params.fusion_init.output_performance_metrics = False
     zed_params.fusion_init.verbose = True
     
+    zed_params.body_tracking_fusion = sl.BodyTrackingFusionParameters()
+    zed_params.body_tracking_fusion.enable_tracking = True
+    zed_params.body_tracking_fusion.enable_body_fitting = False
+    
     return zed_params
 
 
@@ -156,14 +160,45 @@ def connect_cams():
     
 def init_fusion():
     
-    global fusion, camera_identifiers
+    global fusion
     zed_params.communication = sl.CommunicationParameters()
     fusion = sl.Fusion()
-    camera_identifiers = []
+    
 
     fusion.init(zed_params.fusion_init)
         
     print("Cameras in this configuration : ", len(zed_params.fusion))
+    
+    
+def subscribe_to_cam_outputs():
+    
+    global bodies, svo_image, camera_identifiers
+    
+    bodies = sl.Bodies()        
+    for serial in senders:
+        zed = senders[serial]
+        if zed.grab() == sl.ERROR_CODE.SUCCESS:
+            zed.retrieve_bodies(bodies)
+            
+    camera_identifiers = []
+    svo_image = [None] * len(zed_params.fusion)
+    for i in range(0, len(zed_params.fusion)):
+        conf = zed_params.fusion[i]
+        uuid = sl.CameraIdentifier()
+        uuid.serial_number = conf.serial_number
+        print("Subscribing to", conf.serial_number, conf.communication_parameters.comm_type)
+
+        status = fusion.subscribe(uuid, conf.communication_parameters, conf.pose)
+        if status != sl.FUSION_ERROR_CODE.SUCCESS:
+            print("Unable to subscribe to", uuid.serial_number, status)
+        else:
+            camera_identifiers.append(uuid)
+            svo_image[i] = sl.Mat()
+            print("Subscribed.")
+
+    if len(camera_identifiers) <= 0:
+        print("No camera connected.")
+        exit(1)
 
 
 def main():
@@ -184,37 +219,12 @@ def main():
         
     init_fusion()
 
-    # warmup
-    bodies = sl.Bodies()        
-    for serial in senders:
-        zed = senders[serial]
-        if zed.grab() == sl.ERROR_CODE.SUCCESS:
-            zed.retrieve_bodies(bodies)
-
-    svo_image = [None] * len(zed_params.fusion)
-    for i in range(0, len(zed_params.fusion)):
-        conf = zed_params.fusion[i]
-        uuid = sl.CameraIdentifier()
-        uuid.serial_number = conf.serial_number
-        print("Subscribing to", conf.serial_number, conf.communication_parameters.comm_type)
-
-        status = fusion.subscribe(uuid, conf.communication_parameters, conf.pose)
-        if status != sl.FUSION_ERROR_CODE.SUCCESS:
-            print("Unable to subscribe to", uuid.serial_number, status)
-        else:
-            camera_identifiers.append(uuid)
-            svo_image[i] = sl.Mat()
-            print("Subscribed.")
-
-    if len(camera_identifiers) <= 0:
-        print("No camera connected.")
-        exit(1)
-
-    body_tracking_fusion_params = sl.BodyTrackingFusionParameters()
-    body_tracking_fusion_params.enable_tracking = True
-    body_tracking_fusion_params.enable_body_fitting = False
+    subscribe_to_cam_outputs()
     
-    fusion.enable_body_tracking(body_tracking_fusion_params)
+
+    
+    
+    fusion.enable_body_tracking(zed_params.body_tracking_fusion)
 
     rt = sl.BodyTrackingFusionRuntimeParameters()
     rt.skeleton_minimum_allowed_keypoints = 7
