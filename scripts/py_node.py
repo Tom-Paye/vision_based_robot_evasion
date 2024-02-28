@@ -209,8 +209,10 @@ def init_body_tracking_and_viewer():
 
     rt = sl.BodyTrackingFusionRuntimeParameters()
     rt.skeleton_minimum_allowed_keypoints = 7
-    viewer = gl.GLViewer()
-    viewer.init()
+
+    if user_params.display_skeleton == True:
+        viewer = gl.GLViewer()
+        viewer.init()
 
     # Create ZED objects filled in the main loop
     bodies = sl.Bodies()
@@ -243,7 +245,14 @@ def main():
     
 
     chk = [False, False]
-    while (viewer.is_available()):
+    key = ''
+    # while (viewer.is_available()):
+
+    while (True):
+
+        if key == ord("q"):
+            break
+
         for serial in senders:
             zed = senders[serial]
             if zed.grab() == sl.ERROR_CODE.SUCCESS:
@@ -256,7 +265,7 @@ def main():
                             if svo_image[idx] != 0:
                                 if (idx+1 == user_params.display_video) or (user_params.display_video == 3):
                                     cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
-                                    cv2.waitKey(1) 
+                                    # key = cv2.waitKey(1) 
 
         if fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
             
@@ -266,7 +275,10 @@ def main():
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in camera_identifiers:
             #     fusion.retrieveBodies(single_bodies, rt, cam); 
-            viewer.update_bodies(bodies)
+            if (user_params.display_skeleton == True) and (viewer.is_available()):
+                viewer.update_bodies(bodies)
+
+        key = cv2.pollKey()
             
             
     cv2.destroyAllWindows()
