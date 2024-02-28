@@ -248,12 +248,13 @@ def main():
             if zed.grab() == sl.ERROR_CODE.SUCCESS:
                 zed.retrieve_bodies(bodies)
                 # zed.retrieve_image(svo_image, sl.VIEW.SIDE_BY_SIDE)
-                for idx, cam_id in enumerate(camera_identifiers):
-                    chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
-                    if chk == [True, True]:
-                        if svo_image[idx] != 0:
-                            cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
-                            cv2.waitKey(2) 
+                if user_params.display_video == True:
+                    for idx, cam_id in enumerate(camera_identifiers):
+                        chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
+                        if chk == [True, True]:
+                            if svo_image[idx] != 0:
+                                cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
+                                cv2.waitKey(0) 
 
         if fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
             
