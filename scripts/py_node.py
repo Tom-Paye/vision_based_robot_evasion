@@ -154,6 +154,16 @@ def connect_cams():
         exit(1)
     
     
+def init_fusion():
+    
+    global fusion, camera_identifiers
+    zed_params.communication = sl.CommunicationParameters()
+    fusion = sl.Fusion()
+    camera_identifiers = []
+
+    fusion.init(zed_params.fusion_init)
+        
+    print("Cameras in this configuration : ", len(zed_params.fusion))
 
 
 def main():
@@ -172,14 +182,7 @@ def main():
 
     print("Senders started, running the fusion...")
         
-    
-    zed_params.communication = sl.CommunicationParameters()
-    fusion = sl.Fusion()
-    camera_identifiers = []
-
-    fusion.init(zed_params.fusion_init)
-        
-    print("Cameras in this configuration : ", len(zed_params.fusion))
+    init_fusion()
 
     # warmup
     bodies = sl.Bodies()        
