@@ -58,8 +58,9 @@ def init_user_params():
     user_params.video_src = 'SVO'                                       # SVO, Live
     user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'
     user_params.svo_suffix = '_720p_30fps.svo'
-    user_params.display_video = True
+    user_params.display_video = 'All'                                   # 1, 2, 'All', 'None'
     user_params.display_skeleton = True
+    
     # return user_params
     
 def init_zed_params():
@@ -80,7 +81,7 @@ def init_zed_params():
     zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
     zed_params.init.coordinate_units = sl.UNIT.METER
     zed_params.init.depth_mode = sl.DEPTH_MODE.ULTRA
-    zed_params.init.camera_resolution = sl.RESOLUTION.HD1080
+    zed_params.init.camera_resolution = sl.RESOLUTION.HD720
 
     zed_params.communication = sl.CommunicationParameters()
     zed_params.communication.set_for_shared_memory()
@@ -248,11 +249,11 @@ def main():
             if zed.grab() == sl.ERROR_CODE.SUCCESS:
                 zed.retrieve_bodies(bodies)
                 # zed.retrieve_image(svo_image, sl.VIEW.SIDE_BY_SIDE)
-                if user_params.display_video == True:
+                if user_params.display_video != 'None':
                     for idx, cam_id in enumerate(camera_identifiers):
                         chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
                         if chk == [True, True]:
-                            if svo_image[idx] != 0:
+                            if svo_image[idx] != 0 and (idx==user_params.display_video+1 or user_params.display_video=='All'):
                                 cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
                                 cv2.waitKey(1) 
 
