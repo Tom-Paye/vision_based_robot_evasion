@@ -103,7 +103,7 @@ def init_zed_params():
     return zed_params
 
 
-def connect_cams(conf):
+def connect_cams():
 
     for conf in zed_params.fusion:
         print("Try to open ZED", conf.serial_number)
