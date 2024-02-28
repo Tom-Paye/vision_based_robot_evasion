@@ -201,6 +201,21 @@ def subscribe_to_cam_outputs():
         exit(1)
 
 
+def init_body_tracking_and_viewer():
+    
+    global rt, viewer, bodies, single_bodies
+    fusion.enable_body_tracking(zed_params.body_tracking_fusion)
+
+    rt = sl.BodyTrackingFusionRuntimeParameters()
+    rt.skeleton_minimum_allowed_keypoints = 7
+    viewer = gl.GLViewer()
+    viewer.init()
+
+    # Create ZED objects filled in the main loop
+    bodies = sl.Bodies()
+    single_bodies = [sl.Bodies]
+
+
 def main():
     
     global zed_params, senders, network_senders
@@ -221,19 +236,10 @@ def main():
 
     subscribe_to_cam_outputs()
     
-
+    init_body_tracking_and_viewer()
     
     
-    fusion.enable_body_tracking(zed_params.body_tracking_fusion)
-
-    rt = sl.BodyTrackingFusionRuntimeParameters()
-    rt.skeleton_minimum_allowed_keypoints = 7
-    viewer = gl.GLViewer()
-    viewer.init()
-
-    # Create ZED objects filled in the main loop
-    bodies = sl.Bodies()
-    single_bodies = [sl.Bodies]
+    
 
     chk = [False, False]
     while (viewer.is_available()):
