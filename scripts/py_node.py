@@ -96,7 +96,7 @@ class local_functions():
         print("It needs a Localization file in input. Generate it with ZED 360.")
         print("The cameras can either be plugged to your devices, or already running on the local network.")
         
-        class zed_params(self): pass
+        class zed_params(): pass
         zed_params.fusion = sl.read_fusion_configuration_file(self.user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
         if len(zed_params.fusion) <= 0:
             print("Invalid config file.")
