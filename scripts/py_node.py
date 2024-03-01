@@ -208,7 +208,7 @@ class local_functions():
         for serial in self.senders:
             zed = self.senders[serial]
             if zed.grab() == sl.ERROR_CODE.SUCCESS:
-                zed.retrieve_self.bodies(bodies)
+                zed.retrieve_bodies(bodies)
                 
         camera_identifiers = []
         svo_image = [None] * len(self.zed_params.fusion)
@@ -254,7 +254,7 @@ class local_functions():
         for idx, serial in enumerate(self.senders):
             zed = self.senders[serial]
             if zed.grab() == sl.ERROR_CODE.SUCCESS:
-                zed.retrieve_self.bodies(self.bodies)
+                zed.retrieve_bodies(self.bodies)
                 if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
                     self.chk[idx] = self.fusion.retrieve_image(self.svo_image[idx], self.camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
                     if self.chk == [True, True]:
@@ -265,7 +265,7 @@ class local_functions():
         if self.fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
             
             # Retrieve detected objects
-            self.fusion.retrieve_self.bodies(self.bodies, self.rt)
+            self.fusion.retrieve_bodies(self.bodies, self.rt)
             
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in self.camera_identifiers:
