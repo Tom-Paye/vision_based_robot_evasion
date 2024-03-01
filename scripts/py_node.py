@@ -57,18 +57,18 @@ class local_functions():
     
     def __init__(self):
         self.user_params = self.init_user_params()
-        self.zed_params = self.init_zed_params(self)
+        self.zed_params = self.init_zed_params()
         self.senders = {}
         self.network_senders = {}
         
         # for conf in self.zed_params.fusion:
             
-        self.connect_cams(self)
+        self.connect_cams()
         print("self.senders started, running the fusion...")
-        self.fusion = self.init_fusion(self)
-        [self.bodies, self.svo_image, self.camera_identifiers] = self.subscribe_to_cam_outputs(self)
+        self.fusion = self.init_fusion()
+        [self.bodies, self.svo_image, self.camera_identifiers] = self.subscribe_to_cam_outputs()
 
-        [self.rt, self.viewer, self.bodies, self.single_bodies] = self.init_body_tracking_and_viewer(self)
+        [self.rt, self.viewer, self.bodies, self.single_bodies] = self.init_body_tracking_and_viewer()
         
         # a_list = []
         # _thread.start_new_thread(input_thread, (a_list,))
