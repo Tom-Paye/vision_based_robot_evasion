@@ -29,30 +29,39 @@ class MinimalPublisher(Node):
         super().__init__('minimal_publisher')
         self.publisher_txt = self.create_publisher(String, 'topic', 10)
         self.publisher_zed = self.create_publisher(String, 'topic', 10)
-        timer_period = 0.001  # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
+        self.key = ''
+        # self.future.done = False
 
-    def timer_callback(self):
+    def timer_callback(self, data):
+        # if self.key == ord("q"):
+        #     self.future.done = True
         msg = String()
-        msg.data = 'Hello World: %d' % self.i
+        # msg.data = 'Hello World: %d' % self.i
+        msg.data = data + '  ::  ' + str(self.i)
         self.publisher_txt.publish(msg)
         self.get_logger().info('Publishing: "%s"' % msg.data)
+        self.key = cv2.pollKey()
         self.i += 1
 
+    def timer_caller(self, data):
+        timer_period = 0.001  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback(data))
+        rclpy.spin_once(self)
+        
 
-    def publisher(args=None):
-        rclpy.init(args=args)
-    
-        minimal_publisher = MinimalPublisher()
-    
-        rclpy.spin(minimal_publisher)
-    
-        # Destroy the node explicitly
-        # (optional - otherwise it will be done automatically
-        # when the garbage collector destroys the node object)
-        minimal_publisher.destroy_node()
-        rclpy.shutdown()
+def publisher(args=None):
+    rclpy.init(args=args)
+
+    minimal_publisher = MinimalPublisher()
+
+    rclpy.spin(minimal_publisher)
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    minimal_publisher.destroy_node()
+    rclpy.shutdown()
 
 class local_functions():
     
@@ -274,6 +283,7 @@ class local_functions():
             #     fusion.retrieveBodies(self.single_bodies, rt, cam); 
             if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
                 self.viewer.update_bodies(self.bodies)
+        return 'zed_loop successful'
                 
     def fetch_skeleton(self):
         
@@ -314,43 +324,55 @@ class local_functions():
                 
                 
     def close(self):
+
+        if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
+            self.viewer.exit()
+
         cv2.destroyAllWindows()
         for sender in self.senders:
             self.senders[sender].close()
 
 
-        if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
-            self.viewer.exit()
+def main(args=None):
+    
 
-
-def main():
+    
+    rclpy.init(args=args)
+    publisher = MinimalPublisher()
     
     cam = local_functions()
-    # publisher = MinimalPublisher()
-    
     key = ''
     # while (viewer.is_available()):
     checkpoint = time.time()
-    while (True):
+    while (key != ord("p")):
 
         checkpoint_2 = time.time()
         print(checkpoint_2-checkpoint)
         checkpoint = checkpoint_2
         # if a_list: # key == ord("q"):
         #     break
-        if key == ord("q"):
-            break
+        # if key == ord("q"):
+        #     break
 
         # zed = self.senders[30635524]
         # zed.retrieve_image(self.svo_image[1], sl.VIEW.SIDE_BY_SIDE)
         # cv2.imshow("View"+str(1), self.svo_image[1].get_data())
+
+
         
-        cam.zed_loop()
+        output = cam.zed_loop()
+        publisher.timer_callback(output)
+
 
         key = cv2.pollKey()
             
-            
     cam.close()
+
+
+
+    # rclpy.spin(publisher)
+    publisher.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
