@@ -63,7 +63,7 @@ def init_user_params():
     user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'
     user_params.svo_suffix = '_720p_30fps.svo'
     user_params.display_video = 2                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
-    user_params.display_skeleton = False
+    user_params.display_skeleton = True
     
     # return user_params
     
@@ -268,31 +268,31 @@ def main():
         if key == ord("q"):
             break
 
-        zed = senders[30635524]
-        zed.retrieve_image(svo_image[1], sl.VIEW.SIDE_BY_SIDE)
-        cv2.imshow("View"+str(1), svo_image[1].get_data())
+        # zed = senders[30635524]
+        # zed.retrieve_image(svo_image[1], sl.VIEW.SIDE_BY_SIDE)
+        # cv2.imshow("View"+str(1), svo_image[1].get_data())
         
-        # for idx, serial in enumerate(senders):
-        #     zed = senders[serial]
-        #     if zed.grab() == sl.ERROR_CODE.SUCCESS:
-                # zed.retrieve_bodies(bodies)
-                # if (idx+1 == user_params.display_video) or (user_params.display_video == 3):
-                #     chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
-                #     if chk == [True, True]:
-                #         if svo_image[idx] != 0:
-                #             cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
-                #                 # key = cv2.waitKey(1) 
+        for idx, serial in enumerate(senders):
+            zed = senders[serial]
+            if zed.grab() == sl.ERROR_CODE.SUCCESS:
+                zed.retrieve_bodies(bodies)
+                if (idx+1 == user_params.display_video) or (user_params.display_video == 3):
+                    chk[idx] = fusion.retrieve_image(svo_image[idx], camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
+                    if chk == [True, True]:
+                        if svo_image[idx] != 0:
+                            cv2.imshow("View"+str(idx), svo_image[idx].get_data()) #dislay both images to cv2
+                                # key = cv2.waitKey(1) 
 
-        # if fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
+        if fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
             
-        #     # Retrieve detected objects
-        #     fusion.retrieve_bodies(bodies, rt)
+            # Retrieve detected objects
+            fusion.retrieve_bodies(bodies, rt)
             
-        #     # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
-        #     # for cam in camera_identifiers:
-        #     #     fusion.retrieveBodies(single_bodies, rt, cam); 
-        #     if (user_params.display_skeleton == True) and (viewer.is_available()):
-        #         viewer.update_bodies(bodies)
+            # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
+            # for cam in camera_identifiers:
+            #     fusion.retrieveBodies(single_bodies, rt, cam); 
+            if (user_params.display_skeleton == True) and (viewer.is_available()):
+                viewer.update_bodies(bodies)
 
         key = cv2.pollKey()
             
