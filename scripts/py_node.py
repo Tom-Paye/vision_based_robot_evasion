@@ -56,13 +56,11 @@ class MinimalPublisher(Node):
 class local_functions():
     
     def __init__(self):
-        super().init('camera_connection')
         self.user_params = self.init_user_params(self)
         self.zed_params = self.init_zed_params(self)
         self.senders = {}
         self.network_senders = {}
         
-
         # for conf in self.zed_params.fusion:
             
         self.connect_cams(self)
@@ -72,10 +70,8 @@ class local_functions():
 
         [self.rt, self.viewer, self.bodies, self.single_bodies] = self.init_body_tracking_and_viewer(self)
         
-        
         # a_list = []
         # _thread.start_new_thread(input_thread, (a_list,))
-
 
         self.chk = [False, False]
         if self.user_params.display_video < 3:
