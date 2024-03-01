@@ -27,7 +27,8 @@ class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        self.publisher_txt = self.create_publisher(String, 'topic', 10)
+        self.publisher_zed = self.create_publisher(String, 'topic', 10)
         timer_period = 0.001  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
@@ -35,7 +36,7 @@ class MinimalPublisher(Node):
     def timer_callback(self):
         msg = String()
         msg.data = 'Hello World: %d' % self.i
-        self.publisher_.publish(msg)
+        self.publisher_txt.publish(msg)
         self.get_logger().info('Publishing: "%s"' % msg.data)
         self.i += 1
 
@@ -122,9 +123,9 @@ class local_functions():
     
         zed_params.body_tracking = sl.BodyTrackingParameters()
         zed_params.body_tracking.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
-        zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_18
-        zed_params.body_tracking.enable_body_fitting = False
-        zed_params.body_tracking.enable_tracking = False
+        zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_38
+        zed_params.body_tracking.enable_body_fitting = True
+        zed_params.body_tracking.enable_tracking = True
         
         zed_params.fusion_init = sl.InitFusionParameters()
         zed_params.fusion_init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
@@ -266,12 +267,32 @@ class local_functions():
             
             # Retrieve detected objects
             self.fusion.retrieve_bodies(self.bodies, self.rt)
+            [self.right_hand_pos, self.left_hand_pos] = self.fetch_skeleton()
             
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in self.camera_identifiers:
             #     fusion.retrieveBodies(self.single_bodies, rt, cam); 
             if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
                 self.viewer.update_bodies(self.bodies)
+                
+    def fetch_skeleton(self):
+        
+        if len(self.bodies.body_list) > 0:
+            for body in self.bodies.body_list:
+                left_hand_matrix = np.array(body.keypoint[16]).reshape([1, 3])
+                right_hand_matrix = np.array(body.keypoint[17]).reshape([1, 3])
+            
+                for i in range(30, 37, 2):
+                    keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
+                    keypoint_right = np.array(body.keypoint[i + 1]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
+                    np.vstack((left_hand_matrix, keypoint_left))  # left hand
+                    np.vstack((right_hand_matrix, keypoint_right))  # left hand
+            
+                left_hand_pos = np.mean(left_hand_matrix, axis=0)
+                right_hand_pos = np.mean(right_hand_matrix, axis=0)
+            
+                # print("shape of hand positions is ", np.shape(left_hand_pos))
+                return right_hand_pos, left_hand_pos
                 
                 
     def close(self):
@@ -287,6 +308,7 @@ class local_functions():
 def main():
     
     cam = local_functions()
+    publisher = MinimalPublisher()
     
     key = ''
     # while (viewer.is_available()):
