@@ -308,7 +308,7 @@ class local_functions():
 def main():
     
     cam = local_functions()
-    publisher = MinimalPublisher()
+    # publisher = MinimalPublisher()
     
     key = ''
     # while (viewer.is_available()):
