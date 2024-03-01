@@ -267,7 +267,7 @@ class local_functions():
             
             # Retrieve detected objects
             self.fusion.retrieve_bodies(self.bodies, self.rt)
-            [self.right_hand_pos, self.left_hand_pos] = self.fetch_skeleton()
+            [self.left_hand_pos_all, self.right_hand_pos_all] = self.fetch_skeleton()
             
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in self.camera_identifiers:
@@ -293,12 +293,24 @@ class local_functions():
             
                 left_hand_pos = np.mean(left_hand_matrix, axis=0)
                 right_hand_pos = np.mean(right_hand_matrix, axis=0)
-                
-                left_hand_pos_all = np.vstack(left_hand_pos_all, left_hand_pos)
-                right_hand_pos_all = np.vstack(right_hand_pos_all, right_hand_pos)
+
+                if not np.any(np.isnan(left_hand_pos)):
+                    lhp = np.array([left_hand_pos[:]])
+                    if not np.any(left_hand_pos_all):
+                        left_hand_pos_all = lhp
+                    else:
+                        left_hand_pos_all = np.append(left_hand_pos_all, lhp, axis=0)
+
+                if not np.any(np.isnan(right_hand_pos)):
+                    rhp = np.array([right_hand_pos[:]])
+                    if not np.any(right_hand_pos_all):
+                        right_hand_pos_all = rhp
+                    else:
+                        right_hand_pos_all = np.append(right_hand_pos_all, rhp, axis=0)
             
                 # print("shape of hand positions is ", np.shape(left_hand_pos))
-            return left_hand_pos_all, right_hand_pos_all
+            
+        return left_hand_pos_all, right_hand_pos_all
                 
                 
     def close(self):
