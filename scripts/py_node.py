@@ -56,7 +56,7 @@ class MinimalPublisher(Node):
 class local_functions():
     
     def __init__(self):
-        self.user_params = self.init_user_params(self)
+        self.user_params = self.init_user_params()
         self.zed_params = self.init_zed_params(self)
         self.senders = {}
         self.network_senders = {}
@@ -77,7 +77,7 @@ class local_functions():
         if self.user_params.display_video < 3:
             self.chk = [True, True]
 
-    def init_user_params(self):
+    def init_user_params():
         # For now, all parameters are defined in this script
         class user_params(): pass
         user_params.config_pth = '/usr/local/zed/tools/zed_calib.json'
