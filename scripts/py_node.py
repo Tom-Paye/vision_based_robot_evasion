@@ -277,6 +277,9 @@ class local_functions():
                 
     def fetch_skeleton(self):
         
+        left_hand_pos = np.array([0, 0, 0])
+        right_hand_pos = np.array([0, 0, 0])
+        
         if len(self.bodies.body_list) > 0:
             for body in self.bodies.body_list:
                 left_hand_matrix = np.array(body.keypoint[16]).reshape([1, 3])
