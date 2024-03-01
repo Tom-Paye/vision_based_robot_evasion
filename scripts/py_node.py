@@ -271,7 +271,7 @@ class local_functions():
             # for cam in self.camera_identifiers:
             #     fusion.retrieveBodies(self.single_bodies, rt, cam); 
             if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
-                self.viewer.update_self.bodies(self.bodies)
+                self.viewer.update_bodies(self.bodies)
                 
                 
     def close(self):
