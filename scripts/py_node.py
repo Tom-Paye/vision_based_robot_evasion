@@ -277,8 +277,8 @@ class local_functions():
                 
     def fetch_skeleton(self):
         
-        left_hand_pos = np.array([0, 0, 0])
-        right_hand_pos = np.array([0, 0, 0])
+        left_hand_pos_all = np.array([[0, 0, 0]])
+        right_hand_pos_all = np.array([[0, 0, 0]])
         
         if len(self.bodies.body_list) > 0:
             for body in self.bodies.body_list:
@@ -293,9 +293,12 @@ class local_functions():
             
                 left_hand_pos = np.mean(left_hand_matrix, axis=0)
                 right_hand_pos = np.mean(right_hand_matrix, axis=0)
+                
+                left_hand_pos_all = np.vstack(left_hand_pos_all, left_hand_pos)
+                right_hand_pos_all = np.vstack(right_hand_pos_all, right_hand_pos)
             
                 # print("shape of hand positions is ", np.shape(left_hand_pos))
-                return right_hand_pos, left_hand_pos
+            return left_hand_pos_all, right_hand_pos_all
                 
                 
     def close(self):
