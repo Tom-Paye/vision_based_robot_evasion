@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # import my_cpp_py_pkg.module_to_import
+# __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run my_cpp_py_pkg py_node.py
 
 import rclpy
 from rclpy.node import Node
