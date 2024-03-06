@@ -19,6 +19,8 @@ import numpy as np
 import os
 import copy
 import _thread
+from geometry_msgs.msg import Vector3
+import pickle
 
 # def input_thread(a_list):
 #     input()             # use input() in Python3
@@ -28,8 +30,9 @@ class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_txt = self.create_publisher(String, 'topic', 10)
-        self.publisher_zed = self.create_publisher(String, 'topic', 10)
+        self.publisher_txt = self.create_publisher(Vector3, 'topic', 10)
+        # self.publisher_zed = self.create_publisher(String, 'topic', 10)
+        
         self.i = 0
         self.key = ''
         # self.future.done = False
@@ -37,11 +40,15 @@ class MinimalPublisher(Node):
     def timer_callback(self, data):
         # if self.key == ord("q"):
         #     self.future.done = True
-        msg = String()
+        # msg = String()
         # msg.data = 'Hello World: %d' % self.i
-        msg.data = data + '  ::  ' + str(self.i)
+        # msg.data = data + '  ::  ' + str(self.i)
+        msg = Vector3()
+
+        [msg.x, msg.y, msg.z] = data[0].astype(float)
         self.publisher_txt.publish(msg)
-        self.get_logger().info('Publishing: "%s"' % msg.data)
+        # self.get_logger().info('Publishing: "%s"' % msg.data)
+        self.get_logger().info(str(data[0]))
         self.key = cv2.pollKey()
         self.i += 1
 
@@ -93,10 +100,12 @@ class local_functions():
         class user_params(): pass
         user_params.config_pth = '/usr/local/zed/tools/zed_calib.json'
         user_params.video_src = 'SVO'                                       # SVO, Live
-        user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/clean_SN'
+        user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
+        user_params.svo_prefix = 'clean_SN'  #clean_SN, std_SN
         user_params.svo_suffix = '_720p_30fps.svo'
         user_params.display_video = 2                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
         user_params.display_skeleton = True
+        user_params.return_hands = True
         return user_params
         
         # return self.user_params
@@ -133,7 +142,10 @@ class local_functions():
     
         zed_params.body_tracking = sl.BodyTrackingParameters()
         zed_params.body_tracking.detection_model = sl.BODY_TRACKING_MODEL.HUMAN_BODY_ACCURATE
-        zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_38
+        if self.user_params.return_hands == True:
+            zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_38
+        else:
+            zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_18
         zed_params.body_tracking.enable_body_fitting = True
         zed_params.body_tracking.enable_tracking = True
         
@@ -146,6 +158,16 @@ class local_functions():
         zed_params.body_tracking_fusion = sl.BodyTrackingFusionParameters()
         zed_params.body_tracking_fusion.enable_tracking = True
         zed_params.body_tracking_fusion.enable_body_fitting = False
+
+        # only for body_18
+        zed_params.left_arm_keypoints = [5, 6, 7]
+        zed_params.right_arm_keypoints = [2, 3, 4]
+        zed_params.trunk_keypoints = [0, 1, 14, 15, 16, 17]
+
+        # only for body_38
+        zed_params.left_hand_keypoints = [30, 32, 34, 36]
+        zed_params.right_hand_keypoints = [31, 33, 35 , 37]
+
         
         return zed_params
     
@@ -168,7 +190,8 @@ class local_functions():
                 # self.zed_params.init.set_from_serial_number(conf.serial_number)
                 if self.user_params.video_src == 'SVO':
                     self.zed_params.init.set_from_svo_file(self.user_params.svo_pth \
-                              + str(conf.serial_number) + self.user_params.svo_suffix)
+                              + self.user_params.svo_prefix + str(conf.serial_number)\
+                                  + self.user_params.svo_suffix)
                 else:
                     self.zed_params.init.set_from_serial_number(conf.serial_number)
                     
@@ -262,6 +285,9 @@ class local_functions():
         
     
     def zed_loop(self):
+        self.left_pos_all = np.array([[0, 0, 0]])
+        self.right_pos_all = np.array([[0, 0, 0]])
+        self.trunk_pos_all = np.array([[0, 0, 0]])
         for idx, serial in enumerate(self.senders):
             zed = self.senders[serial]
             if zed.grab() == sl.ERROR_CODE.SUCCESS:
@@ -277,51 +303,72 @@ class local_functions():
             
             # Retrieve detected objects
             self.fusion.retrieve_bodies(self.bodies, self.rt)
-            [self.left_hand_pos_all, self.right_hand_pos_all] = self.fetch_skeleton()
+            self.fetch_skeleton()
             
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in self.camera_identifiers:
             #     fusion.retrieveBodies(self.single_bodies, rt, cam); 
             if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
                 self.viewer.update_bodies(self.bodies)
-        return 'zed_loop successful'
                 
     def fetch_skeleton(self):
         
-        left_hand_pos_all = np.array([[0, 0, 0]])
-        right_hand_pos_all = np.array([[0, 0, 0]])
-        
         if len(self.bodies.body_list) > 0:
-            for body in self.bodies.body_list:
-                left_hand_matrix = np.array(body.keypoint[16]).reshape([1, 3])
-                right_hand_matrix = np.array(body.keypoint[17]).reshape([1, 3])
-            
-                for i in range(30, 37, 2):
+            for body in self.bodies.body_list:         
+                
+                if self.user_params.return_hands == True:
+                    left_kpt_idx = self.zed_params.left_hand_keypoints
+                    right_kpt_idx = self.zed_params.right_hand_keypoints
+                else:
+                    left_kpt_idx = self.zed_params.left_hand_keypoints
+                    right_kpt_idx = self.zed_params.right_hand_keypoints
+                trunk_kpt_idx = self.zed_params.trunk_keypoints
+
+                left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
+                right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
+                trunk_matrix = np.array(body.keypoint[trunk_kpt_idx[0]]).reshape([1, 3])
+
+                for h in range(len(left_kpt_idx)-1):
+                    i = left_kpt_idx[h+1]
+                    j = right_kpt_idx[h+1]
                     keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
                     keypoint_right = np.array(body.keypoint[i + 1]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
-                    np.vstack((left_hand_matrix, keypoint_left))  # left hand
-                    np.vstack((right_hand_matrix, keypoint_right))  # left hand
+                    np.vstack((left_matrix, keypoint_left))  # left hand
+                    np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
+                
+                if self.user_params.return_hands == False:
+                    for h in range(len(trunk_kpt_idx)-1):
+                        k = trunk_kpt_idx[h+1]
+                        keypoint_trunk = np.array(body.keypoint[k]).reshape([1, 3])
+                        np.vstack((trunk_matrix, keypoint_trunk))
             
-                left_hand_pos = np.mean(left_hand_matrix, axis=0)
-                right_hand_pos = np.mean(right_hand_matrix, axis=0)
+                left_pos = np.mean(left_matrix, axis=0)
+                right_pos = np.mean(right_matrix, axis=0)
+                trunk_pos = np.mean(trunk_matrix, axis=0)
 
-                if not np.any(np.isnan(left_hand_pos)):
-                    lhp = np.array([left_hand_pos[:]])
-                    if not np.any(left_hand_pos_all):
-                        left_hand_pos_all = lhp
+                if not np.any(np.isnan(left_pos)):
+                    lhp = np.array([left_pos[:]])
+                    if not np.any(self.left_pos_all):
+                        self.left_pos_all = lhp
                     else:
-                        left_hand_pos_all = np.append(left_hand_pos_all, lhp, axis=0)
+                        self.left_pos_all = np.append(self.left_pos_all, lhp, axis=0)
 
-                if not np.any(np.isnan(right_hand_pos)):
-                    rhp = np.array([right_hand_pos[:]])
-                    if not np.any(right_hand_pos_all):
-                        right_hand_pos_all = rhp
+                if not np.any(np.isnan(right_pos)):
+                    rhp = np.array([right_pos[:]])
+                    if not np.any(self.right_pos_all):
+                        self.right_pos_all = rhp
                     else:
-                        right_hand_pos_all = np.append(right_hand_pos_all, rhp, axis=0)
+                        self.right_pos_all = np.append(self.right_pos_all, rhp, axis=0)
+
+                if not np.any(np.isnan(trunk_pos)):
+                    thp = np.array([trunk_pos[:]])
+                    if not np.any(self.trunk_pos_all):
+                        self.trunk_pos_all = thp
+                    else:
+                        self.trunk_pos_all = np.append(self.trunk_pos_all, thp, axis=0)
             
-                # print("shape of hand positions is ", np.shape(left_hand_pos))
-            
-        return left_hand_pos_all, right_hand_pos_all
+                # print("shape of hand positions is ", np.shape(left_pos))
+
                 
                 
     def close(self):
@@ -336,8 +383,22 @@ class local_functions():
 
 def main(args=None):
     
+    # objects = []
+    # file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
+    # # print(file.read())
+    # while(True):
+    #     try:
+    #         objects.append(pickle.load(file))
+    #     except EOFError:
+    #         break
+    # print(objects)
 
-    
+    # fus = sl.FusionConfigutation()
+    # fus.input_type = 'INTRA_PROCESS'
+    # fus.pose = []
+
+
+
     rclpy.init(args=args)
     publisher = MinimalPublisher()
     
@@ -361,8 +422,10 @@ def main(args=None):
 
 
         
-        output = cam.zed_loop()
-        publisher.timer_callback(output)
+        cam.zed_loop()
+        output_l, output_r, output_t = cam.left_pos_all, cam.right_pos_all, cam.trunk_pos_all
+        # publisher.timer_callback(output_l)
+        # publisher.timer_callback(output_r)
 
 
         key = cv2.pollKey()
