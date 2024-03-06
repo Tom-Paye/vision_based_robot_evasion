@@ -127,7 +127,7 @@ class local_functions():
        
         while(True):
             try:
-                fus = sl.FusionConfigutation()
+                fus = sl.FusionConfiguration()
                 objects = (pickle.load(file))
                 
                 fus.pose.m = objects[0]
