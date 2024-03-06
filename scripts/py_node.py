@@ -130,9 +130,13 @@ class local_functions():
                 fus = sl.FusionConfiguration()
                 objects = (pickle.load(file))
                 
-                fus.pose.m = objects[0]
+                fus.pose.m = objects['0'][0]
+                R = objects['0'][0][0]
+                t = objects['0'][0][1]
+                M = np.append(R, [t], axis=1)
+                M = np.append(M, [[0, 0, 0, 1]], axis=0)
                 
-                fus.serial_number = objects.keys()[0]
+                # fus.serial_number = objects.keys()
                 # fus.CommunicationParameters = objects[0]
                 fus.Transform = objects[0]
                 fus.InputType = 'USB_SERIAL'
