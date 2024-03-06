@@ -124,24 +124,23 @@ class local_functions():
         objects = []
         file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
         # print(file.read())
-        ids = [3268976, 3478238]
-        while(True):
-            try:
-                fus = sl.FusionConfiguration()
-                objects = (pickle.load(file))
+        ids = [34783283, 32689769]
+        objects = (pickle.load(file))
+        keysList = list(objects.keys())
+        for i, key in enumerate(keysList):
+            fus = sl.FusionConfiguration()
+            
 
-                # fus.pose.m = objects['0'][0]
-                R = objects['0'][0][0]
-                t = objects['0'][0][1]
-                M = np.append(R, np.transpose([t]), axis=1)
-                M = np.append(M, [[0, 0, 0, 1]], axis=0)
-                
-                fus.serial_number = ids.pop()
-                # fus.CommunicationParameters = objects[0]
-                # fus.Transform = objects[0]
-                zed_params.fusion.append(fus)
-            except EOFError:
-                break
+            # fus.pose.m = objects['0'][0]
+            R = objects[key][0][0]
+            t = objects[key][0][1]
+            M = np.append(R, np.transpose([t]), axis=1)
+            M = np.append(M, [[0, 0, 0, 1]], axis=0)
+            
+            fus.serial_number = ids[i]
+            # fus.CommunicationParameters = objects[0]
+            # fus.Transform = objects[0]
+            zed_params.fusion.append(fus)
             
         
         
