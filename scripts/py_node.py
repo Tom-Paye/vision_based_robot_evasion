@@ -119,15 +119,29 @@ class local_functions():
         class zed_params(): pass
         # zed_params.fusion = sl.read_fusion_configuration_file(self.user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
         
+        
+        zed_params.fusion =  [] # list of both fusionconfigs
         objects = []
         file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
         # print(file.read())
+       
         while(True):
             try:
-                objects.append(pickle.load(file))
+                fus = sl.FusionConfigutation()
+                objects = (pickle.load(file))
+                
+                fus.pose.m = objects[0]
+                
+                fus.serial_number = objects.keys()[0]
+                # fus.CommunicationParameters = objects[0]
+                fus.Transform = objects[0]
+                fus.InputType = 'USB_SERIAL'
+                zed_params.fusion.apend(fus)
             except EOFError:
                 break
-        zed_params.fusion = objects
+            
+        
+        
         
         
         
