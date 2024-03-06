@@ -101,7 +101,7 @@ class local_functions():
         user_params.config_pth = '/usr/local/zed/tools/zed_calib.json'
         user_params.video_src = 'SVO'                                       # SVO, Live
         user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
-        user_params.svo_prefix = 'clean_SN'  #clean_SN, std_SN
+        user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
         user_params.svo_suffix = '_720p_30fps.svo'
         user_params.display_video = 2                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
         user_params.display_skeleton = True
@@ -124,23 +124,22 @@ class local_functions():
         objects = []
         file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
         # print(file.read())
-       
+        ids = [3268976, 3478238]
         while(True):
             try:
                 fus = sl.FusionConfiguration()
                 objects = (pickle.load(file))
-                
-                fus.pose.m = objects['0'][0]
+
+                # fus.pose.m = objects['0'][0]
                 R = objects['0'][0][0]
                 t = objects['0'][0][1]
-                M = np.append(R, [t], axis=1)
+                M = np.append(R, np.transpose([t]), axis=1)
                 M = np.append(M, [[0, 0, 0, 1]], axis=0)
                 
-                # fus.serial_number = objects.keys()
+                fus.serial_number = ids.pop()
                 # fus.CommunicationParameters = objects[0]
-                fus.Transform = objects[0]
-                fus.InputType = 'USB_SERIAL'
-                zed_params.fusion.apend(fus)
+                # fus.Transform = objects[0]
+                zed_params.fusion.append(fus)
             except EOFError:
                 break
             
