@@ -117,7 +117,20 @@ class local_functions():
         print("The cameras can either be plugged to your devices, or already running on the local network.")
         
         class zed_params(): pass
-        zed_params.fusion = sl.read_fusion_configuration_file(self.user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
+        # zed_params.fusion = sl.read_fusion_configuration_file(self.user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
+        
+        objects = []
+        file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
+        # print(file.read())
+        while(True):
+            try:
+                objects.append(pickle.load(file))
+            except EOFError:
+                break
+        zed_params.fusion = objects
+        
+        
+        
         if len(zed_params.fusion) <= 0:
             print("Invalid config file.")
             exit(1)
