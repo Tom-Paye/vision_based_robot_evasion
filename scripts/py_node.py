@@ -55,7 +55,11 @@ class MinimalPublisher(Node):
             self.get_logger().Warning('position vectors are not the right dimension! \n'
                                       + 'expected 3 dimensions, got' + str(j) )
             exit()
-        self.publisher_text.publish(label)
+            
+        str_msg = String()
+        str_msg.data = label
+        self.publisher_text.publish(str_msg)
+        
         for k in range(i):
             msg = Vector3()
             pos = data[i]
