@@ -98,7 +98,8 @@ class local_functions():
     def init_user_params(self):
         # For now, all parameters are defined in this script
         class user_params(): pass
-        user_params.config_pth = '/usr/local/zed/tools/zed_calib.json'
+        user_params.config_pth = '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
+        #'/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt', '/usr/local/zed/tools/zed_calib.json'
         user_params.video_src = 'SVO'                                       # SVO, Live
         user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
         user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
@@ -117,30 +118,27 @@ class local_functions():
         print("The cameras can either be plugged to your devices, or already running on the local network.")
         
         class zed_params(): pass
-        # zed_params.fusion = sl.read_fusion_configuration_file(self.user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
         
-        
-        zed_params.fusion =  [] # list of both fusionconfigs
-        objects = []
-        file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
-        # print(file.read())
-        ids = [34783283, 32689769]
-        objects = (pickle.load(file))
-        keysList = list(objects.keys())
-        for i, key in enumerate(keysList):
-            fus = sl.FusionConfiguration()
-            
-
-            # fus.pose.m = objects['0'][0]
-            R = objects[key][0][0]
-            t = objects[key][0][1]
-            M = np.append(R, np.transpose([t]), axis=1)
-            M = np.append(M, [[0, 0, 0, 1]], axis=0)
-            
-            fus.serial_number = ids[i]
-            # fus.CommunicationParameters = objects[0]
-            # fus.Transform = objects[0]
-            zed_params.fusion.append(fus)
+        if self.user_params.config_pth[-4:] == 'json':
+            zed_params.fusion = sl.read_fusion_configuration_file(self.user_params.config_pth, sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP, sl.UNIT.METER)
+        else:
+            zed_params.fusion =  [] # list of both fusionconfigs
+            objects = []
+            file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
+            # print(file.read())
+            ids = [34783283, 32689769]
+            objects = (pickle.load(file))
+            keysList = list(objects.keys())
+            for i, key in enumerate(keysList):
+                fus = sl.FusionConfiguration()
+                
+                R = objects[key][0][0]
+                t = objects[key][0][1]
+                M = np.append(R, np.transpose([t]), axis=1)
+                M = np.append(M, [[0, 0, 0, 1]], axis=0)
+                
+                fus.serial_number = ids[i]
+                zed_params.fusion.append(fus)
             
         
         
@@ -186,7 +184,7 @@ class local_functions():
         
         zed_params.body_tracking_fusion = sl.BodyTrackingFusionParameters()
         zed_params.body_tracking_fusion.enable_tracking = True
-        zed_params.body_tracking_fusion.enable_body_fitting = False
+        zed_params.body_tracking_fusion.enable_body_fitting = True
 
         # only for body_18
         zed_params.left_arm_keypoints = [5, 6, 7]
