@@ -105,7 +105,7 @@ class local_functions():
         user_params.svo_suffix = '_720p_30fps.svo'
         user_params.display_video = 2                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
         user_params.display_skeleton = True
-        user_params.return_hands = True
+        user_params.return_hands = False
         return user_params
         
         # return self.user_params
@@ -349,8 +349,8 @@ class local_functions():
                     left_kpt_idx = self.zed_params.left_hand_keypoints
                     right_kpt_idx = self.zed_params.right_hand_keypoints
                 else:
-                    left_kpt_idx = self.zed_params.left_hand_keypoints
-                    right_kpt_idx = self.zed_params.right_hand_keypoints
+                    left_kpt_idx = self.zed_params.left_arm_keypoints
+                    right_kpt_idx = self.zed_params.right_arm_keypoints
                 trunk_kpt_idx = self.zed_params.trunk_keypoints
 
                 left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
