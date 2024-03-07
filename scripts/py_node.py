@@ -44,17 +44,25 @@ class MinimalPublisher(Node):
         self.key = ''
         # self.future.done = False
 
-    def timer_callback(self, data):
-        # if self.key == ord("q"):
-        #     self.future.done = True
-        # msg = String()
-        # msg.data = 'Hello World: %d' % self.i
-        # msg.data = data + '  ::  ' + str(self.i)
-        msg = Vector3()
-
-        [msg.x, msg.y, msg.z] = data[0].astype(float)
-        self.publisher_txt.publish(msg)
-        # self.get_logger().info('Publishing: "%s"' % msg.data)
+    def timer_callback(self, label, data):
+        """"
+        label: [str]
+        data: 2D array of dim [x, 3] of doubles
+        """
+        
+        [i, j] = np.shape(data)
+        if j!=3:
+            self.get_logger().Warning('position vectors are not the right dimension! \n'
+                                      + 'expected 3 dimensions, got' + str(j) )
+            exit()
+        self.publisher_txt.publish(label)
+        for k in range(i):
+            msg = Vector3()
+            pos = data[i]
+            [msg.x, msg.y, msg.z] = pos.astype(float)
+            self.publisher_txt.publish(msg)
+ 
+        self.get_logger().info(label)
         self.get_logger().info(str(data[0]))
         self.key = cv2.pollKey()
         self.i += 1
@@ -441,10 +449,10 @@ def main(args=None):
 
         cam.zed_loop()
         output_l, output_r, output_t = cam.left_pos_all, cam.right_pos_all, cam.trunk_pos_all
-        publisher.timer_callback(output_l)
-        publisher.timer_callback(output_r)
+        publisher.timer_callback('left', output_l)
+        publisher.timer_callback('right', output_r)
         if cam.user_params.return_hands:
-            publisher.timer_callback(output_t)
+            publisher.timer_callback('trunk', output_t)
 
         key = cv2.pollKey()
             
