@@ -22,10 +22,6 @@ import _thread
 from geometry_msgs.msg import Vector3
 import pickle
 
-# def input_thread(a_list):
-#     input()             # use input() in Python3
-#     a_list.append(True)
-
 def inverse_transform(R, t):
     T_inv = np.eye(4, 4)
     T_inv[:3, :3] = np.transpose(R)
@@ -42,7 +38,7 @@ class MinimalPublisher(Node):
         
         self.i = 0
         self.key = ''
-        # self.future.done = False
+        
 
     def timer_callback(self, label, data):
         """"
@@ -106,9 +102,6 @@ class local_functions():
         [self.bodies, self.svo_image, self.camera_identifiers] = self.subscribe_to_cam_outputs()
 
         [self.rt, self.bodies, self.single_bodies] = self.init_body_tracking_and_viewer()
-        
-        # a_list = []
-        # _thread.start_new_thread(input_thread, (a_list,))
 
         self.chk = [False, False]
         if self.user_params.display_video < 3:

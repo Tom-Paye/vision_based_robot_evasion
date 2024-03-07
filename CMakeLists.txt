@@ -30,7 +30,8 @@ install(TARGETS
 ament_python_install_package(${PROJECT_NAME})
 # Install Python executables
 install(PROGRAMS
-  scripts/py_node.py
+  scripts/img_to_kpts.py
+  scriptqs/kpts_to_bbox.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
