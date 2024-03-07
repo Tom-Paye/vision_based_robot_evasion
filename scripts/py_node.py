@@ -62,7 +62,7 @@ class MinimalPublisher(Node):
         
         for k in range(i):
             msg = Vector3()
-            pos = data[i]
+            pos = data[k]
             [msg.x, msg.y, msg.z] = pos.astype(float)
             self.publisher_vec.publish(msg)
  
