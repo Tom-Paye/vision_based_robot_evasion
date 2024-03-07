@@ -114,6 +114,7 @@ class local_functions():
         user_params.display_video = 2                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
         user_params.display_skeleton = True
         user_params.return_hands = False
+        user_params.time_loop = True
         return user_params
         
         # return self.user_params
@@ -131,7 +132,7 @@ class local_functions():
         else:
             zed_params.fusion =  [] # list of both fusionconfigs
             objects = []
-            file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
+            file = open(self.user_params.config_pth,'rb')
             # print(file.read())
             ids = [32689769, 34783283]
             objects = (pickle.load(file))
@@ -373,7 +374,7 @@ class local_functions():
                     i = left_kpt_idx[h+1]
                     j = right_kpt_idx[h+1]
                     keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
-                    keypoint_right = np.array(body.keypoint[i + 1]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
+                    keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
                     np.vstack((left_matrix, keypoint_left))  # left hand
                     np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
                 
@@ -424,58 +425,30 @@ class local_functions():
 
 def main(args=None):
     
-    # objects = []
-    # file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
-    # # print(file.read())
-    # while(True):
-    #     try:
-    #         objects.append(pickle.load(file))
-    #     except EOFError:
-    #         break
-    # print(objects)
-
-    # fus = sl.FusionConfigutation()
-    # fus.input_type = 'INTRA_PROCESS'
-    # fus.pose = []
-
-
 
     rclpy.init(args=args)
     publisher = MinimalPublisher()
-    
     cam = local_functions()
     key = ''
-    # while (viewer.is_available()):
     checkpoint = time.time()
-    while (key != ord("p")):
+    
+    while (key != ord("q")):
 
-        checkpoint_2 = time.time()
-        print(checkpoint_2-checkpoint)
-        checkpoint = checkpoint_2
-        # if a_list: # key == ord("q"):
-        #     break
-        # if key == ord("q"):
-        #     break
+        if cam.user_params.time_loop:
+            checkpoint_2 = time.time()
+            print(checkpoint_2-checkpoint)
+            checkpoint = checkpoint_2
 
-        # zed = self.senders[30635524]
-        # zed.retrieve_image(self.svo_image[1], sl.VIEW.SIDE_BY_SIDE)
-        # cv2.imshow("View"+str(1), self.svo_image[1].get_data())
-
-
-        
         cam.zed_loop()
         output_l, output_r, output_t = cam.left_pos_all, cam.right_pos_all, cam.trunk_pos_all
-        # publisher.timer_callback(output_l)
-        # publisher.timer_callback(output_r)
-
+        publisher.timer_callback(output_l)
+        publisher.timer_callback(output_r)
+        if cam.user_params.return_hands:
+            publisher.timer_callback(output_t)
 
         key = cv2.pollKey()
             
     cam.close()
-
-
-
-    # rclpy.spin(publisher)
     publisher.destroy_node()
     rclpy.shutdown()
 
