@@ -101,7 +101,7 @@ class local_functions():
         self.fusion = self.init_fusion()
         [self.bodies, self.svo_image, self.camera_identifiers] = self.subscribe_to_cam_outputs()
 
-        [self.rt, self.viewer, self.bodies, self.single_bodies] = self.init_body_tracking_and_viewer()
+        [self.rt, self.bodies, self.single_bodies] = self.init_body_tracking_and_viewer()
         
         # a_list = []
         # _thread.start_new_thread(input_thread, (a_list,))
@@ -324,14 +324,14 @@ class local_functions():
         rt.skeleton_minimum_allowed_keypoints = 7
     
         if self.user_params.display_skeleton == True:
-            viewer = gl.GLViewer()
-            viewer.init()
+            self.viewer = gl.GLViewer()
+            self.viewer.init()
     
         # Create ZED objects filled in the main loop
         bodies = sl.Bodies()
         single_bodies = [sl.Bodies]
         
-        return rt, viewer, bodies, single_bodies
+        return rt, bodies, single_bodies
         
     
     def zed_loop(self):
