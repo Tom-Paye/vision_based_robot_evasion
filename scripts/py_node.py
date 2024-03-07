@@ -111,10 +111,10 @@ class local_functions():
         user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
         user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
         user_params.svo_suffix = '_720p_30fps.svo'
-        user_params.display_video = 2                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
-        user_params.display_skeleton = True
+        user_params.display_video = 0                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
+        user_params.display_skeleton = False
         user_params.return_hands = False
-        user_params.time_loop = True
+        user_params.time_loop = False
         return user_params
         
         # return self.user_params
