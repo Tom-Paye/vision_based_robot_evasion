@@ -455,7 +455,7 @@ def main(args=None):
         output_l, output_r, output_t = cam.left_pos_all, cam.right_pos_all, cam.trunk_pos_all
         publisher.timer_callback('left', output_l)
         publisher.timer_callback('right', output_r)
-        if cam.user_params.return_hands:
+        if not cam.user_params.return_hands:
             publisher.timer_callback('trunk', output_t)
 
         key = cv2.pollKey()
