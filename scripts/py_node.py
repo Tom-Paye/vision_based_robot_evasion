@@ -37,8 +37,8 @@ class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_txt = self.create_publisher(Vector3, 'topic', 10)
-        # self.publisher_zed = self.create_publisher(String, 'topic', 10)
+        self.publisher_vec = self.create_publisher(Vector3, 'topic', 10)
+        self.publisher_text = self.create_publisher(String, 'topic', 10)
         
         self.i = 0
         self.key = ''
@@ -55,12 +55,12 @@ class MinimalPublisher(Node):
             self.get_logger().Warning('position vectors are not the right dimension! \n'
                                       + 'expected 3 dimensions, got' + str(j) )
             exit()
-        self.publisher_txt.publish(label)
+        self.publisher_text.publish(label)
         for k in range(i):
             msg = Vector3()
             pos = data[i]
             [msg.x, msg.y, msg.z] = pos.astype(float)
-            self.publisher_txt.publish(msg)
+            self.publisher_vec.publish(msg)
  
         self.get_logger().info(label)
         self.get_logger().info(str(data[0]))
