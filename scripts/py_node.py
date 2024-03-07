@@ -37,8 +37,8 @@ class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_vec = self.create_publisher(Vector3, 'topic', 10)
-        self.publisher_text = self.create_publisher(String, 'topic', 10)
+        self.publisher_vec = self.create_publisher(Vector3, 'kpt_label', 10)
+        self.publisher_text = self.create_publisher(String, 'kpt_data', 10)
         
         self.i = 0
         self.key = ''
