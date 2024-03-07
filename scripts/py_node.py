@@ -26,6 +26,13 @@ import pickle
 #     input()             # use input() in Python3
 #     a_list.append(True)
 
+def inverse_transform(R, t):
+    T_inv = np.eye(4, 4)
+    T_inv[:3, :3] = np.transpose(R)
+    T_inv[:3, 3] = -1 * np.matmul(np.transpose(R), (t))
+    return T_inv
+
+
 class MinimalPublisher(Node):
 
     def __init__(self):
@@ -126,7 +133,7 @@ class local_functions():
             objects = []
             file = open('/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt','rb')
             # print(file.read())
-            ids = [34783283, 32689769]
+            ids = [32689769, 34783283]
             objects = (pickle.load(file))
             keysList = list(objects.keys())
             for i, key in enumerate(keysList):
@@ -134,9 +141,16 @@ class local_functions():
                 
                 R = objects[key][0][0]
                 t = objects[key][0][1]
-                M = np.append(R, np.transpose([t]), axis=1)
-                M = np.append(M, [[0, 0, 0, 1]], axis=0)
+                # M = np.append(R, np.transpose([t]), axis=1)
+                # M = np.append(M, [[0, 0, 0, 1]], axis=0)
+                M = inverse_transform(R, t)
+
+                T = sl.Transform()
+                for j in range(4):
+                    for k in range(4):
+                        T[j,k] = M[j,k]
                 
+                fus.pose = T
                 fus.serial_number = ids[i]
                 zed_params.fusion.append(fus)
             
