@@ -11,37 +11,65 @@ import numpy as np
 import os
 import copy
 import _thread
-from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Quaternion
 import pickle
+import math
 
 class Subscriber(Node):
 
     def __init__(self):
         super().__init__('minimal_subscriber')
-        self.subscription_label = self.create_subscription(
-            String,
-            'kpt_label',
-            self.label_callback,
-            10)
-        self.subscription_label  # prevent unused variable warning
+        # self.subscription_label = self.create_subscription(
+        #     String,
+        #     'kpt_label',
+        #     self.label_callback,
+        #     10)
+        # self.subscription_label  # prevent unused variable warning
         self.subscription_data = self.create_subscription(
-            Vector3,
+            Quaternion,
             'kpt_data',
             self.data_callback,
             10)
         self.subscription_data  # prevent unused variable warning
+        self.data_left = []
+        self.data_right = []
+        self.data_trunk = []
 
-    def label_callback(self, msg):
-        self.get_logger().info(msg.data)
-        self.label = msg.data
-        self.data = []
+    # def label_callback(self, msg):
+    #     self.get_logger().info(msg.data)
+    #     self.label = msg.data
+    #     self.data = []
         
     def data_callback(self, msg):
-        self.get_logger().info(str(msg))
-        if self.data == []:
-            self.data = [[msg.x, msg.y, msg.z]]
-        else:
-            self.data.append([msg.x, msg.y, msg.z])
+        # self.get_logger().info(str(msg))
+        region = math.trunc(msg.w)
+        reset = msg.w == -1
+        if reset:
+            self.get_logger().info('left')
+            self.get_logger().info(str(self.data_left))
+            self.get_logger().info('right')
+            self.get_logger().info(str(self.data_right))
+            self.get_logger().info('trunk')
+            self.get_logger().info(str(self.data_trunk))
+            self.data_left = []
+            self.data_right = []
+            self.data_trunk = []
+        else:    
+            if region == 0:
+                if len(self.data_left) <1: #not np.any(self.data_left):
+                    self.data_left = np.array([[msg.x, msg.y, msg.z]])
+                else:
+                    self.data_left = np.append(self.data_left, np.array([msg.x, msg.y, msg.z]))
+            if region == 1:
+                if len(self.data_right) <1: #not np.any(self.data_right):
+                    self.data_right = np.array([[msg.x, msg.y, msg.z]])
+                else:
+                    self.data_right = np.append(self.data_right, np.array([msg.x, msg.y, msg.z]))
+            if region == 2:
+                if len(self.data_trunk) <1: #not np.any(self.data_trunk):
+                    self.data_trunk = np.array([[msg.x, msg.y, msg.z]])
+                else:
+                    self.data_trunk = np.append(self.data_trunk, np.array([msg.x, msg.y, msg.z]))
 
 
 

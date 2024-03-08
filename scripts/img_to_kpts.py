@@ -21,6 +21,7 @@ import copy
 import _thread
 from geometry_msgs.msg import Vector3
 import pickle
+from geometry_msgs.msg import Quaternion
 
 def inverse_transform(R, t):
     T_inv = np.eye(4, 4)
@@ -31,10 +32,18 @@ def inverse_transform(R, t):
 
 class MinimalPublisher(Node):
 
+
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_vec = self.create_publisher(Vector3, 'kpt_data', 10)
-        self.publisher_text = self.create_publisher(String, 'kpt_label', 10)
+        self.publisher_vec = self.create_publisher(Quaternion, 'kpt_data', 10)
+        # self.publisher_text = self.create_publisher(String, 'kpt_label', 10)
+
+        self.body_parts = {
+        'left' : 0,
+        'right' : 1,
+        'trunk' : 2,
+        'stop' : -1
+        }
         
         self.i = 0
         self.key = ''
@@ -51,15 +60,18 @@ class MinimalPublisher(Node):
             self.get_logger().Warning('position vectors are not the right dimension! \n'
                                       + 'expected 3 dimensions, got' + str(j) )
             exit()
+
+        p = float(self.body_parts[label])
             
-        str_msg = String()
-        str_msg.data = label
-        self.publisher_text.publish(str_msg)
+        # str_msg = String()
+        # str_msg.data = label
+        # self.publisher_text.publish(str_msg)
         
-        msg = Vector3()
+        msg = Quaternion()
         for k in range(i):
             pos = data[k]
             [msg.x, msg.y, msg.z] = pos.astype(float)
+            msg.w = p + 0.1*k
             self.publisher_vec.publish(msg)
  
         self.get_logger().info(label)
@@ -376,44 +388,49 @@ class local_functions():
                 right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
                 trunk_matrix = np.array(body.keypoint[trunk_kpt_idx[0]]).reshape([1, 3])
 
-                for h in range(len(left_kpt_idx)-1):
+                for h in range(len(left_kpt_idx)-1):    # fetch coords of each kpt
                     i = left_kpt_idx[h+1]
                     j = right_kpt_idx[h+1]
                     keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
                     keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
-                    np.vstack((left_matrix, keypoint_left))  # left hand
-                    np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
+                    left_matrix = np.vstack((left_matrix, keypoint_left))  # left hand
+                    right_matrix = np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
                 
                 if self.user_params.return_hands == False:
                     for h in range(len(trunk_kpt_idx)-1):
                         k = trunk_kpt_idx[h+1]
                         keypoint_trunk = np.array(body.keypoint[k]).reshape([1, 3])
-                        np.vstack((trunk_matrix, keypoint_trunk))
+                        trunk_matrix = np.vstack((trunk_matrix, keypoint_trunk))
             
-                left_pos = np.mean(left_matrix, axis=0)
-                right_pos = np.mean(right_matrix, axis=0)
-                trunk_pos = np.mean(trunk_matrix, axis=0)
+                if self.user_params.return_hands:   # if hands, only return the mean kpt position
+                    left_pos = np.mean(left_matrix, axis=0)
+                    right_pos = np.mean(right_matrix, axis=0)
+                    trunk_pos = np.mean(trunk_matrix, axis=0)
 
-                if not np.any(np.isnan(left_pos)):
-                    lhp = np.array([left_pos[:]])
-                    if not np.any(self.left_pos_all):
-                        self.left_pos_all = lhp
-                    else:
-                        self.left_pos_all = np.append(self.left_pos_all, lhp, axis=0)
+                    if not np.any(np.isnan(left_pos)):
+                        lhp = np.array([left_pos[:]])
+                        if not np.any(self.left_pos_all):
+                            self.left_pos_all = lhp
+                        else:
+                            self.left_pos_all = np.append(self.left_pos_all, lhp, axis=0)
 
-                if not np.any(np.isnan(right_pos)):
-                    rhp = np.array([right_pos[:]])
-                    if not np.any(self.right_pos_all):
-                        self.right_pos_all = rhp
-                    else:
-                        self.right_pos_all = np.append(self.right_pos_all, rhp, axis=0)
+                    if not np.any(np.isnan(right_pos)):
+                        rhp = np.array([right_pos[:]])
+                        if not np.any(self.right_pos_all):
+                            self.right_pos_all = rhp
+                        else:
+                            self.right_pos_all = np.append(self.right_pos_all, rhp, axis=0)
+                else:
+                    self.left_pos_all = left_matrix
+                    self.right_pos_all = right_matrix
+                    self.trunk_pos_all = trunk_matrix
 
-                if not np.any(np.isnan(trunk_pos)):
-                    thp = np.array([trunk_pos[:]])
-                    if not np.any(self.trunk_pos_all):
-                        self.trunk_pos_all = thp
-                    else:
-                        self.trunk_pos_all = np.append(self.trunk_pos_all, thp, axis=0)
+                # if not np.any(np.isnan(trunk_pos)):
+                #     thp = np.array([trunk_pos[:]])
+                #     if not np.any(self.trunk_pos_all):
+                #         self.trunk_pos_all = thp
+                #     else:
+                #         self.trunk_pos_all = np.append(self.trunk_pos_all, thp, axis=0)
             
         if np.any(self.trunk_pos_all):
             print("this loop done")
@@ -452,6 +469,7 @@ def main(args=None):
         publisher.timer_callback('right', output_r)
         if not cam.user_params.return_hands:
             publisher.timer_callback('trunk', output_t)
+        publisher.timer_callback('stop', np.array([[-1, -1, -1]]))
 
         key = cv2.pollKey()
             
