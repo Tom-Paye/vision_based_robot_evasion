@@ -14,7 +14,7 @@ import cv2
 import sys
 import pyzed.sl as sl
 import time
-import ogl_viewer.viewer as gl
+import my_cpp_py_pkg.ogl_viewer.viewer as gl
 import numpy as np
 import os
 import copy
