@@ -33,8 +33,8 @@ class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_vec = self.create_publisher(Vector3, 'kpt_label', 10)
-        self.publisher_text = self.create_publisher(String, 'kpt_data', 10)
+        self.publisher_vec = self.create_publisher(Vector3, 'kpt_data', 10)
+        self.publisher_text = self.create_publisher(String, 'kpt_label', 10)
         
         self.i = 0
         self.key = ''
@@ -56,8 +56,8 @@ class MinimalPublisher(Node):
         str_msg.data = label
         self.publisher_text.publish(str_msg)
         
+        msg = Vector3()
         for k in range(i):
-            msg = Vector3()
             pos = data[k]
             [msg.x, msg.y, msg.z] = pos.astype(float)
             self.publisher_vec.publish(msg)
@@ -361,16 +361,17 @@ class local_functions():
     def fetch_skeleton(self):
         
         if len(self.bodies.body_list) > 0:
+
+            if self.user_params.return_hands == True:
+                left_kpt_idx = self.zed_params.left_hand_keypoints
+                right_kpt_idx = self.zed_params.right_hand_keypoints
+            else:
+                left_kpt_idx = self.zed_params.left_arm_keypoints
+                right_kpt_idx = self.zed_params.right_arm_keypoints
+            trunk_kpt_idx = self.zed_params.trunk_keypoints
+            
             for body in self.bodies.body_list:         
                 
-                if self.user_params.return_hands == True:
-                    left_kpt_idx = self.zed_params.left_hand_keypoints
-                    right_kpt_idx = self.zed_params.right_hand_keypoints
-                else:
-                    left_kpt_idx = self.zed_params.left_arm_keypoints
-                    right_kpt_idx = self.zed_params.right_arm_keypoints
-                trunk_kpt_idx = self.zed_params.trunk_keypoints
-
                 left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
                 right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
                 trunk_matrix = np.array(body.keypoint[trunk_kpt_idx[0]]).reshape([1, 3])
@@ -414,7 +415,8 @@ class local_functions():
                     else:
                         self.trunk_pos_all = np.append(self.trunk_pos_all, thp, axis=0)
             
-                # print("shape of hand positions is ", np.shape(left_pos))
+        if np.any(self.trunk_pos_all):
+            print("this loop done")
 
                 
                 

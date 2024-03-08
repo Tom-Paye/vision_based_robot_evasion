@@ -33,10 +33,15 @@ class Subscriber(Node):
 
     def label_callback(self, msg):
         self.get_logger().info(msg.data)
+        self.label = msg.data
+        self.data = []
         
     def data_callback(self, msg):
-        self.get_logger().info(str(msg.data))
-
+        self.get_logger().info(str(msg))
+        if self.data == []:
+            self.data = [[msg.x, msg.y, msg.z]]
+        else:
+            self.data.append([msg.x, msg.y, msg.z])
 
 
 
