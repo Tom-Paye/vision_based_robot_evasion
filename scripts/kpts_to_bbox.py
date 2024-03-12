@@ -28,6 +28,13 @@ def rearrange_trunk(coords):
     This technique is not robust to hugging the robot, and may cause it to enter a blood rage.
     A simple, if computationally effective solution would be to exert pressure from each P to limit bang-bang interactions
     Complexity: O(num_nodes)*O(perp_axis)*constant
+
+    Problem: We also need to save the direction along which the distance is the shortest, and take into account the robot
+    links as well, which squares the whole complexity.
+    For starters, it might be more practical to simply calculate the closest human-lint to robot-link distance and direction.
+
+    Also, would a kalman filter on the human pos be a good idea? Is it already implemented by ZED? --> no,
+    TODO:investigate kalman filtering
     """
 
     coords = np.reshape(coords, [-1,3])
@@ -42,24 +49,52 @@ def link_dists(coords, Pe):
     (i.e. don't feed it a hand keypoint followed by the head keypoint or it will assume you have antennae)
     Takes Pe: [3] vector corresponding to end effector position
     returns the min distance to each body segment, i.e. each link between two joints
+    https://www.sciencedirect.com/science/article/pii/0020019085900328 
     """
 
 
-    # coords = np.array([[0, 0, 0], [1, 1, 0], [0, 0, 0]])
-    # Pe = [0, -3, 0]
-    coords = np.reshape(coords, [-1,3])
-    dP = np.diff(coords, axis=0) / np.linalg.norm(np.diff(coords, axis=0))
-    dPe = Pe - coords[:-1, :]
-    c = np.diag(np.matmul(dP, np.transpose(dPe)))     # distance of the plane along the axis from the first point
+    # # coords = np.array([[0, 0, 0], [1, 1, 0], [0, 0, 0]])
+    # # Pe = [0, -3, 0]
+    # coords = np.reshape(coords, [-1,3])
+    # dP = np.diff(coords, axis=0) / np.linalg.norm(np.diff(coords, axis=0))
+    # dPe = Pe - coords[:-1, :]
+    # c = np.diag(np.matmul(dP, np.transpose(dPe)))     # distance of the plane along the axis from the first point
 
-    dist = np.zeros(len(dP))
-    for i in range(len(dist)):
-        if c[i] <= 0:
-            dist[i] = np.linalg.norm(Pe - coords[i])
-        if c[i] >=1:
-            dist[i] = np.linalg.norm(Pe - coords[i+1])
-        if c[i] < 1 and c[i] > 0:
-            dist[i] = np.linalg.norm(Pe - c[i] - coords[i])
+    # dist = np.zeros(len(dP))
+    # for i in range(len(dist)):
+    #     if c[i] <= 0:
+    #         dist[i] = np.linalg.norm(Pe - coords[i])
+    #     if c[i] >=1:
+    #         dist[i] = np.linalg.norm(Pe - coords[i+1])
+    #     if c[i] < 1 and c[i] > 0:
+    #         dist[i] = np.linalg.norm(Pe - c[i] - coords[i])
+
+    links_r = np.array([[0, 0, 0], [1, 1, 0]])
+    links_b = np.array([[0, 2, 0], [1, 2, 0]])
+    pseudo_links = np.array([links_r[0], links_b[0]])
+
+    len_r = np.linalg.norm(links_r)
+    len_b = np.linalg.norm(links_b)
+    if len_r == 0 or len_b == 0:
+        print('err: Link without length')
+    R = np.dot(links_r, links_b)
+    if R == 0:
+        print('Parallel')
+        t=0
+    else:
+        S1 = -np.sum(np.diff(links_r)**2*np.diff(pseudo_links)**2)
+        S2 = -np.sum(np.diff(links_b)**2*np.diff(pseudo_links)**2)
+        t = (S1*len_b-S2*len_r) / (len_r*len_b - R**2)
+        if t>1:
+            t=1
+        if t<0:
+            t=0
+    u = (t*R - S2) / (len_b)
+    if u>1:
+        u=1
+    if u<0:
+        u=0
+    dist = np.sqrt(np.sum(  (np.diff(links_r)*t - np.diff(links_b)*u + np.diff(pseudo_links))**2 ))
 
     return dist
 
