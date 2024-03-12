@@ -77,7 +77,7 @@ def link_dists(coords, Pe):
     len_b = np.linalg.norm(links_b)
     if len_r == 0 or len_b == 0:
         print('err: Link without length')
-    R = np.dot(links_r, links_b)
+    R = np.dot(links_r, links_b) # use np.einsum
     if R == 0:
         print('Parallel')
         t=0
