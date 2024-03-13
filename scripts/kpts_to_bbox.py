@@ -71,20 +71,37 @@ def link_dists(coords, Pe):
 
     links_r = np.array([[0, 0, 0], [1, 1, 0]])
     links_b = np.array([[0, 2, 0], [1, 2, 0]])
+
+    # links_r = np.array([[0, -3, 0], [3, 0, 0]])
+    # links_b = np.array([[0, 0, 0], [3, -3, 0]])
+
+    # links_r = np.array([[0, 0, 0], [1, 1, 0]])
+    # links_b = np.array([[0, 1, 0], [1, 2, 0]])
+
+    # links_r = np.array([[0, 0, 0], [2, 0, 0]])
+    # links_b = np.array([[1, 2, 0], [1, 1, 0]])
+
     pseudo_links = np.array([links_r[0], links_b[0]])
 
-    len_r = np.linalg.norm(links_r)
-    len_b = np.linalg.norm(links_b)
+    d_r = np.diff(links_r, axis=0)[0]
+    d_b = np.diff(links_b, axis=0)[0]
+    d_rb = np.diff(pseudo_links, axis=0)[0]
+
+    # calc length of both segments and check if parallel
+    len_r = np.linalg.norm(d_r)**2
+    len_b = np.linalg.norm(d_b)**2
     if len_r == 0 or len_b == 0:
         print('err: Link without length')
-    R = np.dot(links_r, links_b) # use np.einsum
-    if R == 0:
+    # R = np.einsum('ij, ij->j', d_r, d_b)
+    R = np.dot(d_r, d_b) # use np.einsum
+    denom = len_r*len_b - R**2
+    S1 = np.dot(d_r, d_rb)
+    S2 = np.dot(d_b, d_rb)
+    if np.abs(denom) < 0.001:
         print('Parallel')
         t=0
     else:
-        S1 = -np.sum(np.diff(links_r)**2*np.diff(pseudo_links)**2)
-        S2 = -np.sum(np.diff(links_b)**2*np.diff(pseudo_links)**2)
-        t = (S1*len_b-S2*len_r) / (len_r*len_b - R**2)
+        t = (S1*len_b-S2*len_r) / denom
         if t>1:
             t=1
         if t<0:
@@ -94,7 +111,12 @@ def link_dists(coords, Pe):
         u=1
     if u<0:
         u=0
-    dist = np.sqrt(np.sum(  (np.diff(links_r)*t - np.diff(links_b)*u + np.diff(pseudo_links))**2 ))
+    t = (u*R + S1) / len_r
+    if t>1:
+        t=1
+    if t<0:
+        t=0
+    dist = np.sqrt(np.sum(( d_r*t - d_b*u - d_rb )**2))
 
     return dist
 
