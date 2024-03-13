@@ -2,6 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
+import my_cpp_py_pkg.kalman
 
 from std_msgs.msg import String
 import cv2
@@ -134,6 +135,7 @@ class Subscriber(Node):
         self.reset = 0.0
         self.data_left, self.data_right, self.data_trunk = [], [], []
         self.dl, self.dr, self.dt = [], [], []
+        self.x = []
 
         self.subscription_data = self.create_subscription(
             Quaternion,
@@ -141,7 +143,11 @@ class Subscriber(Node):
             self.data_callback,
             10)
         self.subscription_data  # prevent unused variable warning
-        self.timer = self.create_timer(0.1, self.calc_callback)
+
+        self.x = self.x.allend(self.dl[0])
+        if len(self.x)>10:
+            kalman.kaltest()
+            self.timer = self.create_timer(0.1, self.calc_callback)
         # self.calc_callback()
         
         
