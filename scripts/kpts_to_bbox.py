@@ -2,18 +2,14 @@
 
 import rclpy
 from rclpy.node import Node
-import my_cpp_py_pkg.kalman
+import my_cpp_py_pkg.kalman as kalman
 
-from std_msgs.msg import String
-import cv2
-import sys
-import time
+
 import numpy as np
-import os
-import copy
-import _thread
-from geometry_msgs.msg import Quaternion
-import pickle
+from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Point
+from std_msgs.msg import Header
 import math
 
 def rearrange_trunk(coords):
@@ -38,7 +34,6 @@ def rearrange_trunk(coords):
     TODO:investigate kalman filtering
     """
 
-    coords = np.reshape(coords, [-1,3])
 
     coords_l = coords[[0, 1, 2, 4], :]
     coords_r = coords[[0, 1, 3, 5], :]
@@ -138,17 +133,26 @@ class Subscriber(Node):
         self.x = []
 
         self.subscription_data = self.create_subscription(
-            Quaternion,
+            PoseArray,
             'kpt_data',
             self.data_callback,
             10)
         self.subscription_data  # prevent unused variable warning
 
-        self.x = self.x.allend(self.dl[0])
-        if len(self.x)>10:
-            kalman.kaltest()
-            self.timer = self.create_timer(0.1, self.calc_callback)
+        # self.timer = self.create_timer(0.1, self.calc_callback)
+        self.timer = self.create_timer(0.01, self.kalman_callback)
+        
         # self.calc_callback()
+            
+
+    def kalman_callback(self):
+        if np.any(self.dt):
+            if not np.any(self.x):
+                self.x = [self.dt[0][0]]
+            else:
+                self.x.append(self.dt[0][0])
+        if len(self.x)>1000:
+            kalman.kaltest(self.x)
         
         
 
@@ -171,8 +175,17 @@ class Subscriber(Node):
         
     def data_callback(self, msg):
         # self.get_logger().info(str(msg))
-        region = math.trunc(msg.w)
-        self.reset = (msg.w == -1)
+        # region = math.trunc(msg.w)
+        body_id =int(msg.header.frame_id[0])
+        # if body_id in self.known_bodies:
+        #             self.known_bodies[body_id][0] = left_matrix
+        #             self.known_bodies[body_id][1] = right_matrix
+        #             self.known_bodies[body_id][2] = trunk_matrix
+        #         else:
+        #             self.known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
+        TODO: Implement body_id in the subscription
+        region = msg.header.frame_id[1:]
+        self.reset = (region == 'stop')
         if self.reset:
             self.get_logger().info('left')
             self.get_logger().info(str(self.data_left))
@@ -186,22 +199,35 @@ class Subscriber(Node):
             self.data_left = []
             self.data_right = []
             self.data_trunk = []
-        else:    
-            if region == 0:
-                if len(self.data_left) <1: #not np.any(self.data_left):
-                    self.data_left = np.array([[msg.x, msg.y, msg.z]])
-                else:
-                    self.data_left = np.append(self.data_left, np.array([msg.x, msg.y, msg.z]))
-            if region == 1:
-                if len(self.data_right) <1: #not np.any(self.data_right):
-                    self.data_right = np.array([[msg.x, msg.y, msg.z]])
-                else:
-                    self.data_right = np.append(self.data_right, np.array([msg.x, msg.y, msg.z]))
-            if region == 2:
-                if len(self.data_trunk) <1: #not np.any(self.data_trunk):
-                    self.data_trunk = np.array([[msg.x, msg.y, msg.z]])
-                else:
-                    self.data_trunk = np.append(self.data_trunk, np.array([msg.x, msg.y, msg.z]))
+        else:
+            data = []
+            data_ros = msg.poses
+            for pose in data_ros:
+                data.append([pose.position.x, pose.position.y, pose.position.z])
+            data = np.array(data)
+            if region == 'left':
+                self.data_left = data
+            if region == 'right':
+                self.data_right = data
+            if region == 'trunk':
+                self.data_trunk = data
+
+
+            # if region == 0:
+            #     if len(self.data_left) <1: #not np.any(self.data_left):
+            #         self.data_left = np.array([[msg.x, msg.y, msg.z]])
+            #     else:
+            #         self.data_left = np.append(self.data_left, np.array([msg.x, msg.y, msg.z]))
+            # if region == 1:
+            #     if len(self.data_right) <1: #not np.any(self.data_right):
+            #         self.data_right = np.array([[msg.x, msg.y, msg.z]])
+            #     else:
+            #         self.data_right = np.append(self.data_right, np.array([msg.x, msg.y, msg.z]))
+            # if region == 2:
+            #     if len(self.data_trunk) <1: #not np.any(self.data_trunk):
+            #         self.data_trunk = np.array([[msg.x, msg.y, msg.z]])
+            #     else:
+            #         self.data_trunk = np.append(self.data_trunk, np.array([msg.x, msg.y, msg.z]))
 
 
 
