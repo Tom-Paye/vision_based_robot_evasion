@@ -66,6 +66,11 @@ def link_dists(pos_body, pos_robot):
     #     if c[i] < 1 and c[i] > 0:
     #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
 
+    # TODO: articulate body geometry into a format suitable for this function
+    # TODO: Make the Kalman Filter 3D
+    # TODO: Create estimation of body speeds
+    # TODO: make kalman filter real-time
+
 
     # links_r = np.array([[0, 0, 0], [1, 1, 0]])
     # links_b = np.array([[0, 2, 0], [1, 2, 0]])
@@ -142,7 +147,7 @@ def link_dists(pos_body, pos_robot):
 
     chkpt_2 = time.time()
     elapsed_time = chkpt_2 - chkpt_1
-    
+
 
     return dist
 
