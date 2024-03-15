@@ -11,6 +11,7 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 import math
+import time
 
 def rearrange_trunk(coords):
     """
@@ -65,9 +66,9 @@ def link_dists(pos_body, pos_robot):
     #     if c[i] < 1 and c[i] > 0:
     #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
 
-    
-    links_r = np.array([[0, 0, 0], [1, 1, 0]])
-    links_b = np.array([[0, 2, 0], [1, 2, 0]])
+
+    # links_r = np.array([[0, 0, 0], [1, 1, 0]])
+    # links_b = np.array([[0, 2, 0], [1, 2, 0]])
 
     # links_r = np.array([[0, -3, 0], [3, 0, 0]])
     # links_b = np.array([[0, 0, 0], [3, -3, 0]])
@@ -77,43 +78,71 @@ def link_dists(pos_body, pos_robot):
 
     # links_r = np.array([[0, 0, 0], [2, 0, 0]])
     # links_b = np.array([[1, 2, 0], [1, 1, 0]])
+    chkpt_1 = time.time()
 
-    pseudo_links = np.array([links_r[0], links_b[0]])
+    links_r = np.array([[0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
+                        [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0]])
+    links_b = np.array([[0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
+                        [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0]])
+    
+    m = len(links_b)
+    n = len(links_r)
+    links_r = np.repeat(links_r, m*np.ones(n).astype(int), axis=0)
+    links_b = np.tile(links_b, (n, 1))
 
-    d_r = np.diff(links_r, axis=0)[0]
-    d_b = np.diff(links_b, axis=0)[0]
+    pseudo_links = np.array([links_r[:-1, :], links_b[:-1, :]])
+
+    d_r = np.diff(links_r, axis=0)
+    d_b = np.diff(links_b, axis=0)
     d_rb = np.diff(pseudo_links, axis=0)[0]
 
     # calc length of both segments and check if parallel
-    len_r = np.linalg.norm(d_r)**2
-    len_b = np.linalg.norm(d_b)**2
-    if len_r == 0 or len_b == 0:
+    len_r = np.linalg.norm(d_r, axis=-1)**2
+    len_b = np.linalg.norm(d_b, axis=-1)**2
+    if 0 in len_r or 0 in len_b:
         print('err: Link without length')
-    # R = np.einsum('ij, ij->j', d_r, d_b)
-    R = np.dot(d_r, d_b) # use np.einsum
+    R = np.einsum('ij, ij->i', d_r, d_b)
+    # R = np.dot(d_r, d_b) # use np.einsum
     denom = len_r*len_b - R**2
-    S1 = np.dot(d_r, d_rb)
-    S2 = np.dot(d_b, d_rb)
-    if np.abs(denom) < 0.001:
-        print('Parallel')
-        t=0
-    else:
-        t = (S1*len_b-S2*len_r) / denom
-        if t>1:
-            t=1
-        if t<0:
-            t=0
+    S1 = np.einsum('ij, ij->i', d_r, d_rb)
+    S2 = np.einsum('ij, ij->i', d_b, d_rb)
+    # S1 = np.dot(d_r, d_rb)
+    # S2 = np.dot(d_b, d_rb)
+
+    paral = (denom<0.001)
+    t = (1-paral) * (S1*len_b-S2*len_r) / denom
+    t = np.nan_to_num(t)
+    t = np.clip(t, 0, 1)
+    # if np.abs(denom) < 0.001:
+    #     print('Parallel')
+    #     t=0
+    # else:
+    #     t = (S1*len_b-S2*len_r) / denom
+    #     if t>1:
+    #         t=1
+    #     if t<0:
+    #         t=0
+
     u = (t*R - S2) / (len_b)
-    if u>1:
-        u=1
-    if u<0:
-        u=0
+    u = np.nan_to_num(u)
+    u = np.clip(u, 0, 1)
+    # if u>1:
+    #     u=1
+    # if u<0:
+    #     u=0
+
     t = (u*R + S1) / len_r
-    if t>1:
-        t=1
-    if t<0:
-        t=0
-    dist = np.sqrt(np.sum(( d_r*t - d_b*u - d_rb )**2))
+    t = np.clip(t, 0, 1)
+    # if t>1:
+    #     t=1
+    # if t<0:
+    #     t=0
+
+    dist = np.sqrt(np.sum(( d_r.T*t - d_b.T*u - d_rb.T )**2, axis=0))
+
+    chkpt_2 = time.time()
+    elapsed_time = chkpt_2 - chkpt_1
+    
 
     return dist
 
@@ -132,15 +161,15 @@ class Subscriber(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
-        # self.timer = self.create_timer(0.01, self.calc_callback)
-        self.timer = self.create_timer(0.01, self.kalman_callback)
+        self.timer = self.create_timer(0.01, self.calc_callback)
+        # self.timer = self.create_timer(0.01, self.kalman_callback)
         
     
     def initialize_variables(self):
         self.reset = 0.0
         self.x = []
         self.bodies = {}
-        self.subject = self.subject
+        self.subject = '0'
         self.placeholder_Pe = np.array([[1., 0., 0.],
                                         [1., -.1, .3],
                                         [1., .1, .3],
@@ -166,12 +195,14 @@ class Subscriber(Node):
         
 
     def calc_callback(self):
-        self.get_logger().info(str(self.reset and np.any(self.bodies[self.subject])))
-        if self.reset and np.any(self.dt):
-            [self.dt_l, self.dt_r] = rearrange_trunk(self.bodies[self.subject][2])
-            left_dist = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
-            self.get_logger().info('Distances:')
-            self.get_logger().info(str(left_dist))
+        if self.subject in self.bodies:
+            self.get_logger().info(str(self.reset and np.any(self.bodies[self.subject][0])))
+            if self.reset and np.any(self.bodies[self.subject][0]):
+                if len(self.bodies[self.subject][2]) >6:
+                    [self.dt_l, self.dt_r] = rearrange_trunk(self.bodies[self.subject][2])
+                left_dist = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+                self.get_logger().info('Distances:')
+                self.get_logger().info(str(left_dist))
 
 
 
