@@ -66,6 +66,7 @@ def link_dists(pos_body, pos_robot):
     #     if c[i] < 1 and c[i] > 0:
     #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
 
+    # TODO: Fix the loop so it actually switches over limbs on the robot, and not joints
     # TODO: articulate body geometry into a format suitable for this function
     # TODO: Make the Kalman Filter 3D
     # TODO: Create estimation of body speeds
@@ -86,8 +87,12 @@ def link_dists(pos_body, pos_robot):
     chkpt_1 = time.time()
 
     links_r = np.array([[0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
+                        [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0],
+                        [0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
                         [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0]])
     links_b = np.array([[0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
+                        [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0],
+                        [0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
                         [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0]])
     
     m = len(links_b)
