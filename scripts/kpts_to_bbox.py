@@ -39,32 +39,33 @@ def rearrange_trunk(coords):
     coords_r = coords[[0, 1, 3, 5], :]
     return coords_l, coords_r
     
-def link_dists(coords, Pe):
+def link_dists(pos_body, pos_robot):
     """
-    Takes coords: [N, 3] array of keypoint positions IN PHYSICALLY CONSECUTIVE ORDER
+    Takes pos_body: [N, 3] array of keypoint positions IN PHYSICALLY CONSECUTIVE ORDER
     (i.e. don't feed it a hand keypoint followed by the head keypoint or it will assume you have antennae)
-    Takes Pe: [3] vector corresponding to end effector position
+    Takes pos_robot: [3] vector corresponding to end effector position
     returns the min distance to each body segment, i.e. each link between two joints
     https://www.sciencedirect.com/science/article/pii/0020019085900328 
     """
 
 
-    # # coords = np.array([[0, 0, 0], [1, 1, 0], [0, 0, 0]])
-    # # Pe = [0, -3, 0]
-    # coords = np.reshape(coords, [-1,3])
-    # dP = np.diff(coords, axis=0) / np.linalg.norm(np.diff(coords, axis=0))
-    # dPe = Pe - coords[:-1, :]
-    # c = np.diag(np.matmul(dP, np.transpose(dPe)))     # distance of the plane along the axis from the first point
+    # # pos_body = np.array([[0, 0, 0], [1, 1, 0], [0, 0, 0]])
+    # # pos_robot = [0, -3, 0]
+    # pos_body = np.reshapos_robot(pos_body, [-1,3])
+    # dP = np.diff(pos_body, axis=0) / np.linalg.norm(np.diff(pos_body, axis=0))
+    # dpos_robot = pos_robot - pos_body[:-1, :]
+    # c = np.diag(np.matmul(dP, np.transpose(dpos_robot)))     # distance of the plane along the axis from the first point
 
     # dist = np.zeros(len(dP))
     # for i in range(len(dist)):
     #     if c[i] <= 0:
-    #         dist[i] = np.linalg.norm(Pe - coords[i])
+    #         dist[i] = np.linalg.norm(pos_robot - pos_body[i])
     #     if c[i] >=1:
-    #         dist[i] = np.linalg.norm(Pe - coords[i+1])
+    #         dist[i] = np.linalg.norm(pos_robot - pos_body[i+1])
     #     if c[i] < 1 and c[i] > 0:
-    #         dist[i] = np.linalg.norm(Pe - c[i] - coords[i])
+    #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
 
+    
     links_r = np.array([[0, 0, 0], [1, 1, 0]])
     links_b = np.array([[0, 2, 0], [1, 2, 0]])
 
@@ -121,16 +122,8 @@ class Subscriber(Node):
 
     def __init__(self):
         super().__init__('minimal_subscriber')
-        # self.subscription_label = self.create_subscription(
-        #     String,
-        #     'kpt_label',
-        #     self.label_callback,
-        #     10)
-        # self.subscription_label  # prevent unused variable warning
-        self.reset = 0.0
-        self.data_left, self.data_right, self.data_trunk = [], [], []
-        self.dl, self.dr, self.dt = [], [], []
-        self.x = []
+
+        self.initialize_variables()
 
         self.subscription_data = self.create_subscription(
             PoseArray,
@@ -139,29 +132,44 @@ class Subscriber(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
-        # self.timer = self.create_timer(0.1, self.calc_callback)
+        # self.timer = self.create_timer(0.01, self.calc_callback)
         self.timer = self.create_timer(0.01, self.kalman_callback)
         
-        # self.calc_callback()
-            
+    
+    def initialize_variables(self):
+        self.reset = 0.0
+        self.x = []
+        self.bodies = {}
+        self.subject = self.subject
+        self.placeholder_Pe = np.array([[1., 0., 0.],
+                                        [1., -.1, .3],
+                                        [1., .1, .3],
+                                        [1., 0., .6],
+                                        [.9, .1, .7],
+                                        [.9, -.1, .7],
+                                        [.8, 0., .8],
+                                        [.1, .2, .8],
+                                        [.1, 0., .81],
+                                        [0., 0., .8],
+                                        [0., -.1, .6],
+                                        [0., .1, .6],])    # placeholder end effector positions
 
     def kalman_callback(self):
-        if np.any(self.dt):
+
+        if np.any(self.bodies) and self.subject in self.bodies:
             if not np.any(self.x):
-                self.x = [self.dt[0][0]]
+                self.x = [self.bodies[self.subject][0][0][0]]
             else:
-                self.x.append(self.dt[0][0])
+                self.x.append(self.bodies[self.subject][0][0][0])
         if len(self.x)>1000:
             kalman.kaltest(self.x)
         
-        
 
     def calc_callback(self):
-        self.get_logger().info(str(self.reset and np.any(self.dt)))
+        self.get_logger().info(str(self.reset and np.any(self.bodies[self.subject])))
         if self.reset and np.any(self.dt):
-            [self.dt_l, self.dt_r] = rearrange_trunk(self.dt)
-            placeholder_Pe = np.array([1, 1, 1])
-            left_dist = link_dists(self.dl, placeholder_Pe)
+            [self.dt_l, self.dt_r] = rearrange_trunk(self.bodies[self.subject][2])
+            left_dist = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
             self.get_logger().info('Distances:')
             self.get_logger().info(str(left_dist))
 
@@ -176,41 +184,71 @@ class Subscriber(Node):
     def data_callback(self, msg):
         # self.get_logger().info(str(msg))
         # region = math.trunc(msg.w)
-        body_id =int(msg.header.frame_id[0])
-        # if body_id in self.known_bodies:
-        #             self.known_bodies[body_id][0] = left_matrix
-        #             self.known_bodies[body_id][1] = right_matrix
-        #             self.known_bodies[body_id][2] = trunk_matrix
-        #         else:
-        #             self.known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
-        TODO: Implement body_id in the subscription
         region = msg.header.frame_id[1:]
-        self.reset = (region == 'stop')
-        if self.reset:
-            self.get_logger().info('left')
-            self.get_logger().info(str(self.data_left))
-            self.get_logger().info('right')
-            self.get_logger().info(str(self.data_right))
-            self.get_logger().info('trunk')
-            self.get_logger().info(str(self.data_trunk))
-            self.dl = self.data_left
-            self.dr = self.data_right
-            self.dt = self.data_trunk
-            self.data_left = []
-            self.data_right = []
-            self.data_trunk = []
+        self.reset = (msg.header.frame_id[2:] == 'stop')
+        # if self.reset:
+        #     self.get_logger().info('left')
+        #     self.get_logger().info(str(self.data_left))
+        #     self.get_logger().info('right')
+        #     self.get_logger().info(str(self.data_right))
+        #     self.get_logger().info('trunk')
+        #     self.get_logger().info(str(self.data_trunk))
+        #     self.dl = self.data_left
+        #     self.dr = self.data_right
+        #     self.dt = self.data_trunk
+        #     self.data_left = []
+        #     self.data_right = []
+        #     self.data_trunk = []
+        # else:
+        if self.reset and self.subject in self.bodies:
+            self.get_logger().info('Body 0 Left side')
+            self.get_logger().info(str(self.bodies[self.subject][0]))
         else:
-            data = []
-            data_ros = msg.poses
-            for pose in data_ros:
-                data.append([pose.position.x, pose.position.y, pose.position.z])
-            data = np.array(data)
-            if region == 'left':
-                self.data_left = data
-            if region == 'right':
-                self.data_right = data
-            if region == 'trunk':
-                self.data_trunk = data
+            body_id =msg.header.frame_id[0]
+            if body_id == '-':
+                body_id = int(msg.header.frame_id[0:2])
+            else:
+                body_id = int(msg.header.frame_id[0])
+
+            poses_ros = msg.poses
+            poses = []
+            for i, pose in enumerate(poses_ros):
+                poses.append([pose.position.x, pose.position.y, pose.position.z])
+            poses = np.array(poses)
+
+            threshold = 0.2
+            if str(body_id) in self.bodies:
+                if region == 'left':
+                    if np.shape(self.bodies[str(body_id)][0]) == np.shape(poses):
+                        if np.any(np.linalg.norm(self.bodies[str(body_id)][0]-poses, axis=0) > threshold):
+                            poses = self.bodies[str(body_id)][0]
+                    self.bodies[str(body_id)][0] = poses
+                if region == 'right':
+                    if np.shape(self.bodies[str(body_id)][1]) == np.shape(poses):
+                        if np.any(np.linalg.norm(self.bodies[str(body_id)][1]-poses, axis=0) > threshold):
+                            poses = self.bodies[str(body_id)][1]
+                    self.bodies[str(body_id)][1] = poses
+                if region == 'trunk':
+                    if np.shape(self.bodies[str(body_id)][2]) == np.shape(poses):
+                        if np.any(np.linalg.norm(self.bodies[str(body_id)][2]-poses, axis=0) > threshold):
+                            poses = self.bodies[str(body_id)][2]
+                    self.bodies[str(body_id)][2] = poses
+            else:
+                    self.bodies[str(body_id)] = [poses[0:3,:], poses[0:3,:], poses]
+
+        
+
+            # data = []
+            # data_ros = msg.poses
+            # for pose in data_ros:
+            #     data.append([pose.position.x, pose.position.y, pose.position.z])
+            # data = np.array(data)
+            # if region == 'left':
+            #     self.data_left = data
+            # if region == 'right':
+            #     self.data_right = data
+            # if region == 'trunk':
+            #     self.data_trunk = data
 
 
             # if region == 0:

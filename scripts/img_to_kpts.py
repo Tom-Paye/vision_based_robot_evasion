@@ -535,7 +535,7 @@ def main(args=None):
             publisher.timer_callback('right', body_id, output_r)
             if not cam.user_params.return_hands:
                 publisher.timer_callback('trunk', body_id, output_t)
-            publisher.timer_callback('stop', np.array([[-1, -1, -1]]))
+            publisher.timer_callback('stop', '-1', np.array([[-1, -1, -1]]))
 
         key = cv2.pollKey()
             
