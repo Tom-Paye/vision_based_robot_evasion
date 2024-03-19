@@ -12,6 +12,7 @@ from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 import math
 import time
+import copy
 
 def rearrange_trunk(coords):
     """
@@ -42,10 +43,33 @@ def rearrange_trunk(coords):
     
 def link_dists(pos_body, pos_robot):
     """
-    Takes pos_body: [N, 3] array of keypoint positions IN PHYSICALLY CONSECUTIVE ORDER
+    INPUT---------------------------
+    Takes pos_body: [M, 3] array of keypoint positions IN PHYSICALLY CONSECUTIVE ORDER
     (i.e. don't feed it a hand keypoint followed by the head keypoint or it will assume you have antennae)
-    Takes pos_robot: [3] vector corresponding to end effector position
-    returns the min distance to each body segment, i.e. each link between two joints
+
+    Takes pos_robot: [N, 3] vector corresponding to end effector position
+
+    OUTPUT--------------------------
+    Returns dist: [P, Q] array of distances
+        P = min(M, N) --> one row for each convolution of the longer effector positions on the shorter effector positions.
+            Longer or shorter refers to the number of joints, not physical length
+        Q = P-1 --> because we only consider the distances from the P-1 segments of the shortest effector
+        NOTE: in every row, there is one distance which corresponds to a segment connecting the longest effector end-to-end directly
+            This distance should not be taken into account for control, and is set to 10m
+
+    Returns direc: [P, Q, 3] array of unit direction vectors along the shortest path between each body_segment-robot_segment pair
+        if a segment on the robot is found to be intersecting a segment on the body (dist[i, j] == 0):
+            the corresponding vector  direc[i, j, :] is [0, 0, 0]
+        NOTE: The direct vectors point from the body to the robot
+
+    Returnt t : [P, Q] array of position of 'intersection point' on each segment of the robot
+        0 <= t[i, j] <= 1, as it represents a fraction of the segment length, starting from whichever point has a lower index in pos_robot
+        Intersection point : on a segment A, the closest point to the segment B we're measuring a distance to
+
+    Returnt u : [P, Q] array of position of 'intersection point' on each segment of the body
+        0 <= u[i, j] <= 1, as it represents a fraction of the segment length, starting from whichever point has a lower index in pos_body
+
+        
     https://www.sciencedirect.com/science/article/pii/0020019085900328 
     """
 
@@ -116,8 +140,8 @@ def link_dists(pos_body, pos_robot):
         new_layer = np.roll(arr_to_roll, -i, axis=0)
         new_layer = new_layer[0:min(m, n),:]
         mat_roll[i,:] = new_layer
-        bad_segments.append([i, n_rolls-i])
-
+        bad_segments.append([i, n_rolls-i-1])
+    bad_segments = np.array(bad_segments[1:])
 
     if m > n:
         links_b = mat_roll
@@ -193,11 +217,22 @@ def link_dists(pos_body, pos_robot):
     dist = np.sqrt(np.sum(diffs_3d**2, axis=-1))
     # dist = np.sqrt(np.sum(( np.transpose(d_r, axes=(0,2,1))*t - d_b.T*u - d_rb.T )**2, axis=1))
 
+    distp = copy.copy(dist)
+    dist = np.around(dist, decimals=3)
+    distp[dist == 0] = 1000
+    direc = np.multiply(diffs_3d, 1 / distp[:, :,  np.newaxis])
+  
+    
+    [intersec_b_link, intersec_r_link] = np.nonzero(distp == 1000)
+    direc[intersec_b_link, intersec_r_link, :] = [0, 0, 0]  # marks the places where the body and robot are believed to clip into another
+    dist[bad_segments[:, 0], bad_segments[:, 1]] = 10 # marks the distances comparing imaginary axes (those that link both ends of each limb directly, for example)
+    
+
     chkpt_2 = time.time()
     elapsed_time = chkpt_2 - chkpt_1
 
 
-    return dist
+    return dist, direc, t, u
 
 
 class Subscriber(Node):
@@ -253,7 +288,7 @@ class Subscriber(Node):
             if self.reset and np.any(self.bodies[self.subject][0]):
                 if len(self.bodies[self.subject][2]) >6:
                     [self.dt_l, self.dt_r] = rearrange_trunk(self.bodies[self.subject][2])
-                left_dist = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+                left_dist, left_direc, left_t, left_u = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
                 self.get_logger().info('Distances:')
                 self.get_logger().info(str(left_dist))
 
