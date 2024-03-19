@@ -66,7 +66,7 @@ def link_dists(pos_body, pos_robot):
     #     if c[i] < 1 and c[i] > 0:
     #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
 
-    # TODO: Fix the loop so it actually switches over limbs on the robot, and not joints
+    # TODO: implement marking of imaginary joints
     # TODO: articulate body geometry into a format suitable for this function
     # TODO: Make the Kalman Filter 3D
     # TODO: Create estimation of body speeds
@@ -97,13 +97,53 @@ def link_dists(pos_body, pos_robot):
     
     m = len(links_b)
     n = len(links_r)
-    links_r = np.repeat(links_r, m*np.ones(n).astype(int), axis=0)
-    links_b = np.tile(links_b, (n, 1))
+    p, q = 0, 0
 
-    pseudo_links = np.array([links_r[:-1, :], links_b[:-1, :]])
+    #####
+    
+    if m > n:
+        arr_to_roll = links_b
+        static_array = links_r
+    else:
+        arr_to_roll = links_r
+        static_array = links_b
+    n_rolls = max(m, n)
+    mat_roll = np.array([static_array]*n_rolls)
+    mat_static = np.array([static_array]*n_rolls)
+    bad_segments = []
 
-    d_r = np.diff(links_r, axis=0)
-    d_b = np.diff(links_b, axis=0)
+    for i in range(n_rolls):
+        new_layer = np.roll(arr_to_roll, -i, axis=0)
+        new_layer = new_layer[0:min(m, n),:]
+        mat_roll[i,:] = new_layer
+        bad_segments.append([i, n_rolls-i])
+
+
+    if m > n:
+        links_b = mat_roll
+        links_r = mat_static
+    else:
+        links_r = mat_roll
+        links_b = mat_static
+        
+    # while n % m == 0:
+    #     rep_array = np.ones(n).astype(int)
+    #     rep_array[-1] = 2
+    #     links_b = np.repeat(links_b, rep_array, axis=0)
+    #     m = len(links_b)
+    #     q += 1
+    # links_b = np.tile(links_b, (n, 1))
+    # links_r = np.tile(links_r, (m, 1))
+    #####
+
+
+    # links_r = np.repeat(links_r, m*np.ones(n).astype(int), axis=0)
+    # links_b = np.tile(links_b, (n, 1))
+
+    pseudo_links = np.array([links_r[:, :-1, :], links_b[:, :-1, :]])
+
+    d_r = np.diff(links_r, axis=1)
+    d_b = np.diff(links_b, axis=1)
     d_rb = np.diff(pseudo_links, axis=0)[0]
 
     # calc length of both segments and check if parallel
@@ -111,11 +151,11 @@ def link_dists(pos_body, pos_robot):
     len_b = np.linalg.norm(d_b, axis=-1)**2
     if 0 in len_r or 0 in len_b:
         print('err: Link without length')
-    R = np.einsum('ij, ij->i', d_r, d_b)
+    R = np.einsum('ijk, ijk->ij', d_r, d_b)
     # R = np.dot(d_r, d_b) # use np.einsum
     denom = len_r*len_b - R**2
-    S1 = np.einsum('ij, ij->i', d_r, d_rb)
-    S2 = np.einsum('ij, ij->i', d_b, d_rb)
+    S1 = np.einsum('ijk, ijk->ij', d_r, d_rb)
+    S2 = np.einsum('ijk, ijk->ij', d_b, d_rb)
     # S1 = np.dot(d_r, d_rb)
     # S2 = np.dot(d_b, d_rb)
 
@@ -147,8 +187,11 @@ def link_dists(pos_body, pos_robot):
     #     t=1
     # if t<0:
     #     t=0
-
-    dist = np.sqrt(np.sum(( d_r.T*t - d_b.T*u - d_rb.T )**2, axis=0))
+    tp = np.transpose(np.array([t]*3), (1, 2, 0))
+    up = np.transpose(np.array([u]*3), (1, 2, 0))
+    diffs_3d = np.multiply(d_r, tp) - np.multiply(d_b, up) - d_rb
+    dist = np.sqrt(np.sum(diffs_3d**2, axis=-1))
+    # dist = np.sqrt(np.sum(( np.transpose(d_r, axes=(0,2,1))*t - d_b.T*u - d_rb.T )**2, axis=1))
 
     chkpt_2 = time.time()
     elapsed_time = chkpt_2 - chkpt_1
