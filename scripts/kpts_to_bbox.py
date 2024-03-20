@@ -95,6 +95,7 @@ def link_dists(pos_body, pos_robot):
     # TODO: Make the Kalman Filter 3D
     # TODO: Create estimation of body speeds
     # TODO: make kalman filter real-time
+    # TODO: fix the coordinate system
 
 
     # links_r = np.array([[0, 0, 0], [1, 1, 0]])

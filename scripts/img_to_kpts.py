@@ -98,7 +98,7 @@ class MinimalPublisher(Node):
         self.i += 1
 
     def timer_caller(self, data):
-        timer_period = 0.001  # seconds
+        timer_period = 0.0001  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback(data))
         rclpy.spin_once(self)
         
