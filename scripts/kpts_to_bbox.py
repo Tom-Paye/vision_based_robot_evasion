@@ -90,7 +90,7 @@ def link_dists(pos_body, pos_robot):
     #     if c[i] < 1 and c[i] > 0:
     #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
 
-    # TODO: implement marking of imaginary joints
+    # TODO: // implement marking of imaginary joints
     # TODO: articulate body geometry into a format suitable for this function
     # TODO: Make the Kalman Filter 3D
     # TODO: Create estimation of body speeds
@@ -110,14 +110,16 @@ def link_dists(pos_body, pos_robot):
     # links_b = np.array([[1, 2, 0], [1, 1, 0]])
     chkpt_1 = time.time()
 
-    links_r = np.array([[0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
-                        [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0],
-                        [0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
-                        [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0]])
-    links_b = np.array([[0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
-                        [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0],
-                        [0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
-                        [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0]])
+    # links_r = np.array([[0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
+    #                     [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0],
+    #                     [0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
+    #                     [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0]])
+    # links_b = np.array([[0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
+    #                     [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0],
+    #                     [0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
+    #                     [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0]])
+    
+    links_b, links_r = pos_body, pos_robot
     
     m = len(links_b)
     n = len(links_r)
@@ -132,6 +134,7 @@ def link_dists(pos_body, pos_robot):
         arr_to_roll = links_r
         static_array = links_b
     n_rolls = max(m, n)
+    n_remove = min(m, n)
     mat_roll = np.array([static_array]*n_rolls)
     mat_static = np.array([static_array]*n_rolls)
     bad_segments = []
@@ -141,7 +144,7 @@ def link_dists(pos_body, pos_robot):
         new_layer = new_layer[0:min(m, n),:]
         mat_roll[i,:] = new_layer
         bad_segments.append([i, n_rolls-i-1])
-    bad_segments = np.array(bad_segments[1:])
+    bad_segments = np.array(bad_segments[n_rolls-n_remove+1:])
 
     if m > n:
         links_b = mat_roll
@@ -234,7 +237,8 @@ def link_dists(pos_body, pos_robot):
 
     chkpt_2 = time.time()
     elapsed_time = chkpt_2 - chkpt_1
-
+    print('elapsed time:')
+    print(elapsed_time)
 
     return dist, direc, t, u
 
@@ -288,13 +292,22 @@ class Subscriber(Node):
 
     def calc_callback(self):
         if self.subject in self.bodies:
-            self.get_logger().info(str(self.reset and np.any(self.bodies[self.subject][0])))
+            self.get_logger().debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
+            self.get_logger().debug(str(self.reset and np.any(self.bodies[self.subject][0])))
+            # Make the body outline fit the head
             if self.reset and np.any(self.bodies[self.subject][0]):
-                if len(self.bodies[self.subject][2]) >6:
-                    [self.dt_l, self.dt_r] = rearrange_trunk(self.bodies[self.subject][2])
-                left_dist, left_direc, left_t, left_u = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
-                self.get_logger().info('Distances:')
-                self.get_logger().info(str(left_dist))
+                if len(self.bodies[self.subject][2]) >= 6:
+                    new_order = [1, 0, 4, 2, 3, 5, 0]
+                    self.bodies[self.subject][2] = self.bodies[self.subject][2][new_order, :][:]
+                # make one line from the left hand to the right
+                arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
+                arms_dist, arms_direc, arms_t, arms_u = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+                trunk_dist, trunk_direc, trunk_t, trunk_u = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+                min_dist_arms = np.min(arms_dist)
+                min_dist_trunk = np.min(trunk_dist)
+                min_dist = min(min_dist_arms, min_dist_trunk)
+                self.get_logger().info('Minimum distance:')
+                self.get_logger().info(str(min_dist))
 
 
 
@@ -324,8 +337,9 @@ class Subscriber(Node):
         #     self.data_trunk = []
         # else:
         if self.reset and self.subject in self.bodies:
-            self.get_logger().info('Body 0 Left side')
-            self.get_logger().info(str(self.bodies[self.subject][0]))
+            self.get_logger().debug('Body 0 Left side')
+            self.get_logger().debug(str(self.bodies[self.subject][0]))
+
         else:
             body_id =msg.header.frame_id[0]
             if body_id == '-':
