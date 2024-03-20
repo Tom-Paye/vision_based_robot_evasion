@@ -174,6 +174,7 @@ def link_dists(pos_body, pos_robot):
     len_r = np.linalg.norm(d_r, axis=-1)**2
     len_b = np.linalg.norm(d_b, axis=-1)**2
     if 0 in len_r or 0 in len_b:
+        # self.get_logger().info('err: Link without length')
         print('err: Link without length')
     R = np.einsum('ijk, ijk->ij', d_r, d_b)
     # R = np.dot(d_r, d_b) # use np.einsum
@@ -184,7 +185,8 @@ def link_dists(pos_body, pos_robot):
     # S2 = np.dot(d_b, d_rb)
 
     paral = (denom<0.001)
-    t = (1-paral) * (S1*len_b-S2*len_r) / denom
+    # t = (1-paral) * (S1*len_b-S2*len_r) / denom
+    t = (1-paral) * (S1*len_b-S2*R) / denom
     t = np.nan_to_num(t)
     t = np.clip(t, 0, 1)
     # if np.abs(denom) < 0.001:
@@ -227,6 +229,8 @@ def link_dists(pos_body, pos_robot):
     direc[intersec_b_link, intersec_r_link, :] = [0, 0, 0]  # marks the places where the body and robot are believed to clip into another
     dist[bad_segments[:, 0], bad_segments[:, 1]] = 10 # marks the distances comparing imaginary axes (those that link both ends of each limb directly, for example)
     
+    t = np.around(t, decimals=3)
+    u = np.around(u, decimals=3)
 
     chkpt_2 = time.time()
     elapsed_time = chkpt_2 - chkpt_1
