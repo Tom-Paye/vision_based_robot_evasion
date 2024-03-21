@@ -1,0 +1,1 @@
+/home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg/ament_cmake_environment_hooks/local_setup.bash

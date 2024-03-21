@@ -3,6 +3,7 @@
 import rclpy
 from rclpy.node import Node
 import my_cpp_py_pkg.kalman as kalman
+import my_cpp_py_pkg.visualisations as visualisations
 
 
 import numpy as np
@@ -51,11 +52,12 @@ def link_dists(pos_body, pos_robot):
 
     OUTPUT--------------------------
     Returns dist: [P, Q] array of distances
-        P = min(M, N) --> one row for each convolution of the longer effector positions on the shorter effector positions.
+        P = max(M, N) --> one row for each convolution of the longer effector positions on the shorter effector positions.
             Longer or shorter refers to the number of joints, not physical length
-        Q = P-1 --> because we only consider the distances from the P-1 segments of the shortest effector
+        Q = max(M, N)-1 --> because we only consider the distances from the P-1 segments of the shortest effector
         NOTE: in every row, there is one distance which corresponds to a segment connecting the longest effector end-to-end directly
             This distance should not be taken into account for control, and is set to 10m
+        NOTE: dist[i, j] is the distance between the jth link of the smaller effector and the j+ith link of the longer one (mod P)
 
     Returns direc: [P, Q, 3] array of unit direction vectors along the shortest path between each body_segment-robot_segment pair
         if a segment on the robot is found to be intersecting a segment on the body (dist[i, j] == 0):
@@ -68,6 +70,11 @@ def link_dists(pos_body, pos_robot):
 
     Returnt u : [P, Q] array of position of 'intersection point' on each segment of the body
         0 <= u[i, j] <= 1, as it represents a fraction of the segment length, starting from whichever point has a lower index in pos_body
+
+    NOTE: Temporarily modified so discm direc, t and u are only output for the minimum distances, not the whole arrays
+
+    return closest_r : [k] array of indices corresponding to the segments of the robot where the closest points are located
+    return closest_b : [k] array of indices corresponding to the segments of the body where the closest points are located
 
         
     https://www.sciencedirect.com/science/article/pii/0020019085900328 
@@ -224,7 +231,7 @@ def link_dists(pos_body, pos_robot):
     # dist = np.sqrt(np.sum(( np.transpose(d_r, axes=(0,2,1))*t - d_b.T*u - d_rb.T )**2, axis=1))
 
     distp = copy.copy(dist)
-    dist = np.around(dist, decimals=3)
+    dist = np.around(dist, decimals=6)
     distp[dist == 0] = 1000
     direc = np.multiply(diffs_3d, 1 / distp[:, :,  np.newaxis])
   
@@ -233,15 +240,27 @@ def link_dists(pos_body, pos_robot):
     direc[intersec_b_link, intersec_r_link, :] = [0, 0, 0]  # marks the places where the body and robot are believed to clip into another
     dist[bad_segments[:, 0], bad_segments[:, 1]] = 10 # marks the distances comparing imaginary axes (those that link both ends of each limb directly, for example)
     
-    t = np.around(t, decimals=3)
-    u = np.around(u, decimals=3)
+    t = np.around(t, decimals=6)
+    u = np.around(u, decimals=6)
 
     chkpt_2 = time.time()
     elapsed_time = chkpt_2 - chkpt_1
     print('elapsed time:')
     print(elapsed_time)
 
-    return dist, direc, t, u
+    [i, j] = np.where(dist == np.min(dist))
+    t = t[i, j]
+    u = u[i, j]
+    dist = dist[i, j]
+    direc = direc[i, j,:]
+    if m > n:
+        closest_r = j
+        closest_b = (j+i-1)%m
+    else:
+        closest_b = j
+        closest_r = (j+i)%n
+
+    return dist, direc, t, u, closest_r, closest_b
 
 
 class Subscriber(Node):
@@ -279,6 +298,7 @@ class Subscriber(Node):
                                         [0., 0., .8],
                                         [0., -.1, .6],
                                         [0., .1, .6],])    # placeholder end effector positions
+        self.fig = 0
 
     def kalman_callback(self):
 
@@ -302,8 +322,27 @@ class Subscriber(Node):
                     self.bodies[self.subject][2] = self.bodies[self.subject][2][new_order, :][:]
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
-                arms_dist, arms_direc, arms_t, arms_u = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
-                trunk_dist, trunk_direc, trunk_t, trunk_u = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, self.placeholder_Pe)
+                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+
+                ###############
+                class geom(): pass
+                geom.arm_pos = arms
+                geom.trunk_pos = self.bodies[self.subject][1]
+                geom.robot_pos = self.placeholder_Pe
+                geom.arm_cp_idx = c_a_r
+                geom.u = arms_u
+                geom.trunk_cp_idx = c_t_r
+                geom.v = trunk_u
+                geom.robot_cp_arm_idx = c_r_a
+                geom.s = arms_t
+                geom.robot_cp_trunk_idx = c_r_t
+                geom.t = trunk_t
+
+                self.fig = visualisations.plot_skeletons(self.fig, geom)
+
+                ###############
+
                 min_dist_arms = np.min(arms_dist)
                 min_dist_trunk = np.min(trunk_dist)
                 min_dist = min(min_dist_arms, min_dist_trunk)

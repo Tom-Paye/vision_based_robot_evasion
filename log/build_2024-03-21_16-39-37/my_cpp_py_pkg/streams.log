@@ -1,0 +1,103 @@
+[0.010s] Invoking command in '/home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/tom/ros2_ws/install/launch_testing_examples:/home/tom/ros2_ws/install/examples_rclpy_pointcloud_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_subscriber:/home/tom/ros2_ws/install/examples_rclpy_minimal_service:/home/tom/ros2_ws/install/examples_rclpy_minimal_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_client:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_server:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_client:/home/tom/ros2_ws/install/examples_rclpy_guard_conditions:/home/tom/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake /home/tom/ros2_ws/src/my_cpp_py_pkg -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg
+[0.064s] -- The C compiler identification is GNU 11.4.0
+[0.123s] -- The CXX compiler identification is GNU 11.4.0
+[0.131s] -- Detecting C compiler ABI info
+[0.185s] -- Detecting C compiler ABI info - done
+[0.190s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.190s] -- Detecting C compile features
+[0.191s] -- Detecting C compile features - done
+[0.193s] -- Detecting CXX compiler ABI info
+[0.256s] -- Detecting CXX compiler ABI info - done
+[0.261s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.261s] -- Detecting CXX compile features
+[0.261s] -- Detecting CXX compile features - done
+[0.276s] -- Found ament_cmake: 1.3.8 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.410s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[0.464s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.551s] -- Found rclcpp: 16.0.8 (/opt/ros/humble/share/rclcpp/cmake)
+[0.648s] -- Found rosidl_generator_c: 3.1.5 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[0.658s] -- Found rosidl_adapter: 3.1.5 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[0.672s] -- Found rosidl_generator_cpp: 3.1.5 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[0.713s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.741s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.829s] -- Found rmw_implementation_cmake: 6.1.1 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[0.836s] -- Found rmw_fastrtps_cpp: 6.2.6 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[0.951s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[0.977s] -- Found FastRTPS: /opt/ros/humble/include  
+[1.021s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.039s] -- Looking for pthread.h
+[1.101s] -- Looking for pthread.h - found
+[1.101s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[1.160s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[1.161s] -- Found Threads: TRUE  
+[1.296s] -- Found rclpy: 3.3.12 (/opt/ros/humble/share/rclpy/cmake)
+[1.300s] -- Found sensor_msgs: 4.2.3 (/opt/ros/humble/share/sensor_msgs/cmake)
+[1.471s] -- Found ament_lint_auto: 0.12.10 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[1.602s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[1.602s] -- Configured cppcheck include dirs: /home/tom/ros2_ws/src/my_cpp_py_pkg/include
+[1.602s] -- Configured cppcheck exclude dirs and/or files: 
+[1.606s] -- Added test 'flake8' to check Python code syntax and style conventions
+[1.614s] -- Added test 'lint_cmake' to check CMake code style
+[1.618s] -- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+[1.643s] -- Added test 'uncrustify' to check C / C++ code style
+[1.644s] -- Configured uncrustify additional arguments: 
+[1.648s] -- Added test 'xmllint' to check XML markup files
+[1.650s] -- Configuring done
+[1.660s] -- Generating done
+[1.661s] -- Build files have been written to: /home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg
+[1.669s] Invoked command in '/home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/tom/ros2_ws/install/launch_testing_examples:/home/tom/ros2_ws/install/examples_rclpy_pointcloud_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_subscriber:/home/tom/ros2_ws/install/examples_rclpy_minimal_service:/home/tom/ros2_ws/install/examples_rclpy_minimal_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_client:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_server:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_client:/home/tom/ros2_ws/install/examples_rclpy_guard_conditions:/home/tom/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake /home/tom/ros2_ws/src/my_cpp_py_pkg -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg
+[1.670s] Invoking command in '/home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/tom/ros2_ws/install/launch_testing_examples:/home/tom/ros2_ws/install/examples_rclpy_pointcloud_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_subscriber:/home/tom/ros2_ws/install/examples_rclpy_minimal_service:/home/tom/ros2_ws/install/examples_rclpy_minimal_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_client:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_server:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_client:/home/tom/ros2_ws/install/examples_rclpy_guard_conditions:/home/tom/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --build /home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg -- -j16 -l16
+[1.712s] [ 50%] [32mBuilding CXX object CMakeFiles/cpp_executable.dir/src/cpp_node.cpp.o[0m
+[1.718s] [ 50%] Built target ament_cmake_python_symlink_my_cpp_py_pkg
+[1.908s] running egg_info
+[1.908s] creating my_cpp_py_pkg.egg-info
+[1.908s] writing my_cpp_py_pkg.egg-info/PKG-INFO
+[1.908s] writing dependency_links to my_cpp_py_pkg.egg-info/dependency_links.txt
+[1.908s] writing top-level names to my_cpp_py_pkg.egg-info/top_level.txt
+[1.908s] writing manifest file 'my_cpp_py_pkg.egg-info/SOURCES.txt'
+[1.910s] reading manifest file 'my_cpp_py_pkg.egg-info/SOURCES.txt'
+[1.911s] writing manifest file 'my_cpp_py_pkg.egg-info/SOURCES.txt'
+[1.933s] [ 50%] Built target ament_cmake_python_build_my_cpp_py_pkg_egg
+[7.234s] [100%] [32m[1mLinking CXX executable cpp_executable[0m
+[7.493s] [100%] Built target cpp_executable
+[7.501s] Invoked command in '/home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/tom/ros2_ws/install/launch_testing_examples:/home/tom/ros2_ws/install/examples_rclpy_pointcloud_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_subscriber:/home/tom/ros2_ws/install/examples_rclpy_minimal_service:/home/tom/ros2_ws/install/examples_rclpy_minimal_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_client:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_server:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_client:/home/tom/ros2_ws/install/examples_rclpy_guard_conditions:/home/tom/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --build /home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg -- -j16 -l16
+[7.533s] Invoking command in '/home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/tom/ros2_ws/install/launch_testing_examples:/home/tom/ros2_ws/install/examples_rclpy_pointcloud_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_subscriber:/home/tom/ros2_ws/install/examples_rclpy_minimal_service:/home/tom/ros2_ws/install/examples_rclpy_minimal_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_client:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_server:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_client:/home/tom/ros2_ws/install/examples_rclpy_guard_conditions:/home/tom/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --install /home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg
+[7.539s] -- Install configuration: ""
+[7.539s] -- Execute custom install script
+[7.539s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/lib/my_cpp_py_pkg/cpp_executable
+[7.546s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/environment/pythonpath.sh
+[7.554s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/environment/pythonpath.dsv
+[7.560s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg-0.0.0-py3.10.egg-info/PKG-INFO
+[7.567s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg-0.0.0-py3.10.egg-info/SOURCES.txt
+[7.574s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg-0.0.0-py3.10.egg-info/dependency_links.txt
+[7.580s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg-0.0.0-py3.10.egg-info/top_level.txt
+[7.586s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/__init__.py
+[7.593s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/kalman.py
+[7.599s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/ogl_viewer/viewer.py
+[7.605s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/visualisations.py
+[7.611s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/zed_calib.json
+[7.618s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/lib/my_cpp_py_pkg/img_to_kpts.py
+[7.623s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/lib/my_cpp_py_pkg/kpts_to_bbox.py
+[7.630s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg//launch/my_script_launch.py
+[7.637s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/ament_index/resource_index/package_run_dependencies/my_cpp_py_pkg
+[7.643s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/ament_index/resource_index/parent_prefix_path/my_cpp_py_pkg
+[7.650s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/environment/ament_prefix_path.sh
+[7.657s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/environment/ament_prefix_path.dsv
+[7.663s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/environment/path.sh
+[7.670s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/environment/path.dsv
+[7.676s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/local_setup.bash
+[7.682s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/local_setup.sh
+[7.688s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/local_setup.zsh
+[7.694s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/local_setup.dsv
+[7.700s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/package.dsv
+[7.707s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/ament_index/resource_index/packages/my_cpp_py_pkg
+[7.713s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/cmake/my_cpp_py_pkgConfig.cmake
+[7.719s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/cmake/my_cpp_py_pkgConfig-version.cmake
+[7.725s] -- Symlinking: /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/share/my_cpp_py_pkg/package.xml
+[7.761s] Listing '/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg'...
+[7.761s] Compiling '/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/__init__.py'...
+[7.761s] Compiling '/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/kalman.py'...
+[7.761s] Listing '/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/ogl_viewer'...
+[7.762s] Compiling '/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/ogl_viewer/viewer.py'...
+[7.762s] Compiling '/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/visualisations.py'...
+[7.767s] Invoked command in '/home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/tom/ros2_ws/install/launch_testing_examples:/home/tom/ros2_ws/install/examples_rclpy_pointcloud_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_subscriber:/home/tom/ros2_ws/install/examples_rclpy_minimal_service:/home/tom/ros2_ws/install/examples_rclpy_minimal_publisher:/home/tom/ros2_ws/install/examples_rclpy_minimal_client:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_server:/home/tom/ros2_ws/install/examples_rclpy_minimal_action_client:/home/tom/ros2_ws/install/examples_rclpy_guard_conditions:/home/tom/ros2_ws/install/examples_rclpy_executors:/opt/ros/humble /usr/bin/cmake --install /home/tom/ros2_ws/src/my_cpp_py_pkg/build/my_cpp_py_pkg
