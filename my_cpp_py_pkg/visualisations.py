@@ -97,36 +97,36 @@ def plot_skeletons(fig, geom):
     return fig
 
 
-def main():
+# def main():
     
-    """
-    Placeholder function to illustrate the workings of the visualizer
+#     """
+#     Placeholder function to illustrate the workings of the visualizer
     
-    """
+#     """
     
-    fig = 0
-    class geom(): pass
-    geom.arm_pos = np.array([[-1., 0, 1.5], [-.2, 0., 1.5], [.2, 0., 1.5], [1., 0., 1.5]])
-    geom.trunk_pos = np.array([[0., 0, 1.2], [0., 0., 1.6], [0., 0., 1.8]])
-    geom.robot_pos = np.array([[0., 1., 0.], [0., 1., 1.], [1., 1., 1],
-                               [1.5, 0.5, 1.]])
-    geom.arm_cp_idx = 1
-    geom.u = 0.2
-    geom.trunk_cp_idx = 0
-    geom.v = 0.7
-    geom.robot_cp_arm_idx = 2
-    geom.s = 0.5
-    geom.robot_cp_trunk_idx = 1
-    geom.t = 0.9
+#     fig = 0
+#     class geom(): pass
+#     geom.arm_pos = np.array([[-1., 0, 1.5], [-.2, 0., 1.5], [.2, 0., 1.5], [1., 0., 1.5]])
+#     geom.trunk_pos = np.array([[0., 0, 1.2], [0., 0., 1.6], [0., 0., 1.8]])
+#     geom.robot_pos = np.array([[0., 1., 0.], [0., 1., 1.], [1., 1., 1],
+#                                [1.5, 0.5, 1.]])
+#     geom.arm_cp_idx = 1
+#     geom.u = 0.2
+#     geom.trunk_cp_idx = 0
+#     geom.v = 0.7
+#     geom.robot_cp_arm_idx = 2
+#     geom.s = 0.5
+#     geom.robot_cp_trunk_idx = 1
+#     geom.t = 0.9
     
-    for i in range(2000):
-        fig = plot_skeletons(fig, geom)
-        geom.robot_pos = geom.robot_pos + np.array([[0., 0., 0.], [0., -.001, 0.],
-                                                    [0., -.001, 0.01], [-0.001, -.001, 0.001]])
+#     for i in range(2000):
+#         fig = plot_skeletons(fig, geom)
+#         geom.robot_pos = geom.robot_pos + np.array([[0., 0., 0.], [0., -.001, 0.],
+#                                                     [0., -.001, 0.01], [-0.001, -.001, 0.001]])
  
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
     
     
         
