@@ -3,8 +3,7 @@
 import rclpy
 from rclpy.node import Node
 import my_cpp_py_pkg.kalman as kalman
-import my_cpp_py_pkg.visualisations as visualisations
-
+import my_cpp_py_pkg.visuals as visuals
 
 import numpy as np
 from geometry_msgs.msg import PoseArray
@@ -339,7 +338,7 @@ class Subscriber(Node):
                 geom.robot_cp_trunk_idx = c_r_t
                 geom.t = trunk_t
 
-                self.fig = visualisations.plot_skeletons(self.fig, geom)
+                self.fig = visuals.plot_skeletons(self.fig, geom)
 
                 ###############
 

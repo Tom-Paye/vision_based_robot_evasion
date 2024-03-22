@@ -8,7 +8,7 @@
 /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/__init__.py
 /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/kalman.py
 /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/ogl_viewer/viewer.py
-/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/visualisations.py
+/home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/visuals.py
 /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/zed_calib.json
 /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/lib/my_cpp_py_pkg/img_to_kpts.py
 /home/tom/ros2_ws/src/my_cpp_py_pkg/install/my_cpp_py_pkg/lib/my_cpp_py_pkg/kpts_to_bbox.py
