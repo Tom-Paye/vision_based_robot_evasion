@@ -94,6 +94,9 @@ def plot_skeletons(fig, geom):
         ax.set_xlim(0, 2)
         ax.set_ylim(-1, -3)
         ax.set_zlim(2, 4)
+        # ax.set_xlim(-1, 1)
+        # ax.set_ylim(-1, 1)
+        # ax.set_zlim(-1, 1)
     else:
         # inherit and reset a figure object
         ax = fig.axes[0]
@@ -109,6 +112,7 @@ def plot_skeletons(fig, geom):
     ax.plot(arm_pos[:, 0], arm_pos[:, 1], arm_pos[:, 2], 'o-b')
     ax.plot(trunk_pos[:, 0], trunk_pos[:, 1], trunk_pos[:, 2], 'o-g')
     ax.plot(robot_pos[:, 0], robot_pos[:, 1], robot_pos[:, 2], 'o-r')
+
     
     # # draw the lines from human to robot
     # if type(u) == float:
@@ -120,9 +124,47 @@ def plot_skeletons(fig, geom):
     #     for i in range(np.shape(rt_pos)[1]):
     #         ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
     
-    plt.pause(0.0005)
+    plt.pause(0.001)
     return fig
 
+def quick_plot(lsh, rsh, lsl, rsl):
+    fig = plt.figure(figsize=(4,4))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(lsh[:,0], lsh[:,1], lsh[:,2], 'o-r')
+    ax.plot(rsh[:,0], rsh[:,1], rsh[:,2], 'o-b')
+    ax.plot(lsl[:,0], lsl[:,1], lsl[:,2], 'o-g')
+    ax.plot(rsl[:,0], rsl[:,1], rsl[:,2], 'o-m')
+    set_axes_equal(ax)
+    plt.show()
+
+def set_axes_equal(ax):
+    """
+    Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc.
+
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    """
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+    
 
 def main():
     

@@ -142,18 +142,20 @@ class local_functions():
         # For now, all parameters are defined in this script
         class user_params(): pass
         user_params.from_sl_config_file = False
-        user_params.config_pth = '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib.json'
+        user_params.config_pth = '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib_2.json'
+        # '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib_2.json'
         # '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib.json'
         # '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
         # '/usr/local/zed/tools/zed_calib.json'
-        user_params.video_src = 'SVO'                                       # SVO, Live
+        user_params.video_src = 'Live'                                       # SVO, Live
         user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
         user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
         user_params.svo_suffix = '_720p_30fps.svo'
         user_params.display_video = 0                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
-        user_params.display_skeleton = False
+        user_params.display_skeleton = True
         user_params.return_hands = False
         user_params.time_loop = False
+        user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
         return user_params
         
         # return self.user_params
@@ -183,7 +185,11 @@ class local_functions():
                                   [ 0, 1,  0, 0.03],
                                   [ 0, 0, -1, 0.006],
                                   [ 0, 0,  0, 1]])
-                    M = np.matmul(N, M)
+                    # M = np.matmul(N, M)
+                    # M = M + np.array([[0, 0,  0, 0],
+                    #                   [0, 0,  0, 0],
+                    #                   [0, 0, 0, -2],
+                    #                   [0, 0,  0, 0]])
                     T = sl.Transform()
                     for j in range(4):
                         for k in range(4):
@@ -248,7 +254,10 @@ class local_functions():
         if self.user_params.return_hands == True:
             zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_38
         else:
-            zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_18
+            if self.user_params.body_type == 'BODY_34':
+                zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_34
+            else:
+                zed_params.body_tracking.body_format = sl.BODY_FORMAT.BODY_18
         zed_params.body_tracking.enable_body_fitting = True
         zed_params.body_tracking.enable_tracking = True
 
@@ -275,9 +284,14 @@ class local_functions():
 
 
         # only for body_18
-        zed_params.left_arm_keypoints = [5, 6, 7]
-        zed_params.right_arm_keypoints = [2, 3, 4]
-        zed_params.trunk_keypoints = [0, 1, 14, 15, 16, 17]
+        if self.user_params.body_type == 'BODY_18':
+            zed_params.left_arm_keypoints = [5, 6, 7]
+            zed_params.right_arm_keypoints = [2, 3, 4]
+            zed_params.trunk_keypoints = [1, 0, 14, 16, 17, 15]
+        if self.user_params.body_type == 'BODY_34':
+            zed_params.left_arm_keypoints = [4, 5, 6, 7]
+            zed_params.right_arm_keypoints = [11, 12, 13, 14]
+            zed_params.trunk_keypoints = [2, 3, 26, 27, 30, 31, 28, 29]
 
         # only for body_38
         zed_params.left_hand_keypoints = [30, 32, 34, 36]
@@ -447,7 +461,10 @@ class local_functions():
                 right_kpt_idx = self.zed_params.right_arm_keypoints
             trunk_kpt_idx = self.zed_params.trunk_keypoints
             
-            for body in self.bodies.body_list:    
+            for body in self.bodies.body_list:
+
+                print('body id : ' + str(body.id))  
+                print('body sz : ' + str(len(body.keypoint)))  
                 
                 # left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
                 # right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
@@ -460,9 +477,21 @@ class local_functions():
                 #     keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
                 #     left_matrix = np.vstack((left_matrix, keypoint_left))  # left hand
                 #     right_matrix = np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
-                left_matrix = np.array(body.keypoint[left_kpt_idx])
+                # left_matrix = np.array(body.keypoint[left_kpt_idx])
+                left_matrix = np.array(body.keypoint[:])
                 right_matrix = np.array(body.keypoint[right_kpt_idx])
                 
+                #####################
+                lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
+                rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
+                lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
+                rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
+
+
+                # visuals.quick_plot(lsl, rsl, lss, rss)
+                
+
+                #####################
                 
                 if self.user_params.return_hands == False:
                     trunk_matrix = np.array(body.keypoint[trunk_kpt_idx])
@@ -531,7 +560,7 @@ def main(args=None):
     cam = local_functions()
     key = ''
     checkpoint = time.time()
-    fig = 0
+    # fig = 0
     
     while (key != ord("q")):
 
@@ -551,25 +580,25 @@ def main(args=None):
                 publisher.timer_callback('trunk', body_id, output_t)
             publisher.timer_callback('stop', '-1', np.array([[-1, -1, -1]]))
 
-        if not (not cam.known_bodies):
-            disp_body = list(cam.known_bodies)[0]
-            ###############
-            class geom(): pass
-            geom.arm_pos = cam.known_bodies[disp_body][0]
-            geom.trunk_pos = cam.known_bodies[disp_body][1]
-            geom.robot_pos = cam.known_bodies[disp_body][2]
-            geom.arm_cp_idx = [0, 1]
-            geom.u = np.eye(2)
-            geom.trunk_cp_idx = [0, 1]
-            geom.v = np.eye(2)
-            geom.robot_cp_arm_idx = [0, 1]
-            geom.s = np.eye(2)
-            geom.robot_cp_trunk_idx = [0, 1]
-            geom.t = np.eye(2)
+        # if not (not cam.known_bodies):
+        #     disp_body = list(cam.known_bodies)[0]
+        #     ###############
+        #     class geom(): pass
+        #     geom.arm_pos = cam.known_bodies[disp_body][0]
+        #     geom.trunk_pos = cam.known_bodies[disp_body][1]
+        #     geom.robot_pos = cam.known_bodies[disp_body][2]
+        #     geom.arm_cp_idx = [0, 1]
+        #     geom.u = np.eye(2)
+        #     geom.trunk_cp_idx = [0, 1]
+        #     geom.v = np.eye(2)
+        #     geom.robot_cp_arm_idx = [0, 1]
+        #     geom.s = np.eye(2)
+        #     geom.robot_cp_trunk_idx = [0, 1]
+        #     geom.t = np.eye(2)
 
-            fig = visuals.plot_skeletons(fig, geom)
+        #     fig = visuals.plot_skeletons(fig, geom)
 
-            ###############
+        #     ###############
 
         key = cv2.pollKey()
             
