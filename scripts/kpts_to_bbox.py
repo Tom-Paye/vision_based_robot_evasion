@@ -244,8 +244,8 @@ def link_dists(pos_body, pos_robot):
 
     chkpt_2 = time.time()
     elapsed_time = chkpt_2 - chkpt_1
-    print('elapsed time:')
-    print(elapsed_time)
+    # print('elapsed time:')
+    # print(elapsed_time)
 
     [i, j] = np.where(dist == np.min(dist))
     t = t[i, j]
@@ -327,7 +327,7 @@ class Subscriber(Node):
                 ###############
                 class geom(): pass
                 geom.arm_pos = arms
-                geom.trunk_pos = self.bodies[self.subject][1]
+                geom.trunk_pos = self.bodies[self.subject][2]
                 geom.robot_pos = self.placeholder_Pe
                 geom.arm_cp_idx = c_a_r
                 geom.u = arms_u
@@ -345,8 +345,8 @@ class Subscriber(Node):
                 min_dist_arms = np.min(arms_dist)
                 min_dist_trunk = np.min(trunk_dist)
                 min_dist = min(min_dist_arms, min_dist_trunk)
-                self.get_logger().info('Minimum distance:')
-                self.get_logger().info(str(min_dist))
+                # self.get_logger().info('Minimum distance:')
+                # self.get_logger().info(str(min_dist))
 
 
 
@@ -359,6 +359,7 @@ class Subscriber(Node):
     def data_callback(self, msg):
         # self.get_logger().info(str(msg))
         # region = math.trunc(msg.w)
+        limb_dict = {'left':0, 'right':1, 'trunk':2, '1stop':-1}
         region = msg.header.frame_id[1:]
         self.reset = (msg.header.frame_id[2:] == 'stop')
         # if self.reset:
@@ -375,10 +376,12 @@ class Subscriber(Node):
         #     self.data_right = []
         #     self.data_trunk = []
         # else:
-        if self.reset and self.subject in self.bodies:
-            self.get_logger().debug('Body 0 Left side')
-            self.get_logger().debug(str(self.bodies[self.subject][0]))
-
+        if self.reset:
+            if self.subject in self.bodies:
+                self.get_logger().debug('Body 0 Left side')
+                self.get_logger().debug(str(self.bodies[self.subject][0]))
+            else:
+                pass
         else:
             body_id =msg.header.frame_id[0]
             if body_id == '-':
@@ -392,23 +395,24 @@ class Subscriber(Node):
                 poses.append([pose.position.x, pose.position.y, pose.position.z])
             poses = np.array(poses)
 
-            threshold = 0.2
+            threshold = 0.002
             if str(body_id) in self.bodies:
-                if region == 'left':
-                    if np.shape(self.bodies[str(body_id)][0]) == np.shape(poses):
-                        if np.any(np.linalg.norm(self.bodies[str(body_id)][0]-poses, axis=0) > threshold):
-                            poses = self.bodies[str(body_id)][0]
-                    self.bodies[str(body_id)][0] = poses
-                if region == 'right':
-                    if np.shape(self.bodies[str(body_id)][1]) == np.shape(poses):
-                        if np.any(np.linalg.norm(self.bodies[str(body_id)][1]-poses, axis=0) > threshold):
-                            poses = self.bodies[str(body_id)][1]
-                    self.bodies[str(body_id)][1] = poses
-                if region == 'trunk':
-                    if np.shape(self.bodies[str(body_id)][2]) == np.shape(poses):
-                        if np.any(np.linalg.norm(self.bodies[str(body_id)][2]-poses, axis=0) > threshold):
-                            poses = self.bodies[str(body_id)][2]
-                    self.bodies[str(body_id)][2] = poses
+                # if region == 'left':
+                #     if np.shape(self.bodies[str(body_id)][0]) == np.shape(poses):
+                #         if np.any(np.linalg.norm(self.bodies[str(body_id)][0]-poses, axis=0) < threshold):
+                #             poses = self.bodies[str(body_id)][0]    # do not update position if it has not moved sufficiently?
+                #     self.bodies[str(body_id)][0] = poses
+                # if region == 'right':
+                #     if np.shape(self.bodies[str(body_id)][1]) == np.shape(poses):
+                #         if np.any(np.linalg.norm(self.bodies[str(body_id)][1]-poses, axis=0) < threshold):
+                #             poses = self.bodies[str(body_id)][1]
+                #     self.bodies[str(body_id)][1] = poses
+                # if region == 'trunk':
+                #     if np.shape(self.bodies[str(body_id)][2]) == np.shape(poses):
+                #         if np.any(np.linalg.norm(self.bodies[str(body_id)][2]-poses, axis=0) < threshold):
+                #             poses = self.bodies[str(body_id)][2]
+                #     self.bodies[str(body_id)][2] = poses
+                self.bodies[str(body_id)][limb_dict[region]] = poses
             else:
                     self.bodies[str(body_id)] = [poses[0:3,:], poses[0:3,:], poses]
 

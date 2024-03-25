@@ -22,6 +22,7 @@ from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
+import my_cpp_py_pkg.visuals as visuals
 
 def inverse_transform(R, t):
     T_inv = np.eye(4, 4)
@@ -90,9 +91,9 @@ class MinimalPublisher(Node):
         #     msg.w = p + 0.01*k
         #     self.publisher_vec.publish(msg)
  
-        self.get_logger().info(label)
-        # self.get_logger().info(str(data[0]))
-        self.get_logger().info(str(data))
+        # self.get_logger().info(label)
+        # # self.get_logger().info(str(data[0]))
+        # self.get_logger().info(str(data))
         self.publisher_vec.publish(msg_vec)
         self.key = cv2.pollKey()
         self.i += 1
@@ -252,7 +253,7 @@ class local_functions():
         zed_params.body_tracking.enable_tracking = True
 
         zed_params.body_tracking_runtime = sl.BodyTrackingRuntimeParameters()
-        zed_params.body_tracking_runtime.detection_confidence_threshold = 0.85 #confidence threshold actually doesnt work
+        # zed_params.body_tracking_runtime.detection_confidence_threshold = 0.85 #confidence threshold actually doesnt work
         
         zed_params.fusion_init = sl.InitFusionParameters()
         zed_params.fusion_init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
@@ -268,7 +269,7 @@ class local_functions():
         # rt.skeleton_minimum_allowed_keypoints = 7
 
         zed_params.body_tracking_fusion_runtime = sl.BodyTrackingFusionRuntimeParameters()
-        zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 6
+        zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 7
         # zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_camera = 1
         # zed_params.body_tracking_fusion_runtime.skeleton_smoothing = 0.5
 
@@ -416,6 +417,7 @@ class local_functions():
     
         if self.fusion.process() == sl.FUSION_ERROR_CODE.SUCCESS:
             
+            # TODO: Likely error in fusion initialisation that screws with the camera fusion
             # Retrieve detected objects
             self.fusion.retrieve_bodies(self.bodies, self.zed_params.body_tracking_fusion_runtime)
             self.fetch_skeleton()
@@ -423,13 +425,20 @@ class local_functions():
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in self.camera_identifiers:
             #     fusion.retrieveBodies(self.single_bodies, rt, cam); 
-            if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
-                self.viewer.update_bodies(self.bodies)
+            if (self.user_params.display_skeleton == True):
+                print(str(self.viewer.is_available()))
+                if (self.viewer.is_available()):
+                    self.viewer.update_bodies(self.bodies)
+            
+
+            
                 
     def fetch_skeleton(self):
         
         if len(self.bodies.body_list) > 0:
-
+            # TODO: Check that the keypoints collected are the right ones
+            # TODO: Check that the keypoints are taken along the right axis
+            # TODO: Check that the transforéation matrix is applied right
             if self.user_params.return_hands == True:
                 left_kpt_idx = self.zed_params.left_hand_keypoints
                 right_kpt_idx = self.zed_params.right_hand_keypoints
@@ -440,23 +449,27 @@ class local_functions():
             
             for body in self.bodies.body_list:    
                 
-                left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
-                right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
-                trunk_matrix = np.array(body.keypoint[trunk_kpt_idx[0]]).reshape([1, 3])
+                # left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
+                # right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
+                # trunk_matrix = np.array(body.keypoint[trunk_kpt_idx[0]]).reshape([1, 3])
 
-                for h in range(len(left_kpt_idx)-1):    # fetch coords of each kpt
-                    i = left_kpt_idx[h+1]
-                    j = right_kpt_idx[h+1]
-                    keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
-                    keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
-                    left_matrix = np.vstack((left_matrix, keypoint_left))  # left hand
-                    right_matrix = np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
+                # for h in range(len(left_kpt_idx)-1):    # fetch coords of each kpt
+                #     i = left_kpt_idx[h+1]
+                #     j = right_kpt_idx[h+1]
+                #     keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
+                #     keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
+                #     left_matrix = np.vstack((left_matrix, keypoint_left))  # left hand
+                #     right_matrix = np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
+                left_matrix = np.array(body.keypoint[left_kpt_idx])
+                right_matrix = np.array(body.keypoint[right_kpt_idx])
+                
                 
                 if self.user_params.return_hands == False:
-                    for h in range(len(trunk_kpt_idx)-1):
-                        k = trunk_kpt_idx[h+1]
-                        keypoint_trunk = np.array(body.keypoint[k]).reshape([1, 3])
-                        trunk_matrix = np.vstack((trunk_matrix, keypoint_trunk))
+                    trunk_matrix = np.array(body.keypoint[trunk_kpt_idx])
+                    # for h in range(len(trunk_kpt_idx)-1):
+                    #     k = trunk_kpt_idx[h+1]
+                    #     keypoint_trunk = np.array(body.keypoint[k]).reshape([1, 3])
+                    #     trunk_matrix = np.vstack((trunk_matrix, keypoint_trunk))
             
                 if self.user_params.return_hands:   # if hands, only return the mean kpt position
                     left_pos = np.mean(left_matrix, axis=0)
@@ -498,8 +511,7 @@ class local_functions():
             
         if self.trunk_pos_all[0][0] < -3:
             print("this loop done")
-
-                
+              
                 
     def close(self):
 
@@ -519,6 +531,7 @@ def main(args=None):
     cam = local_functions()
     key = ''
     checkpoint = time.time()
+    fig = 0
     
     while (key != ord("q")):
 
@@ -530,12 +543,33 @@ def main(args=None):
         cam.zed_loop()
         # output_l, output_r, output_t = cam.left_pos_all, cam.right_pos_all, cam.trunk_pos_all
         for body_id in cam.known_bodies:
+
             [output_l, output_r, output_t] = cam.known_bodies[body_id]
             publisher.timer_callback('left', body_id, output_l)
             publisher.timer_callback('right', body_id, output_r)
             if not cam.user_params.return_hands:
                 publisher.timer_callback('trunk', body_id, output_t)
             publisher.timer_callback('stop', '-1', np.array([[-1, -1, -1]]))
+
+        if not (not cam.known_bodies):
+            disp_body = list(cam.known_bodies)[0]
+            ###############
+            class geom(): pass
+            geom.arm_pos = cam.known_bodies[disp_body][0]
+            geom.trunk_pos = cam.known_bodies[disp_body][1]
+            geom.robot_pos = cam.known_bodies[disp_body][2]
+            geom.arm_cp_idx = [0, 1]
+            geom.u = np.eye(2)
+            geom.trunk_cp_idx = [0, 1]
+            geom.v = np.eye(2)
+            geom.robot_cp_arm_idx = [0, 1]
+            geom.s = np.eye(2)
+            geom.robot_cp_trunk_idx = [0, 1]
+            geom.t = np.eye(2)
+
+            fig = visuals.plot_skeletons(fig, geom)
+
+            ###############
 
         key = cv2.pollKey()
             

@@ -57,24 +57,31 @@ def plot_skeletons(fig, geom):
     trunk_cp_idx, v = geom.trunk_cp_idx, geom.v
     robot_cp_arm_idx, s = geom.robot_cp_arm_idx, geom.s
     robot_cp_trunk_idx, t = geom.robot_cp_trunk_idx, geom.t
+
+    # print('arms: ')
+    # for idx in arm_cp_idx:
+    #     print(str(idx))
+    # print('trunk: ')
+    # for idx in trunk_cp_idx:
+    #     print(str(idx))
     
-    # Create the geometry linking human and robot
-    if type(u) == float:
-        arm_cp = arm_pos[arm_cp_idx,:]*u + arm_pos[arm_cp_idx+1,:] * (1-u)
-        trunk_cp = trunk_pos[trunk_cp_idx,:]*v + trunk_pos[trunk_cp_idx+1,:] * (1-v)
-        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s + robot_pos[robot_cp_arm_idx+1,:] * (1-s)
-        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)
+    # # Create the geometry linking human and robot
+    # if type(u) == float:
+    #     arm_cp = arm_pos[arm_cp_idx,:]*u + arm_pos[arm_cp_idx+1,:] * (1-u)
+    #     trunk_cp = trunk_pos[trunk_cp_idx,:]*v + trunk_pos[trunk_cp_idx+1,:] * (1-v)
+    #     robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s + robot_pos[robot_cp_arm_idx+1,:] * (1-s)
+    #     robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)
         
-        ra_pos = np.array([arm_cp, robot_cp_arm])
-        rt_pos = np.array([trunk_cp, robot_cp_trunk])
-    else:
-        arm_cp = arm_pos[arm_cp_idx,:]*u[:, np.newaxis] + arm_pos[arm_cp_idx+1,:] * (1-u)[:, np.newaxis]
-        trunk_cp = trunk_pos[trunk_cp_idx,:]*v[:, np.newaxis] + trunk_pos[trunk_cp_idx+1,:] * (1-v)[:, np.newaxis]
-        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s[:, np.newaxis] + robot_pos[robot_cp_arm_idx+1,:] * (1-s)[:, np.newaxis]
-        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t[:, np.newaxis] + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)[:, np.newaxis]
+    #     ra_pos = np.array([arm_cp, robot_cp_arm])
+    #     rt_pos = np.array([trunk_cp, robot_cp_trunk])
+    # else:
+    #     arm_cp = arm_pos[arm_cp_idx,:]*u[:, np.newaxis] + arm_pos[arm_cp_idx+1,:] * (1-u)[:, np.newaxis]
+    #     trunk_cp = trunk_pos[trunk_cp_idx,:]*v[:, np.newaxis] + trunk_pos[trunk_cp_idx+1,:] * (1-v)[:, np.newaxis]
+    #     robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s[:, np.newaxis] + robot_pos[robot_cp_arm_idx+1,:] * (1-s)[:, np.newaxis]
+    #     robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t[:, np.newaxis] + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)[:, np.newaxis]
         
-        ra_pos = np.array([arm_cp, robot_cp_arm])
-        rt_pos = np.array([trunk_cp, robot_cp_trunk])
+    #     ra_pos = np.array([arm_cp, robot_cp_arm])
+    #     rt_pos = np.array([trunk_cp, robot_cp_trunk])
     
 
     # initialize or iterate figure
@@ -84,30 +91,34 @@ def plot_skeletons(fig, geom):
         # create figure object
         fig = plt.figure(figsize=(4,4))
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlim(0, 2)
+        ax.set_ylim(-1, -3)
+        ax.set_zlim(2, 4)
     else:
         # inherit and reset a figure object
         ax = fig.axes[0]
-        [arms_line, trunk_line, robot_line] = ax.lines[0:3]
-        arms_line.remove()
-        trunk_line.remove()
-        robot_line.remove()
-        for line in ax.lines[2:]:
-            line.remove()
-        
-    # plot the human and robot
-    arms_line, = ax.plot(arm_pos[:, 0], arm_pos[:, 1], arm_pos[:, 2], 'o-b')
-    trunk_line, = ax.plot(trunk_pos[:, 0], trunk_pos[:, 1], trunk_pos[:, 2], 'o-g')
-    robot_line, = ax.plot(robot_pos[:, 0], robot_pos[:, 1], robot_pos[:, 2], 'o-r')
+        for art in list(ax.lines):
+            art.remove()
     
-    # draw the lines from human to robot
-    if type(u) == float:
-        ra_line = ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
-        rt_line = ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
-    else:
-        for i in range(np.shape(ra_pos)[1]):
-            ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
-        for i in range(np.shape(rt_pos)[1]):
-            ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
+    # dummy_line_1 = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    # dummy_line_2 = np.array([[0, 0, 0], [1, 1, 0], [2, 2, 0]])
+    # ax.plot(dummy_line_1[:, 0], dummy_line_1[:, 1], dummy_line_1[:, 2], 'o-b')
+    # ax.plot(dummy_line_2[:, 0], dummy_line_2[:, 1], dummy_line_2[:, 2], 'o-r')
+
+    # plot the human and robot
+    ax.plot(arm_pos[:, 0], arm_pos[:, 1], arm_pos[:, 2], 'o-b')
+    ax.plot(trunk_pos[:, 0], trunk_pos[:, 1], trunk_pos[:, 2], 'o-g')
+    ax.plot(robot_pos[:, 0], robot_pos[:, 1], robot_pos[:, 2], 'o-r')
+    
+    # # draw the lines from human to robot
+    # if type(u) == float:
+    #     ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
+    #     ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
+    # else:
+    #     for i in range(np.shape(ra_pos)[1]):
+    #         ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
+    #     for i in range(np.shape(rt_pos)[1]):
+    #         ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
     
     plt.pause(0.0005)
     return fig
