@@ -152,11 +152,11 @@ class local_functions():
         user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
         user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
         user_params.svo_suffix = '_720p_30fps.svo'
-        user_params.display_video = 1                                      # 0: none, 1: cam 1, 2: cam 2, 3: both cams
-        user_params.display_skeleton = True
+        user_params.display_video = 0                                     # 0: none, 1: cam 1, 2: cam 2, 3: both cams
+        user_params.display_skeleton = False
         user_params.return_hands = False
         user_params.time_loop = False
-        user_params.body_type = 'BODY_18' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
+        user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
         return user_params
         
         # return self.user_params
@@ -198,27 +198,47 @@ class local_functions():
                     
 
                     ######################
-                    # Assume Zed fusion sets 1 camera as the origin, rather than the world origin
+                    """
+                    Assume Zed fusion sets 1 camera as the origin, rather than the world origin
+                    This means you have to transform the coordinates of the second camera to what its
+                    position is in the first camera's frame of reference
+                    --> ZED PYTHON API : subscribe pyzed::sl::Fusion
+                    https://www.stereolabs.com/docs/fusion/overview
+
+                    If you want to apply a different cam position for the sake of getting openGL to look the right way:
+                    - only add translation to the first cam!
+                    - comment out the conversion to real world coordinates R
+                    - disable "zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP" 
                     
-                    
+                    """
+
                     if not np.any(zed_params.fusion):
                         N = copy.copy(M)    # table coords --> Cam1 coords (Cam1 as seen from table)
                         P = inverse_transform(N[0:3, 0:3], N[0:3, 3])
-                        M = np.eye(4)
-                        M = M + np.array([[0, 0,  0, 0],
-                                      [0, 0,  0, 1],
-                                      [0, 0, 0, -3],
-                                      [0, 0,  0, 0]])
-                    else:
-                        Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
-                        M = np.matmul(P, M)
-                        # M = np.matmul(Q, N)
+                        # M = np.eye(4)
                         # M = M + np.array([[0, 0,  0, 0],
                         #               [0, 0,  0, 1],
                         #               [0, 0, 0, -3],
                         #               [0, 0,  0, 0]])
+                        
+                        R = np.array([[-1, 0,  0, 0.358],
+                                      [ 0, 1,  0, 0.03],
+                                      [ 0, 0, -1, 0.006],
+                                      [ 0, 0,  0, 1]])
+                        Rt = inverse_transform(R[0:3, 0:3], R[0:3, 3])
+                        Rp = np.array([[1, 0,  0, -0.358],
+                                      [ 0, 1,  0, -0.03],
+                                      [ 0, 0, 1, -0.006],
+                                      [ 0, 0,  0, 1]])
+                        M = np.matmul(R, M)
+                    else:
+                        Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
+                        M = np.matmul(P, M)
+                        # M = np.matmul(Q, N)
+                        
                     #########################
 
+                    
                     # visuals.plot_axes(M)
                     T = sl.Transform()
                     for j in range(4):
@@ -471,7 +491,8 @@ class local_functions():
             # TODO: Likely error in fusion initialisation that screws with the camera fusion
             # Retrieve detected objects
             self.fusion.retrieve_bodies(self.bodies, self.zed_params.body_tracking_fusion_runtime)
-            # self.fetch_skeleton()
+            
+            self.fetch_skeleton()
             
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in self.camera_identifiers:
@@ -506,83 +527,87 @@ class local_functions():
             
             for body in self.bodies.body_list:
 
-                # print('body id : ' + str(body.id))  
-                # print('body sz : ' + str(len(body.keypoint)))  
+                # Only keep bodies close to the origin
+                dist = np.linalg.norm(np.mean(body.keypoint[:], axis=0))
+                if dist < 1.5:
+
+                    # print('body id : ' + str(body.id))  
+                    # print('body sz : ' + str(len(body.keypoint)))  
+                    
+                    # left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
+                    # right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
+                    # trunk_matrix = np.array(body.keypoint[trunk_kpt_idx[0]]).reshape([1, 3])
+
+                    # for h in range(len(left_kpt_idx)-1):    # fetch coords of each kpt
+                    #     i = left_kpt_idx[h+1]
+                    #     j = right_kpt_idx[h+1]
+                    #     keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
+                    #     keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
+                    #     left_matrix = np.vstack((left_matrix, keypoint_left))  # left hand
+                    #     right_matrix = np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
+                    left_matrix = np.array(body.keypoint[left_kpt_idx])
+                    # left_matrix = np.array(body.keypoint[:])
+                    right_matrix = np.array(body.keypoint[right_kpt_idx])
+                    
+                    #####################
+                    lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
+                    rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
+                    lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
+                    rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
+
+
+                    # visuals.quick_plot(lsl, rsl, lss, rss)
+                    
+
+                    #####################
+                    
+                    if self.user_params.return_hands == False:
+                        trunk_matrix = np.array(body.keypoint[trunk_kpt_idx])
+                        # for h in range(len(trunk_kpt_idx)-1):
+                        #     k = trunk_kpt_idx[h+1]
+                        #     keypoint_trunk = np.array(body.keypoint[k]).reshape([1, 3])
+                        #     trunk_matrix = np.vstack((trunk_matrix, keypoint_trunk))
                 
-                # left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
-                # right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
-                # trunk_matrix = np.array(body.keypoint[trunk_kpt_idx[0]]).reshape([1, 3])
+                    if self.user_params.return_hands:   # if hands, only return the mean kpt position
+                        left_pos = np.mean(left_matrix, axis=0)
+                        right_pos = np.mean(right_matrix, axis=0)
+                        trunk_pos = np.mean(trunk_matrix, axis=0)
 
-                # for h in range(len(left_kpt_idx)-1):    # fetch coords of each kpt
-                #     i = left_kpt_idx[h+1]
-                #     j = right_kpt_idx[h+1]
-                #     keypoint_left = np.array(body.keypoint[i]).reshape([1, 3])
-                #     keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
-                #     left_matrix = np.vstack((left_matrix, keypoint_left))  # left hand
-                #     right_matrix = np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
-                left_matrix = np.array(body.keypoint[left_kpt_idx])
-                # left_matrix = np.array(body.keypoint[:])
-                right_matrix = np.array(body.keypoint[right_kpt_idx])
+                        if not np.any(np.isnan(left_pos)):
+                            lhp = np.array([left_pos[:]])
+                            if not np.any(self.left_pos_all):
+                                self.left_pos_all = lhp
+                            else:
+                                self.left_pos_all = np.append(self.left_pos_all, lhp, axis=0)
+
+                        if not np.any(np.isnan(right_pos)):
+                            rhp = np.array([right_pos[:]])
+                            if not np.any(self.right_pos_all):
+                                self.right_pos_all = rhp
+                            else:
+                                self.right_pos_all = np.append(self.right_pos_all, rhp, axis=0)
+                    else:
+                        self.left_pos_all = left_matrix
+                        self.right_pos_all = right_matrix
+                        self.trunk_pos_all = trunk_matrix
+
+                    body_id = body.id
+                    if body_id in self.known_bodies:
+                        self.known_bodies[body_id][0] = left_matrix
+                        self.known_bodies[body_id][1] = right_matrix
+                        self.known_bodies[body_id][2] = trunk_matrix
+                    else:
+                        self.known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
+
+                    # if not np.any(np.isnan(trunk_pos)):
+                    #     thp = np.array([trunk_pos[:]])
+                    #     if not np.any(self.trunk_pos_all):
+                    #         self.trunk_pos_all = thp
+                    #     else:
+                    #         self.trunk_pos_all = np.append(self.trunk_pos_all, thp, axis=0)
                 
-                #####################
-                # lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
-                # rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
-                # lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
-                # rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
-
-
-                # visuals.quick_plot(lsl, rsl, lss, rss)
-                
-
-                #####################
-                
-                if self.user_params.return_hands == False:
-                    trunk_matrix = np.array(body.keypoint[trunk_kpt_idx])
-                    # for h in range(len(trunk_kpt_idx)-1):
-                    #     k = trunk_kpt_idx[h+1]
-                    #     keypoint_trunk = np.array(body.keypoint[k]).reshape([1, 3])
-                    #     trunk_matrix = np.vstack((trunk_matrix, keypoint_trunk))
-            
-                if self.user_params.return_hands:   # if hands, only return the mean kpt position
-                    left_pos = np.mean(left_matrix, axis=0)
-                    right_pos = np.mean(right_matrix, axis=0)
-                    trunk_pos = np.mean(trunk_matrix, axis=0)
-
-                    if not np.any(np.isnan(left_pos)):
-                        lhp = np.array([left_pos[:]])
-                        if not np.any(self.left_pos_all):
-                            self.left_pos_all = lhp
-                        else:
-                            self.left_pos_all = np.append(self.left_pos_all, lhp, axis=0)
-
-                    if not np.any(np.isnan(right_pos)):
-                        rhp = np.array([right_pos[:]])
-                        if not np.any(self.right_pos_all):
-                            self.right_pos_all = rhp
-                        else:
-                            self.right_pos_all = np.append(self.right_pos_all, rhp, axis=0)
-                else:
-                    self.left_pos_all = left_matrix
-                    self.right_pos_all = right_matrix
-                    self.trunk_pos_all = trunk_matrix
-
-                body_id = body.id
-                if body_id in self.known_bodies:
-                    self.known_bodies[body_id][0] = left_matrix
-                    self.known_bodies[body_id][1] = right_matrix
-                    self.known_bodies[body_id][2] = trunk_matrix
-                else:
-                    self.known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
-
-                # if not np.any(np.isnan(trunk_pos)):
-                #     thp = np.array([trunk_pos[:]])
-                #     if not np.any(self.trunk_pos_all):
-                #         self.trunk_pos_all = thp
-                #     else:
-                #         self.trunk_pos_all = np.append(self.trunk_pos_all, thp, axis=0)
-            
-        if self.trunk_pos_all[0][0] < -3:
-            print("this loop done")
+            if self.trunk_pos_all[0][0] < -3:
+                print("this loop done")
               
                 
     def close(self):
