@@ -57,16 +57,33 @@ def plot_skeletons(fig, geom):
     trunk_cp_idx, v = geom.trunk_cp_idx, geom.v
     robot_cp_arm_idx, s = geom.robot_cp_arm_idx, geom.s
     robot_cp_trunk_idx, t = geom.robot_cp_trunk_idx, geom.t
+
+    # print('arms: ')
+    # for idx in arm_cp_idx:
+    #     print(str(idx))
+    # print('trunk: ')
+    # for idx in trunk_cp_idx:
+    #     print(str(idx))
     
-    # Create the geometry linking human and robot
-    arm_cp = arm_pos[arm_cp_idx,:]*u + arm_pos[arm_cp_idx+1,:] * (1-u)
-    trunk_cp = trunk_pos[trunk_cp_idx,:]*v + trunk_pos[trunk_cp_idx+1,:] * (1-v)
-    robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s + robot_pos[robot_cp_arm_idx+1,:] * (1-s)
-    robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)
+    # # Create the geometry linking human and robot
+    # if type(u) == float:
+    #     arm_cp = arm_pos[arm_cp_idx,:]*u + arm_pos[arm_cp_idx+1,:] * (1-u)
+    #     trunk_cp = trunk_pos[trunk_cp_idx,:]*v + trunk_pos[trunk_cp_idx+1,:] * (1-v)
+    #     robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s + robot_pos[robot_cp_arm_idx+1,:] * (1-s)
+    #     robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)
+        
+    #     ra_pos = np.array([arm_cp, robot_cp_arm])
+    #     rt_pos = np.array([trunk_cp, robot_cp_trunk])
+    # else:
+    #     arm_cp = arm_pos[arm_cp_idx,:]*u[:, np.newaxis] + arm_pos[arm_cp_idx+1,:] * (1-u)[:, np.newaxis]
+    #     trunk_cp = trunk_pos[trunk_cp_idx,:]*v[:, np.newaxis] + trunk_pos[trunk_cp_idx+1,:] * (1-v)[:, np.newaxis]
+    #     robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s[:, np.newaxis] + robot_pos[robot_cp_arm_idx+1,:] * (1-s)[:, np.newaxis]
+    #     robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t[:, np.newaxis] + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)[:, np.newaxis]
+        
+    #     ra_pos = np.array([arm_cp, robot_cp_arm])
+    #     rt_pos = np.array([trunk_cp, robot_cp_trunk])
     
-    ra_pos = np.array([arm_cp, robot_cp_arm])
-    rt_pos = np.array([trunk_cp, robot_cp_trunk])
-    
+
     # initialize or iterate figure
     plt.ion()
     
@@ -74,28 +91,110 @@ def plot_skeletons(fig, geom):
         # create figure object
         fig = plt.figure(figsize=(4,4))
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlim(0, 2)
+        ax.set_ylim(-1, -3)
+        ax.set_zlim(2, 4)
+        # ax.set_xlim(-1, 1)
+        # ax.set_ylim(-1, 1)
+        # ax.set_zlim(-1, 1)
     else:
         # inherit and reset a figure object
         ax = fig.axes[0]
-        [arms_line, trunk_line, robot_line, ra_line, rt_line] = ax.lines
-        arms_line.remove()
-        trunk_line.remove()
-        robot_line.remove()
-        ra_line.remove()
-        rt_line.remove()
-        
+        for art in list(ax.lines):
+            art.remove()
+    
+    # dummy_line_1 = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    # dummy_line_2 = np.array([[0, 0, 0], [1, 1, 0], [2, 2, 0]])
+    # ax.plot(dummy_line_1[:, 0], dummy_line_1[:, 1], dummy_line_1[:, 2], 'o-b')
+    # ax.plot(dummy_line_2[:, 0], dummy_line_2[:, 1], dummy_line_2[:, 2], 'o-r')
+
     # plot the human and robot
-    arms_line, = ax.plot(arm_pos[:, 0], arm_pos[:, 1], arm_pos[:, 2], 'o-b')
-    trunk_line, = ax.plot(trunk_pos[:, 0], trunk_pos[:, 1], trunk_pos[:, 2], 'o-g')
-    robot_line, = ax.plot(robot_pos[:, 0], robot_pos[:, 1], robot_pos[:, 2], 'o-r')
+    ax.plot(arm_pos[:, 0], arm_pos[:, 1], arm_pos[:, 2], 'o-b')
+    ax.plot(trunk_pos[:, 0], trunk_pos[:, 1], trunk_pos[:, 2], 'o-g')
+    ax.plot(robot_pos[:, 0], robot_pos[:, 1], robot_pos[:, 2], 'o-r')
+
     
-    # draw the lines from human to robot
-    ra_line = ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
-    rt_line = ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
+    # # draw the lines from human to robot
+    # if type(u) == float:
+    #     ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
+    #     ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
+    # else:
+    #     for i in range(np.shape(ra_pos)[1]):
+    #         ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
+    #     for i in range(np.shape(rt_pos)[1]):
+    #         ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
     
-    plt.pause(0.0005)
+    plt.pause(0.001)
     return fig
 
+def quick_plot(lsh, rsh, lsl, rsl):
+    fig = plt.figure(figsize=(4,4))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(lsh[:,0], lsh[:,1], lsh[:,2], 'o-r')
+    ax.plot(rsh[:,0], rsh[:,1], rsh[:,2], 'o-b')
+    ax.plot(lsl[:,0], lsl[:,1], lsl[:,2], 'o-g')
+    ax.plot(rsl[:,0], rsl[:,1], rsl[:,2], 'o-m')
+    set_axes_equal(ax)
+    plt.show()
+
+def plot_axes(S, T):
+    x = np.array([[0, 0, 0], [1, 0, 0]])
+    y = np.array([[0, 0, 0], [0, 1, 0]])
+    z = np.array([[0, 0, 0], [0, 0, 1]])
+    xp = np.matmul(T[0:3, 0:3], x.T).T + T[0:3, 3]
+    yp = np.matmul(T[0:3, 0:3], y.T).T + T[0:3, 3]
+    zp = np.matmul(T[0:3, 0:3], z.T).T + T[0:3, 3]
+    
+    if np.any(S):
+        xps = np.matmul(S[0:3, 0:3], xp.T).T + S[0:3, 3]
+        yps = np.matmul(S[0:3, 0:3], yp.T).T + S[0:3, 3]
+        zps = np.matmul(S[0:3, 0:3], zp.T).T + S[0:3, 3]
+
+    fig = plt.figure(figsize=(4,4))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(x[:,0], x[:,1], x[:,2], 'o-r')
+    ax.plot(y[:,0], y[:,1], y[:,2], 'o-g')
+    ax.plot(z[:,0], z[:,1], z[:,2], 'o-b')
+    ax.plot(xp[:,0], xp[:,1], xp[:,2], 'o-m')
+    ax.plot(yp[:,0], yp[:,1], yp[:,2], 'o-y')
+    ax.plot(zp[:,0], zp[:,1], zp[:,2], 'o-c')
+    ax.plot(xps[:,0], xps[:,1], xps[:,2], 'o-',color='maroon')
+    ax.plot(yps[:,0], yps[:,1], yps[:,2], 'o-',color='darkgreen')
+    ax.plot(zps[:,0], zps[:,1], zps[:,2], 'o-',color='navy')
+    set_axes_equal(ax)
+    plt.show()
+
+
+
+
+def set_axes_equal(ax):
+    """
+    Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc.
+
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    """
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+    
 
 def main():
     

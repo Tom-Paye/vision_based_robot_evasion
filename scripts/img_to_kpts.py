@@ -23,11 +23,12 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 import my_cpp_py_pkg.visuals as visuals
+import copy
 
 def inverse_transform(R, t):
     T_inv = np.eye(4, 4)
     T_inv[:3, :3] = np.transpose(R)
-    T_inv[:3, 3] = -1 * np.matmul(np.transpose(R), (t)) + np.array([1, 1, 0]).T
+    T_inv[:3, 3] = -1 * np.matmul(np.transpose(R), (t))# + np.array([1, 1, 0]).T
     return T_inv
 
 
@@ -147,15 +148,15 @@ class local_functions():
         # '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib.json'
         # '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
         # '/usr/local/zed/tools/zed_calib.json'
-        user_params.video_src = 'Live'                                       # SVO, Live
+        user_params.video_src = 'SVO'                                       # SVO, Live
         user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
         user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
         user_params.svo_suffix = '_720p_30fps.svo'
-        user_params.display_video = 0                                       # 0: none, 1: cam 1, 2: cam 2, 3: both cams
+        user_params.display_video = 1                                      # 0: none, 1: cam 1, 2: cam 2, 3: both cams
         user_params.display_skeleton = True
         user_params.return_hands = False
         user_params.time_loop = False
-        user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
+        user_params.body_type = 'BODY_18' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
         return user_params
         
         # return self.user_params
@@ -181,15 +182,44 @@ class local_functions():
                     fus.serial_number = int(config)
 
                     M = np.array(configs[config]['transform'])
-                    N = np.array([[-1, 0,  0, 0.358],
-                                  [ 0, 1,  0, 0.03],
-                                  [ 0, 0, -1, 0.006],
-                                  [ 0, 0,  0, 1]])
+                    # M[0:3, 0:3] = M[0:3, 0:3].T
+                    # M[0:3, 3] = -np.matmul(M[0:3, 0:3], M[0:3, 3])
+                    # N = np.array([[-1, 0,  0, 0.358],
+                    #               [ 0, 1,  0, 0.03],
+                    #               [ 0, 0, -1, 0.006],
+                    #               [ 0, 0,  0, 1]])
                     # M = np.matmul(N, M)
-                    # M = M + np.array([[0, 0,  0, 0],
-                    #                   [0, 0,  0, 0],
+                    # M[0:3, 0:3] = M[0:3, 0:3].T
+                    # M[0:3, 3] = -np.matmul(M[0:3, 0:3], M[0:3, 3])
+                    # M = M + np.array([[0, 0,  0, 1],
+                    #                   [0, 0,  0, 1],
                     #                   [0, 0, 0, -2],
                     #                   [0, 0,  0, 0]])
+                    
+
+                    ######################
+                    # Assume Zed fusion sets 1 camera as the origin, rather than the world origin
+                    
+                    
+                    if not np.any(zed_params.fusion):
+                        N = copy.copy(M)    # table coords --> Cam1 coords (Cam1 as seen from table)
+                        P = inverse_transform(N[0:3, 0:3], N[0:3, 3])
+                        M = np.eye(4)
+                        M = M + np.array([[0, 0,  0, 0],
+                                      [0, 0,  0, 1],
+                                      [0, 0, 0, -3],
+                                      [0, 0,  0, 0]])
+                    else:
+                        Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
+                        M = np.matmul(P, M)
+                        # M = np.matmul(Q, N)
+                        # M = M + np.array([[0, 0,  0, 0],
+                        #               [0, 0,  0, 1],
+                        #               [0, 0, 0, -3],
+                        #               [0, 0,  0, 0]])
+                    #########################
+
+                    # visuals.plot_axes(M)
                     T = sl.Transform()
                     for j in range(4):
                         for k in range(4):
@@ -235,7 +265,7 @@ class local_functions():
         
         # common parameters
         zed_params.init = sl.InitParameters()
-        zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+        # zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
         zed_params.init.coordinate_units = sl.UNIT.METER
         zed_params.init.depth_mode = sl.DEPTH_MODE.PERFORMANCE
         zed_params.init.camera_resolution = sl.RESOLUTION.HD720
@@ -278,7 +308,7 @@ class local_functions():
         # rt.skeleton_minimum_allowed_keypoints = 7
 
         zed_params.body_tracking_fusion_runtime = sl.BodyTrackingFusionRuntimeParameters()
-        zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 7
+        zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 10
         # zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_camera = 1
         # zed_params.body_tracking_fusion_runtime.skeleton_smoothing = 0.5
 
@@ -418,6 +448,13 @@ class local_functions():
         self.left_pos_all = np.array([[0, 0, 0]])
         self.right_pos_all = np.array([[0, 0, 0]])
         self.trunk_pos_all = np.array([[0, 0, 0]])
+        
+
+        # a = sl.Pose()
+        # self.senders[32689769].get_position(a)
+        # b = sl.Transform()
+        # pos_data = a.pose_data(b)
+        
         for idx, serial in enumerate(self.senders):
             zed = self.senders[serial]
             if zed.grab() == sl.ERROR_CODE.SUCCESS:
@@ -434,15 +471,21 @@ class local_functions():
             # TODO: Likely error in fusion initialisation that screws with the camera fusion
             # Retrieve detected objects
             self.fusion.retrieve_bodies(self.bodies, self.zed_params.body_tracking_fusion_runtime)
-            self.fetch_skeleton()
+            # self.fetch_skeleton()
             
             # for debug, you can retrieve the data send by each camera, as well as communication and process stat just to make sure everything is okay
             # for cam in self.camera_identifiers:
             #     fusion.retrieveBodies(self.single_bodies, rt, cam); 
             if (self.user_params.display_skeleton == True):
-                print(str(self.viewer.is_available()))
+                # print(str(self.viewer.is_available()))
                 if (self.viewer.is_available()):
+                    # if np.any(self.bodies.body_list):
+                    #     bodies_to_view = self.bodies.body_list
+                    #     for body in bodies_to_view:
+                    #         body.keypoint = body.keypoint + np.array([-1, -1, 2])
                     self.viewer.update_bodies(self.bodies)
+                    # self.viewer.update_bodies(bodies_to_view)
+
             
 
             
@@ -463,8 +506,8 @@ class local_functions():
             
             for body in self.bodies.body_list:
 
-                print('body id : ' + str(body.id))  
-                print('body sz : ' + str(len(body.keypoint)))  
+                # print('body id : ' + str(body.id))  
+                # print('body sz : ' + str(len(body.keypoint)))  
                 
                 # left_matrix = np.array(body.keypoint[left_kpt_idx[0]]).reshape([1, 3])
                 # right_matrix = np.array(body.keypoint[right_kpt_idx[0]]).reshape([1, 3])
@@ -477,15 +520,15 @@ class local_functions():
                 #     keypoint_right = np.array(body.keypoint[j]).reshape([1, 3])  # loops from 50 to 70 (69 is last)
                 #     left_matrix = np.vstack((left_matrix, keypoint_left))  # left hand
                 #     right_matrix = np.vstack((right_matrix, keypoint_right))  # left hand, but in a mirror
-                # left_matrix = np.array(body.keypoint[left_kpt_idx])
-                left_matrix = np.array(body.keypoint[:])
+                left_matrix = np.array(body.keypoint[left_kpt_idx])
+                # left_matrix = np.array(body.keypoint[:])
                 right_matrix = np.array(body.keypoint[right_kpt_idx])
                 
                 #####################
-                lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
-                rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
-                lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
-                rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
+                # lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
+                # rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
+                # lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
+                # rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
 
 
                 # visuals.quick_plot(lsl, rsl, lss, rss)
@@ -601,6 +644,9 @@ def main(args=None):
         #     ###############
 
         key = cv2.pollKey()
+        if (cam.user_params.display_skeleton == True):
+                if not (cam.viewer.is_available()):
+                    key = ord("q")
             
     cam.close()
     publisher.destroy_node()
