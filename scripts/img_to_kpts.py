@@ -142,21 +142,29 @@ class local_functions():
     def init_user_params(self):
         # For now, all parameters are defined in this script
         class user_params(): pass
+
         user_params.from_sl_config_file = False
         user_params.config_pth = '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib_2.json'
         # '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib_2.json'
         # '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib.json'
         # '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
         # '/usr/local/zed/tools/zed_calib.json'
+
         user_params.video_src = 'SVO'                                       # SVO, Live
         user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
         user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
         user_params.svo_suffix = '_720p_30fps.svo'
+
         user_params.display_video = 0                                     # 0: none, 1: cam 1, 2: cam 2, 3: both cams
         user_params.display_skeleton = False
         user_params.return_hands = False
         user_params.time_loop = False
+
         user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
+        user_params.pos_transform = np.array([[-1, 0,  0, 0.358],
+                                              [ 0, 1,  0, 0.03],
+                                              [ 0, 0, -1, 0.006],
+                                              [ 0, 0,  0, 1]])
         return user_params
         
         # return self.user_params
@@ -215,22 +223,23 @@ class local_functions():
                     if not np.any(zed_params.fusion):
                         N = copy.copy(M)    # table coords --> Cam1 coords (Cam1 as seen from table)
                         P = inverse_transform(N[0:3, 0:3], N[0:3, 3])
-                        # M = np.eye(4)
+                        M = np.eye(4)
+                        zed_params.cam_transform = N
                         # M = M + np.array([[0, 0,  0, 0],
                         #               [0, 0,  0, 1],
                         #               [0, 0, 0, -3],
                         #               [0, 0,  0, 0]])
                         
-                        R = np.array([[-1, 0,  0, 0.358],
-                                      [ 0, 1,  0, 0.03],
-                                      [ 0, 0, -1, 0.006],
-                                      [ 0, 0,  0, 1]])
-                        Rt = inverse_transform(R[0:3, 0:3], R[0:3, 3])
-                        Rp = np.array([[1, 0,  0, -0.358],
-                                      [ 0, 1,  0, -0.03],
-                                      [ 0, 0, 1, -0.006],
-                                      [ 0, 0,  0, 1]])
-                        M = np.matmul(R, M)
+                        # R = np.array([[-1, 0,  0, 0.358],
+                        #               [ 0, 1,  0, 0.03],
+                        #               [ 0, 0, -1, 0.006],
+                        #               [ 0, 0,  0, 1]])
+                        # Rt = inverse_transform(R[0:3, 0:3], R[0:3, 3])
+                        # Rp = np.array([[1, 0,  0, -0.358],
+                        #               [ 0, 1,  0, -0.03],
+                        #               [ 0, 0, 1, -0.006],
+                        #               [ 0, 0,  0, 1]])
+                        # M = np.matmul(R, M)
                     else:
                         Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
                         M = np.matmul(P, M)
@@ -328,7 +337,7 @@ class local_functions():
         # rt.skeleton_minimum_allowed_keypoints = 7
 
         zed_params.body_tracking_fusion_runtime = sl.BodyTrackingFusionRuntimeParameters()
-        zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 10
+        zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 7
         # zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_camera = 1
         # zed_params.body_tracking_fusion_runtime.skeleton_smoothing = 0.5
 
@@ -529,7 +538,7 @@ class local_functions():
 
                 # Only keep bodies close to the origin
                 dist = np.linalg.norm(np.mean(body.keypoint[:], axis=0))
-                if dist < 1.5:
+                if dist < 3:
 
                     # print('body id : ' + str(body.id))  
                     # print('body sz : ' + str(len(body.keypoint)))  
@@ -550,13 +559,31 @@ class local_functions():
                     right_matrix = np.array(body.keypoint[right_kpt_idx])
                     
                     #####################
-                    lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
-                    rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
-                    lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
-                    rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
+                    
+                    # lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
+                    # rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
+                    # lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
+                    # rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
 
 
-                    # visuals.quick_plot(lsl, rsl, lss, rss)
+                    # lsl = np.hstack((lsl, np.ones((len(lsl), 1))))
+                    # rsl = np.hstack((rsl, np.ones((len(rsl), 1))))
+                    # lss = np.hstack((lss, np.ones((len(lss), 1))))
+                    # rss = np.hstack((rss, np.ones((len(rss), 1))))
+
+                    # R = np.matmul(self.user_params.pos_transform, self.zed_params.cam_transform)
+                    # # R = np.matmul(self.zed_params.cam_transform, self.user_params.pos_transform)
+                    # # R = self.zed_params.cam_transform
+                    # # Rp = inverse_transform(R[0:3, 0:3], R[0:3, 3])
+                    # # R = Rp
+                    
+                    # lsl = np.matmul(R, lsl.T).T[:, 0:3]
+                    # rsl = np.matmul(R, rsl.T).T[:, 0:3]
+                    # lss = np.matmul(R, lss.T).T[:, 0:3]
+                    # rss = np.matmul(R, rss.T).T[:, 0:3]
+
+
+                    # # visuals.quick_plot(lsl, rsl, lss, rss)
                     
 
                     #####################
@@ -590,6 +617,11 @@ class local_functions():
                         self.left_pos_all = left_matrix
                         self.right_pos_all = right_matrix
                         self.trunk_pos_all = trunk_matrix
+
+                    R = np.matmul(self.user_params.pos_transform, self.zed_params.cam_transform)
+                    left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
+                    right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
+                    trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
 
                     body_id = body.id
                     if body_id in self.known_bodies:
