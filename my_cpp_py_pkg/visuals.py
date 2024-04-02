@@ -91,9 +91,9 @@ def plot_skeletons(fig, geom):
         # create figure object
         fig = plt.figure(figsize=(4,4))
         ax = fig.add_subplot(111, projection='3d')
-        ax.set_xlim(0, 2)
-        ax.set_ylim(-1, -3)
-        ax.set_zlim(2, 4)
+        # ax.set_xlim(-1, 2)
+        # ax.set_ylim(0, 2)
+        # ax.set_zlim(-1, 2)
         # ax.set_xlim(-1, 1)
         # ax.set_ylim(-1, 1)
         # ax.set_zlim(-1, 1)
@@ -123,7 +123,7 @@ def plot_skeletons(fig, geom):
     #         ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
     #     for i in range(np.shape(rt_pos)[1]):
     #         ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
-    
+    set_axes_equal(ax)
     plt.pause(0.001)
     return fig
 
@@ -166,7 +166,7 @@ def plot_axes(S, T):
         ax.plot(xps[:,0], xps[:,1], xps[:,2], 'o-',color='maroon')
         ax.plot(yps[:,0], yps[:,1], yps[:,2], 'o-',color='darkgreen')
         ax.plot(zps[:,0], zps[:,1], zps[:,2], 'o-',color='navy')
-    set_axes_equal(ax)
+    # set_axes_equal(ax)
     plt.show()
 
 

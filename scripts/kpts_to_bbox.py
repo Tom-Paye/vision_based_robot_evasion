@@ -316,9 +316,9 @@ class Subscriber(Node):
             self.get_logger().debug(str(self.reset and np.any(self.bodies[self.subject][0])))
             # Make the body outline fit the head
             if self.reset and np.any(self.bodies[self.subject][0]):
-                if len(self.bodies[self.subject][2]) >= 6:
-                    new_order = [1, 0, 4, 2, 3, 5, 0]
-                    self.bodies[self.subject][2] = self.bodies[self.subject][2][new_order, :][:]
+                # if len(self.bodies[self.subject][2]) >= 6:
+                #     new_order = [1, 0, 4, 2, 3, 5, 0]
+                #     self.bodies[self.subject][2] = self.bodies[self.subject][2][new_order, :][:]
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
                 arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, self.placeholder_Pe)
@@ -361,25 +361,15 @@ class Subscriber(Node):
         # region = math.trunc(msg.w)
         limb_dict = {'left':0, 'right':1, 'trunk':2, '1stop':-1}
         region = msg.header.frame_id[1:]
-        self.reset = (msg.header.frame_id[2:] == 'stop')
-        # if self.reset:
-        #     self.get_logger().info('left')
-        #     self.get_logger().info(str(self.data_left))
-        #     self.get_logger().info('right')
-        #     self.get_logger().info(str(self.data_right))
-        #     self.get_logger().info('trunk')
-        #     self.get_logger().info(str(self.data_trunk))
-        #     self.dl = self.data_left
-        #     self.dr = self.data_right
-        #     self.dt = self.data_trunk
-        #     self.data_left = []
-        #     self.data_right = []
-        #     self.data_trunk = []
-        # else:
+        self.reset = ('stop' in msg.header.frame_id)
+
+
         if self.reset:
             if self.subject in self.bodies:
-                self.get_logger().debug('Body 0 Left side')
-                self.get_logger().debug(str(self.bodies[self.subject][0]))
+                for id in self.bodies.keys():
+                    body = self.bodies[id]
+                    self.get_logger().info('Body' + id + ' Left side')
+                    self.get_logger().info(str(body[0]))
             else:
                 pass
         else:

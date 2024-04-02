@@ -141,14 +141,11 @@ def plot_axes(S, T):
     x = np.array([[0, 0, 0], [1, 0, 0]])
     y = np.array([[0, 0, 0], [0, 1, 0]])
     z = np.array([[0, 0, 0], [0, 0, 1]])
+
+
     xp = np.matmul(T[0:3, 0:3], x.T).T + T[0:3, 3]
     yp = np.matmul(T[0:3, 0:3], y.T).T + T[0:3, 3]
     zp = np.matmul(T[0:3, 0:3], z.T).T + T[0:3, 3]
-    
-    if np.any(S):
-        xps = np.matmul(S[0:3, 0:3], xp.T).T + S[0:3, 3]
-        yps = np.matmul(S[0:3, 0:3], yp.T).T + S[0:3, 3]
-        zps = np.matmul(S[0:3, 0:3], zp.T).T + S[0:3, 3]
 
     fig = plt.figure(figsize=(4,4))
     ax = fig.add_subplot(111, projection='3d')
@@ -158,9 +155,17 @@ def plot_axes(S, T):
     ax.plot(xp[:,0], xp[:,1], xp[:,2], 'o-m')
     ax.plot(yp[:,0], yp[:,1], yp[:,2], 'o-y')
     ax.plot(zp[:,0], zp[:,1], zp[:,2], 'o-c')
-    ax.plot(xps[:,0], xps[:,1], xps[:,2], 'o-',color='maroon')
-    ax.plot(yps[:,0], yps[:,1], yps[:,2], 'o-',color='darkgreen')
-    ax.plot(zps[:,0], zps[:,1], zps[:,2], 'o-',color='navy')
+
+    if np.any(S):
+        # xps = np.matmul(S[0:3, 0:3], xp.T).T + S[0:3, 3]
+        # yps = np.matmul(S[0:3, 0:3], yp.T).T + S[0:3, 3]
+        # zps = np.matmul(S[0:3, 0:3], zp.T).T + S[0:3, 3]
+        xps = np.matmul(S[0:3, 0:3], x.T).T + S[0:3, 3]
+        yps = np.matmul(S[0:3, 0:3], y.T).T + S[0:3, 3]
+        zps = np.matmul(S[0:3, 0:3], z.T).T + S[0:3, 3]
+        ax.plot(xps[:,0], xps[:,1], xps[:,2], 'o-',color='maroon')
+        ax.plot(yps[:,0], yps[:,1], yps[:,2], 'o-',color='darkgreen')
+        ax.plot(zps[:,0], zps[:,1], zps[:,2], 'o-',color='navy')
     set_axes_equal(ax)
     plt.show()
 
