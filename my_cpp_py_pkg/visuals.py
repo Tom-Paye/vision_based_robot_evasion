@@ -166,7 +166,7 @@ def plot_axes(S, T):
         ax.plot(xps[:,0], xps[:,1], xps[:,2], 'o-',color='maroon')
         ax.plot(yps[:,0], yps[:,1], yps[:,2], 'o-',color='darkgreen')
         ax.plot(zps[:,0], zps[:,1], zps[:,2], 'o-',color='navy')
-    # set_axes_equal(ax)
+    set_axes_equal(ax)
     plt.show()
 
 

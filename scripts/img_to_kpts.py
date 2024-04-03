@@ -5,24 +5,31 @@
 
 import rclpy
 from rclpy.node import Node
-
-from std_msgs.msg import String
-
-from ament_index_python.packages import get_package_share_directory
-
-import cv2
-import logging
-import pyzed.sl as sl
-import time
-import my_cpp_py_pkg.ogl_viewer.viewer as gl
-import numpy as np
-import json
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
+from std_msgs.msg import String
+
+import pyzed.sl as sl
 import my_cpp_py_pkg.visuals as visuals
+
+from ament_index_python.packages import get_package_share_directory
+
+import cv2
+import cv_viewer.tracking_viewer as cv_viewer
+from cv_bridge import CvBridge, CvBridgeError
+
+import my_cpp_py_pkg.ogl_viewer.viewer as gl
+
+import logging
+import time
+import numpy as np
+import json
 import copy
+
+
+
 
 #############################################INITIALIZE USER PARAMETERS#####################################
 """
@@ -30,7 +37,7 @@ For now, assume we want to output body_34 data, with a two keypoints for the han
 example of code : https://community.stereolabs.com/t/re-identifiaction-in-fused-camera/3071
 """
 
-def init_user_params(self):
+def init_user_params():
     # For now, all parameters are defined in this script
     class user_params(): pass
 
@@ -72,6 +79,8 @@ def init_zed_params(user_params):
     zed_params.fusion =  [] # list of both fusionconfigs
     file = open(user_params.config_pth)
     configs = json.load(file)
+
+    zed_params.base_transform = np.array(configs['base']['transform'])
     for config in configs:
         M = np.array(configs[config]['transform'])
         if config != 'base':
@@ -91,17 +100,33 @@ def init_zed_params(user_params):
 
             if not np.any(zed_params.fusion):   # Cam 1
                 N = copy.copy(M)    # table coords --> Cam 1 coords (Cam 1 as seen from table)
+                # [obj]world frame = N * [obj]cam frame
                 P = inverse_transform(N[0:3, 0:3], N[0:3, 3])
                 M = np.eye(4)
                 zed_params.cam_transform = N
             else:
-                M = P @ M   
+                Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
+                # M = N @ Q
+                M = P @ M  
             if user_params.display_skeleton == True:    # To relocate display so it is visible in GLViewer
-                    M = M + np.array([[0, 0,  0, 0],
-                                    [0, 0,  0, 1],
-                                    [0, 0, 0, -3],
-                                    [0, 0,  0, 0]])
-            # visuals.plot_axes(M)
+                visual_correction = np.array([[0, 0,  0, 0],
+                                              [0, 0,  0, 1],
+                                              [0, 0, 0, -3],
+                                              [0, 0,  0, 0]])
+                M = M + visual_correction
+            
+            # visualize: 
+            # Np = np.eye(4) + visual_correction
+            # Pp = inverse_transform(Np[0:3, 0:3], Np[0:3, 3])
+            # Pp = P - visual_correction
+            # Mp = Pp @ M
+            # visuals.plot_axes(Pp, M)
+            # M = zed_params.base_transform @ M
+            # visual_correction = np.array([[0, 0,  0, 1],
+            #                               [0, 0,  0, 0],
+            #                               [0, 0, 0, -1],
+            #                               [0, 0,  0, 0]])
+            # M = M - visual_correction
             T = sl.Transform()
             for j in range(4):
                 for k in range(4):
@@ -119,9 +144,9 @@ def init_zed_params(user_params):
     
     "Initialization parameters"
     zed_params.init = sl.InitParameters()
-    # zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+    zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.IMAGE # RIGHT_HANDED_Y_UP, IMAGE
     zed_params.init.coordinate_units = sl.UNIT.METER
-    zed_params.init.depth_mode = sl.DEPTH_MODE.NEURAL  # sl.DEPTH_MODE.PERFORMANCE, sl.DEPTH_MODE.NEURAL
+    zed_params.init.depth_mode = sl.DEPTH_MODE.NEURAL  # PERFORMANCE, NEURAL, ULTRA
     zed_params.init.camera_resolution = sl.RESOLUTION.HD720
     # zed_params.init.camera_fps = 30
     if user_params.video_src == 'SVO' and user_params.real_time == True:
@@ -151,10 +176,12 @@ def init_zed_params(user_params):
 
     zed_params.body_tracking_runtime = sl.BodyTrackingRuntimeParameters()
     # zed_params.body_tracking_runtime.detection_confidence_threshold = 0.85 #confidence threshold actually doesnt work
-    
+    # zed_params.body_tracking_runtime.detection_confidence_threshold = 100 # default value = 50
+    # zed_params.body_tracking_runtime.minimum_keypoints_threshold = 12 # default value = 0
+
     "Fusion parameters"
     zed_params.fusion_init = sl.InitFusionParameters()
-    # zed_params.fusion_init.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+    zed_params.fusion_init.coordinate_system = sl.COORDINATE_SYSTEM.IMAGE # RIGHT_HANDED_Y_UP, IMAGE
     zed_params.fusion_init.coordinate_units = sl.UNIT.METER
     zed_params.fusion_init.output_performance_metrics = False
     zed_params.fusion_init.verbose = True
@@ -164,7 +191,7 @@ def init_zed_params(user_params):
     zed_params.body_tracking_fusion.enable_body_fitting = True
 
     zed_params.body_tracking_fusion_runtime = sl.BodyTrackingFusionRuntimeParameters()
-    zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 7
+    zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 10
     # zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_camera = 1
     # zed_params.body_tracking_fusion_runtime.skeleton_smoothing = 0.5
 
@@ -272,7 +299,7 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies):
                 
 
 
-                known_bodies[body_id] = left_matrix, right_matrix, trunk_matrix]
+                known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
 
         return known_bodies
 
@@ -294,7 +321,7 @@ class vision():
     def connect_cams(self):
     
         for conf in self.zed_params.fusion:
-            self.logger.info("Try to open ZED", conf.serial_number)
+            self.logger.info("Try to open ZED " + str(conf.serial_number))
             self.zed_params.init.input = sl.InputType()
             # network cameras are already running, or so they should
             if conf.communication_parameters.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
@@ -373,11 +400,11 @@ class vision():
             conf = self.zed_params.fusion[i]
             uuid = sl.CameraIdentifier()
             uuid.serial_number = conf.serial_number
-            self.logger.info("Subscribing to", conf.serial_number, conf.communication_parameters.comm_type)
+            self.logger.info("Subscribing to" + str(conf.serial_number) + str(conf.communication_parameters.comm_type))
     
             status = self.fusion.subscribe(uuid, conf.communication_parameters, conf.pose)
             if status != sl.FUSION_ERROR_CODE.SUCCESS:
-                self.logger.error("Unable to subscribe to", uuid.serial_number, status)
+                self.logger.error("Unable to subscribe to", str(uuid.serial_number), status)
             else:
                 camera_identifiers.append(uuid)
                 svo_image[i] = sl.Mat()
@@ -399,6 +426,22 @@ class vision():
         if self.user_params.display_skeleton == True:
             self.viewer = gl.GLViewer()
             self.viewer.init()
+
+            if self.user_params.display_video == 3:
+                index = 0
+            else:
+                index = self.user_params.display_video
+            zed = self.senders[index]
+
+            bridge = CvBridge()
+            # Get ZED camera information
+            camera_info = zed.get_camera_information()
+
+            # 2D viewer utilities
+            self.display_resolution = sl.Resolution(min(camera_info.camera_configuration.resolution.width, 1280),
+                                            min(camera_info.camera_configuration.resolution.height, 720))
+            self.image_scale = [self.display_resolution.width / camera_info.camera_configuration.resolution.width
+                , self.display_resolution.height / camera_info.camera_configuration.resolution.height]
     
         # Create ZED objects filled in the main loop
         single_bodies = [sl.Bodies]
@@ -412,46 +455,56 @@ class vision():
             status = zed.grab()
             if status != sl.ERROR_CODE.SUCCESS:
                 self.logger.error(status)
+                if status == sl.ERROR_CODE.END_OF_SVOFILE_REACHED:
+                    self.error = 1
             else:
                 status = zed.retrieve_bodies(self.bodies)
                 if status != sl.ERROR_CODE.SUCCESS:
                     self.logger.error(status)
-                else:
-                    # If we want to display a video
+                    self.error = 1
+                else:                         
+                    status = self.fusion.process()
+                    if status != sl.FUSION_ERROR_CODE.SUCCESS:
+                        self.logger.error(status)
+                        # self.error = 1
+                    else:
+                        
+                        # TODO: Likely error in fusion initialisation that screws with the camera fusion
+                        # Retrieve detected objects
+                        status = self.fusion.retrieve_bodies(self.bodies, self.zed_params.body_tracking_fusion_runtime)
+                        if status != sl.FUSION_ERROR_CODE.SUCCESS:
+                            self.logger.error(status)
+                            self.error = 1
+                        
+                        if (self.user_params.display_skeleton == True):
+                            if (self.viewer.is_available()):
+                                self.viewer.update_bodies(self.bodies)
+                            else:
+                                self.logger.error('viewer unavailable')
+                                self.error = 1
+                        
+                        # If we want to display a video
                     if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
                         self.chk[idx] = self.fusion.retrieve_image(\
-                            self.svo_image[idx], self.camera_identifiers[idx]) == sl.FUSION_ERROR_CODE.SUCCESS
+                            self.svo_image[idx], self.camera_identifiers[idx], resolution=self.display_resolution)\
+                                  == sl.FUSION_ERROR_CODE.SUCCESS
                         if self.chk == [True, True]:
                             
                             if self.svo_image[idx] != 0:
-                                cv2.imshow("View"+str(idx), self.svo_image[idx].get_data()) #dislay both images to cv2
-                                    # key = cv2.waitKey(1) 
-
-                            
-        
-        status = self.fusion.process()
-        if status != sl.FUSION_ERROR_CODE.SUCCESS:
-            self.logger.error(status)
-        else:
-            
-            # TODO: Likely error in fusion initialisation that screws with the camera fusion
-            # Retrieve detected objects
-            status = self.fusion.retrieve_bodies(self.bodies, self.zed_params.body_tracking_fusion_runtime)
-            if status != sl.FUSION_ERROR_CODE.SUCCESS:
-                self.logger.error(status)
-            
-            if (self.user_params.display_skeleton == True):
-                if (self.viewer.is_available()):
-                    self.viewer.update_bodies(self.bodies)
-                else:
-                    self.error = 1
+                                # cv2.imshow("View"+str(idx), self.svo_image[idx].get_data()) #dislay both images to cv2
+                                cv_viewer.render_2D(self.svo_image[idx], self.image_scale, self.bodies.body_list, \
+                                                    self.zed_params.body_tracking.enable_tracking,
+                                                    self.zed_params.body_tracking.body_format)
+                                cv2.imshow("ZED | 2D View", self.svo_image[idx])
+                                #print("confidence is ", detected_body_list[0].confidence)
+                                # print("lenght of detecetd bodies is ", len(detected_body_list))
         
         return status
 
     
     def close(self):
 
-        if (user_params.display_skeleton == True) and (self.viewer.is_available()):
+        if (self.user_params.display_skeleton == True) and (self.viewer.is_available()):
             self.viewer.exit()
 
         cv2.destroyAllWindows()
@@ -482,14 +535,14 @@ def main():
     key = ''
     while not end_flag:
         
-        
+        cam.zed_loop()
         
         
         key = cv2.pollKey()
         if key == ord("q") or cam.error == 1:
-            end flag = 1
+            end_flag = 1
 
-
+    cam.close()
 
 
 
@@ -1183,62 +1236,62 @@ class local_functions():
     #         self.senders[sender].close()
 
 
-def main(args=None):
+# def main(args=None):
     
 
-    rclpy.init(args=args)
-    publisher = MinimalPublisher()
-    cam = local_functions()
-    # key = ''
-    checkpoint = time.time()
-    # fig = 0
+#     rclpy.init(args=args)
+#     publisher = MinimalPublisher()
+#     cam = local_functions()
+#     # key = ''
+#     checkpoint = time.time()
+#     # fig = 0
     
-    while (key != ord("q"))and (cam.error==0):
+#     while (key != ord("q"))and (cam.error==0):
 
-        if cam.user_params.time_loop:
-            checkpoint_2 = time.time()
-            print(checkpoint_2-checkpoint)
-            checkpoint = checkpoint_2
+#         if cam.user_params.time_loop:
+#             checkpoint_2 = time.time()
+#             print(checkpoint_2-checkpoint)
+#             checkpoint = checkpoint_2
 
-        cam.zed_loop()
-        # output_l, output_r, output_t = cam.left_pos_all, cam.right_pos_all, cam.trunk_pos_all
-        for body_id in cam.known_bodies:
+#         cam.zed_loop()
+#         # output_l, output_r, output_t = cam.left_pos_all, cam.right_pos_all, cam.trunk_pos_all
+#         for body_id in cam.known_bodies:
 
-            [output_l, output_r, output_t] = cam.known_bodies[body_id]
-            publisher.timer_callback('left', body_id, output_l)
-            publisher.timer_callback('right', body_id, output_r)
-            if not cam.user_params.return_hands:
-                publisher.timer_callback('trunk', body_id, output_t)
-            publisher.timer_callback('stop', '-1', np.array([[-1, -1, -1]]))
+#             [output_l, output_r, output_t] = cam.known_bodies[body_id]
+#             publisher.timer_callback('left', body_id, output_l)
+#             publisher.timer_callback('right', body_id, output_r)
+#             if not cam.user_params.return_hands:
+#                 publisher.timer_callback('trunk', body_id, output_t)
+#             publisher.timer_callback('stop', '-1', np.array([[-1, -1, -1]]))
 
-        # if not (not cam.known_bodies):
-        #     disp_body = list(cam.known_bodies)[0]
-        #     ###############
-        #     class geom(): pass
-        #     geom.arm_pos = cam.known_bodies[disp_body][0]
-        #     geom.trunk_pos = cam.known_bodies[disp_body][1]
-        #     geom.robot_pos = cam.known_bodies[disp_body][2]
-        #     geom.arm_cp_idx = [0, 1]
-        #     geom.u = np.eye(2)
-        #     geom.trunk_cp_idx = [0, 1]
-        #     geom.v = np.eye(2)
-        #     geom.robot_cp_arm_idx = [0, 1]
-        #     geom.s = np.eye(2)
-        #     geom.robot_cp_trunk_idx = [0, 1]
-        #     geom.t = np.eye(2)
+#         # if not (not cam.known_bodies):
+#         #     disp_body = list(cam.known_bodies)[0]
+#         #     ###############
+#         #     class geom(): pass
+#         #     geom.arm_pos = cam.known_bodies[disp_body][0]
+#         #     geom.trunk_pos = cam.known_bodies[disp_body][1]
+#         #     geom.robot_pos = cam.known_bodies[disp_body][2]
+#         #     geom.arm_cp_idx = [0, 1]
+#         #     geom.u = np.eye(2)
+#         #     geom.trunk_cp_idx = [0, 1]
+#         #     geom.v = np.eye(2)
+#         #     geom.robot_cp_arm_idx = [0, 1]
+#         #     geom.s = np.eye(2)
+#         #     geom.robot_cp_trunk_idx = [0, 1]
+#         #     geom.t = np.eye(2)
 
-        #     fig = visuals.plot_skeletons(fig, geom)
+#         #     fig = visuals.plot_skeletons(fig, geom)
 
-        #     ###############
+#         #     ###############
 
-        # key = cv2.pollKey()
-        # if (cam.user_params.display_skeleton == True):
-        #         if not (cam.viewer.is_available()):
-        #             key = ord("q")
+#         # key = cv2.pollKey()
+#         # if (cam.user_params.display_skeleton == True):
+#         #         if not (cam.viewer.is_available()):
+#         #             key = ord("q")
             
-    cam.close()
-    publisher.destroy_node()
-    rclpy.shutdown()
+#     cam.close()
+#     publisher.destroy_node()
+#     rclpy.shutdown()
 
 
 if __name__ == "__main__":
