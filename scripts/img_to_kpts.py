@@ -17,7 +17,7 @@ import my_cpp_py_pkg.visuals as visuals
 from ament_index_python.packages import get_package_share_directory
 
 import cv2
-import cv_viewer.tracking_viewer as cv_viewer
+import my_cpp_py_pkg.cv_viewer.tracking_viewer as cv_viewer
 from cv_bridge import CvBridge, CvBridgeError
 
 import my_cpp_py_pkg.ogl_viewer.viewer as gl
@@ -54,7 +54,7 @@ def init_user_params():
     user_params.svo_suffix = '_720p_30fps.svo'
 
     user_params.display_video = 1                                     # 0: none, 1: cam 1, 2: cam 2, 3: both cams
-    user_params.display_skeleton = True
+    user_params.display_skeleton = False    # DO NOT USE, OPENGL IS A CANCER WHICH SHOULD NEVER BE GIVEN RAM
     user_params.time_loop = False
 
     user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
@@ -427,14 +427,10 @@ class vision():
             self.viewer = gl.GLViewer()
             self.viewer.init()
 
-            if self.user_params.display_video == 3:
-                index = 0
-            else:
-                index = self.user_params.display_video
-            zed = self.senders[index]
-
+        if self.user_params.display_video:
             bridge = CvBridge()
             # Get ZED camera information
+            zed = self.senders[list(self.senders.keys())[0]]
             camera_info = zed.get_camera_information()
 
             # 2D viewer utilities
@@ -463,11 +459,35 @@ class vision():
                     self.logger.error(status)
                     self.error = 1
                 else:                         
+
+                    # If we want to display a video
+                    if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
+                        self.chk[idx] = self.fusion.retrieve_image(\
+                            self.svo_image[idx], self.camera_identifiers[idx])\
+                                  == sl.FUSION_ERROR_CODE.SUCCESS
+                        if self.chk == [True, True]:
+                            
+                            if self.svo_image[idx] != 0:
+                                # cv2.imshow("View"+str(idx), self.svo_image[idx].get_data()) #dislay both images to cv2
+                                cv_viewer.render_2D(self.svo_image[idx].get_data(), self.image_scale, self.bodies.body_list, \
+                                                    self.zed_params.body_tracking.enable_tracking,
+                                                    self.zed_params.body_tracking.body_format)
+                                # cv2.imshow("ZED | 2D View", self.svo_image[idx])
+                                cv2.imshow("View"+str(idx), self.svo_image[idx].get_data())
+                                #print("confidence is ", detected_body_list[0].confidence)
+                                # print("lenght of detecetd bodies is ", len(detected_body_list))
+
+
+
                     status = self.fusion.process()
                     if status != sl.FUSION_ERROR_CODE.SUCCESS:
                         self.logger.error(status)
                         # self.error = 1
                     else:
+                        
+                        
+                        
+                        
                         
                         # TODO: Likely error in fusion initialisation that screws with the camera fusion
                         # Retrieve detected objects
@@ -483,21 +503,7 @@ class vision():
                                 self.logger.error('viewer unavailable')
                                 self.error = 1
                         
-                        # If we want to display a video
-                    if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
-                        self.chk[idx] = self.fusion.retrieve_image(\
-                            self.svo_image[idx], self.camera_identifiers[idx], resolution=self.display_resolution)\
-                                  == sl.FUSION_ERROR_CODE.SUCCESS
-                        if self.chk == [True, True]:
-                            
-                            if self.svo_image[idx] != 0:
-                                # cv2.imshow("View"+str(idx), self.svo_image[idx].get_data()) #dislay both images to cv2
-                                cv_viewer.render_2D(self.svo_image[idx], self.image_scale, self.bodies.body_list, \
-                                                    self.zed_params.body_tracking.enable_tracking,
-                                                    self.zed_params.body_tracking.body_format)
-                                cv2.imshow("ZED | 2D View", self.svo_image[idx])
-                                #print("confidence is ", detected_body_list[0].confidence)
-                                # print("lenght of detecetd bodies is ", len(detected_body_list))
+                    
         
         return status
 
