@@ -135,6 +135,8 @@ def quick_plot(lsh, rsh, lsl, rsl):
     ax.plot(lsl[:,0], lsl[:,1], lsl[:,2], 'o-g')
     ax.plot(rsl[:,0], rsl[:,1], rsl[:,2], 'o-m')
     set_axes_equal(ax)
+    plt.xlabel("X")
+    plt.ylabel("Y")
     plt.show()
 
 def plot_axes(S, T):
