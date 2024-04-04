@@ -51,12 +51,13 @@ def plot_skeletons(fig, geom):
     """
     
     # unpack variables for better readability
-    arm_pos, trunk_pos, robot_pos = geom.arm_pos, geom.trunk_pos, geom.robot_pos
+    arm_pos, trunk_pos = geom.arm_pos, geom.trunk_pos
+    robot_pos = geom.robot_pos
     # dist = geom.dist
-    arm_cp_idx, u = geom.arm_cp_idx, geom.u
-    trunk_cp_idx, v = geom.trunk_cp_idx, geom.v
-    robot_cp_arm_idx, s = geom.robot_cp_arm_idx, geom.s
-    robot_cp_trunk_idx, t = geom.robot_cp_trunk_idx, geom.t
+    # arm_cp_idx, u = geom.arm_cp_idx, geom.u
+    # trunk_cp_idx, v = geom.trunk_cp_idx, geom.v
+    # robot_cp_arm_idx, s = geom.robot_cp_arm_idx, geom.s
+    # robot_cp_trunk_idx, t = geom.robot_cp_trunk_idx, geom.t
 
     # print('arms: ')
     # for idx in arm_cp_idx:
@@ -91,12 +92,14 @@ def plot_skeletons(fig, geom):
         # create figure object
         fig = plt.figure(figsize=(4,4))
         ax = fig.add_subplot(111, projection='3d')
+        plt.xlabel("X")
+        plt.ylabel("Y")
         # ax.set_xlim(-1, 2)
         # ax.set_ylim(0, 2)
         # ax.set_zlim(-1, 2)
-        # ax.set_xlim(-1, 1)
-        # ax.set_ylim(-1, 1)
-        # ax.set_zlim(-1, 1)
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+        ax.set_zlim(-1, 1)
     else:
         # inherit and reset a figure object
         ax = fig.axes[0]

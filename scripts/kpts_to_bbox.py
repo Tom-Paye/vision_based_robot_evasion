@@ -285,18 +285,18 @@ class Subscriber(Node):
         self.x = []
         self.bodies = {}
         self.subject = '0'
-        self.placeholder_Pe = np.array([[1., 0., 0.],
-                                        [1., -.1, .3],
-                                        [1., .1, .3],
-                                        [1., 0., .6],
-                                        [.9, .1, .7],
-                                        [.9, -.1, .7],
-                                        [.8, 0., .8],
-                                        [.1, .2, .8],
-                                        [.1, 0., .81],
-                                        [0., 0., .8],
-                                        [0., -.1, .6],
-                                        [0., .1, .6],])    # placeholder end effector positions
+        self.placeholder_Pe = np.array([[0., 0., 0.],
+                                        [0., -.1, .3],
+                                        [0., .1, .3],
+                                        [0., 0., .6],
+                                        [.1, .1, .7],
+                                        [.1, -.1, .7],
+                                        [.2, 0., .8],
+                                        [.9, .2, .8],
+                                        [.9, 0., .8],
+                                        [1., 0., .8],
+                                        [1., -.1, .6],
+                                        [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
 
     def kalman_callback(self):
@@ -359,8 +359,8 @@ class Subscriber(Node):
     def data_callback(self, msg):
         # self.get_logger().info(str(msg))
         # region = math.trunc(msg.w)
-        limb_dict = {'left':0, 'right':1, 'trunk':2, '1stop':-1}
-        region = msg.header.frame_id[1:]
+        limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
+        region = msg.header.frame_id[2:]
         self.reset = ('stop' in msg.header.frame_id)
 
 

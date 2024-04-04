@@ -53,7 +53,7 @@ def init_user_params():
     user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
     user_params.svo_suffix = '_720p_30fps.svo'
 
-    user_params.display_video = 1                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
+    user_params.display_video = 0                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
     user_params.display_skeleton = False    # DO NOT USE, OPENGL IS A CANCER WHICH SHOULD NEVER BE GIVEN RAM
     user_params.time_loop = False
 
@@ -272,44 +272,44 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies):
 
             # Only keep bodies close to the origin
             dist = np.linalg.norm(position)
-            if dist < 3:
+            if dist < 2:
 
-                ##################### Visual Check
+                # ##################### Visual Check
                 
-                lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
-                rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
-                lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
-                rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
+                # lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
+                # rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
+                # lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
+                # rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
 
 
-                lsl = np.hstack((lsl, np.ones((len(lsl), 1))))
-                rsl = np.hstack((rsl, np.ones((len(rsl), 1))))
-                lss = np.hstack((lss, np.ones((len(lss), 1))))
-                rss = np.hstack((rss, np.ones((len(rss), 1))))
+                # lsl = np.hstack((lsl, np.ones((len(lsl), 1))))
+                # rsl = np.hstack((rsl, np.ones((len(rsl), 1))))
+                # lss = np.hstack((lss, np.ones((len(lss), 1))))
+                # rss = np.hstack((rss, np.ones((len(rss), 1))))
 
-                R = zed_params.R @ zed_params.cam_transform
-                # zed_params.cam_transform @ zed_params.R
-                S = zed_params.S
-                # R = np.matmul(self.zed_params.cam_transform, self.user_params.pos_transform)
-                # R = self.zed_params.cam_transform
-                # Rp = inverse_transform(R[0:3, 0:3], R[0:3, 3])
-                # R = Rp
+                # R = zed_params.R @ zed_params.cam_transform
+                # # zed_params.cam_transform @ zed_params.R
+                # S = zed_params.S
+                # # R = np.matmul(self.zed_params.cam_transform, self.user_params.pos_transform)
+                # # R = self.zed_params.cam_transform
+                # # Rp = inverse_transform(R[0:3, 0:3], R[0:3, 3])
+                # # R = Rp
                 
-                lsl = (R @ lsl.T).T[:, 0:3]
-                rsl = (R @ rsl.T).T[:, 0:3]
-                lss = (R @ lss.T).T[:, 0:3]
-                rss = (R @ rss.T).T[:, 0:3]
+                # lsl = (R @ lsl.T).T[:, 0:3]
+                # rsl = (R @ rsl.T).T[:, 0:3]
+                # lss = (R @ lss.T).T[:, 0:3]
+                # rss = (R @ rss.T).T[:, 0:3]
 
-                # lsl = np.matmul(R, lsl.T).T[:, 0:3]
-                # rsl = np.matmul(R, rsl.T).T[:, 0:3]
-                # lss = np.matmul(R, lss.T).T[:, 0:3]
-                # rss = np.matmul(R, rss.T).T[:, 0:3]
+                # # lsl = np.matmul(R, lsl.T).T[:, 0:3]
+                # # rsl = np.matmul(R, rsl.T).T[:, 0:3]
+                # # lss = np.matmul(R, lss.T).T[:, 0:3]
+                # # rss = np.matmul(R, rss.T).T[:, 0:3]
 
 
-                # # visuals.quick_plot(lsl, rsl, lss, rss)
+                # # # visuals.quick_plot(lsl, rsl, lss, rss)
                 
 
-                #####################
+                # #####################
                 
                 "select the keypoints we are interested in"
                 left_matrix = np.array(body.keypoint[left_kpt_idx])
@@ -317,24 +317,25 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies):
                 trunk_matrix = np.array(body.keypoint[trunk_kpt_idx])
                 
                     
-                # "The transform to get from camera POV to world view"
-                # R = zed_params.base_transform @ zed_params.cam_transform      
+                "The transform to get from camera POV to world view"
+                R = zed_params.R @ zed_params.cam_transform    
 
-                # "Convert to 4D poses"
-                # left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
-                # right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
-                # trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
+                "Convert to 4D poses"
+                left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
+                right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
+                trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
 
-                # left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
-                # right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
-                # trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
+                left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
+                right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
+                trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
 
                 
 
-
+                
                 known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
-
-        return known_bodies
+    if type(known_bodies) != dict:
+        known_bodies = {}
+    return known_bodies
     
 
 #############################################ZED API PROCESSES##############################################
@@ -616,8 +617,8 @@ class geometry_publisher(Node):
             pose.position = point
             msg_vec.poses.append(pose)
  
-        self.get_logger().info(label)
-        self.get_logger().info(str(data))
+        # self.get_logger().info(label)
+        # self.get_logger().info(str(data))
         self.publisher_vec.publish(msg_vec)
         self.key = cv2.pollKey()
         self.i += 1
@@ -626,10 +627,13 @@ class geometry_publisher(Node):
     def publish_all_bodies(self, bodies):
         for body_id in list(bodies.keys()):
             body = bodies[body_id]
-            self.callback('eft', body_id, body[0])
+            self.callback('left', body_id, body[0])
             self.callback('right', body_id, body[1])
             self.callback('trunk', body_id, body[2])
             self.callback('stop', '-1', np.array([[-1, -1, -1]]))
+
+    # TODO: fix no new data available
+    # TODO: Fix publisher
 
 
 #############################################MAIN###########################################################
@@ -656,8 +660,9 @@ def main(args=None):
     while not end_flag:
         
         cam.zed_loop()
-        # fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies)
-        # publisher.publish_all_bodies(known_bodies)
+        known_bodies = fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies)
+        if np.any(list(known_bodies.keys())):
+            publisher.publish_all_bodies(known_bodies)
         
         key = cv2.pollKey()
         if key == ord("q") or cam.error == 1:
