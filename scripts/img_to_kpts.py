@@ -53,7 +53,7 @@ def init_user_params():
     user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
     user_params.svo_suffix = '_720p_30fps.svo'
 
-    user_params.display_video = 0                                    # 0: none, 1: cam 1, 2: cam 2, 3: both cams
+    user_params.display_video = 1                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
     user_params.display_skeleton = False    # DO NOT USE, OPENGL IS A CANCER WHICH SHOULD NEVER BE GIVEN RAM
     user_params.time_loop = False
 
@@ -495,20 +495,20 @@ class vision():
                     self.error = 1
                 else:                         
 
-                    # # If we want to display a video
-                    # if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
-                    #     self.chk[idx] = self.fusion.retrieve_image(\
-                    #         self.svo_image[idx], self.camera_identifiers[idx])\
-                    #               == sl.FUSION_ERROR_CODE.SUCCESS
-                    #     if self.chk == [True, True]:
+                    # If we want to display a video
+                    if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
+                        self.chk[idx] = self.fusion.retrieve_image(\
+                            self.svo_image[idx], self.camera_identifiers[idx])\
+                                  == sl.FUSION_ERROR_CODE.SUCCESS
+                        if self.chk == [True, True]:
                             
-                    #         if self.svo_image[idx] != 0:
-                    #             cv_viewer.render_2D(self.svo_image[idx].get_data(), self.image_scale, self.bodies.body_list, \
-                    #                                 self.zed_params.body_tracking.enable_tracking,
-                    #                                 self.zed_params.body_tracking.body_format)
-                    #             cv2.imshow("View"+str(idx), self.svo_image[idx].get_data())
-                    #             #print("confidence is ", detected_body_list[0].confidence)
-                    #             # print("lenght of detecetd bodies is ", len(detected_body_list))
+                            if self.svo_image[idx] != 0:
+                                cv_viewer.render_2D(self.svo_image[idx].get_data(), self.image_scale, self.bodies.body_list, \
+                                                    self.zed_params.body_tracking.enable_tracking,
+                                                    self.zed_params.body_tracking.body_format)
+                                cv2.imshow("View"+str(idx), self.svo_image[idx].get_data())
+                                #print("confidence is ", detected_body_list[0].confidence)
+                                # print("lenght of detecetd bodies is ", len(detected_body_list))
 
 
 
@@ -536,23 +536,23 @@ class vision():
                                 self.logger.error('viewer unavailable')
                                 self.error = 1
 
-                        # If we want to display a video
-                        if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
-                            self.chk[idx] = self.fusion.retrieve_image(\
-                                self.svo_image[idx], self.camera_identifiers[idx])\
-                                    == sl.FUSION_ERROR_CODE.SUCCESS
-                            if self.chk == [True, True]:
+                        # # If we want to display a video
+                        # if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
+                        #     self.chk[idx] = self.fusion.retrieve_image(\
+                        #         self.svo_image[idx], self.camera_identifiers[idx])\
+                        #             == sl.FUSION_ERROR_CODE.SUCCESS
+                        #     if self.chk == [True, True]:
                                 
-                                if self.svo_image[idx] != 0:
-                                    cv_viewer.render_2D(self.svo_image[idx].get_data(), self.image_scale, self.bodies.body_list, \
-                                                        self.zed_params.body_tracking.enable_tracking,
-                                                        self.zed_params.body_tracking.body_format)
-                                    img = cv2.imshow("View"+str(idx), self.svo_image[idx].get_data())
-                                    # for body in self.bodies:
-                                    #     for ctpt = np.mean(body.keypoint_2d, axis=0)
-                                    # cv2.drawMarker(img, ctpt, (0, 0, 255), markerType=cv2.MARKER_CROSS, markerSize=30)
-                                    #print("confidence is ", detected_body_list[0].confidence)
-                                    # print("lenght of detecetd bodies is ", len(detected_body_list))
+                        #         if self.svo_image[idx] != 0:
+                        #             # cv_viewer.render_2D(self.svo_image[idx].get_data(), self.image_scale, self.bodies.body_list, \
+                        #             #                     self.zed_params.body_tracking.enable_tracking,
+                        #             #                     self.zed_params.body_tracking.body_format)
+                        #             img = cv2.imshow("View"+str(idx), self.svo_image[idx].get_data())
+                        #             # for body in self.bodies:
+                        #             #     for ctpt = np.mean(body.keypoint_2d, axis=0)
+                        #             # cv2.drawMarker(img, ctpt, (0, 0, 255), markerType=cv2.MARKER_CROSS, markerSize=30)
+                        #             #print("confidence is ", detected_body_list[0].confidence)
+                        #             # print("lenght of detecetd bodies is ", len(detected_body_list))
                         
                     
         
@@ -656,7 +656,7 @@ def main(args=None):
     while not end_flag:
         
         cam.zed_loop()
-        fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies)
+        # fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies)
         # publisher.publish_all_bodies(known_bodies)
         
         key = cv2.pollKey()
