@@ -81,6 +81,8 @@ def init_zed_params(user_params):
     configs = json.load(file)
 
     zed_params.base_transform = np.array(configs['base']['transform'])
+    R = zed_params.base_transform
+    S = inverse_transform(R[0:3, 0:3], R[0:3, 3])
     for config in configs:
         M = np.array(configs[config]['transform'])
         if config != 'base':
@@ -95,19 +97,44 @@ def init_zed_params(user_params):
             https://www.stereolabs.com/docs/fusion/overview
 
             If you want to apply a different cam position for the sake of getting openGL to look the right way:
-            - only add translation to the first cam, before any other operation           
+            - only add translation to the first cam, before any other operation    
+            
+            
+            "One camera, the first to be loaded, is defined as the world origin, its position will be (0, H ,0)
+            with H being its height, which depends on the condition mentioned above."
+            - https://www.stereolabs.com/docs/fusion/zed360
+            ==> the world origin is actually at a distance of -H in z?
+            
+            "The file also contains the camera’s world data. It is defined by its rotation (radians) and its
+            translation (meters). The position should be defined in UNIT::METER and COORDINATE_SYSTEM::IMAGE,
+            the API read/write functions will handle the metric and coordinate system changes."
+            - https://www.stereolabs.com/docs/fusion/overview
+            
+            "The rotations are Euler Angles.
+            In the file the vector is XYZ,
+            For you matrix M you write
+            M.setRotationVector(sl::float3(X,Y,Z));"
+            - https://community.stereolabs.com/t/multi-camera-point-cloud-fusion-using-room-calibration-file/3640
+            
+            "# Pose(new reference frame) = M.inverse() * pose (camera frame) * M, where M is the transform between
+            the two frames"
+            - https://www.stereolabs.com/docs/positional-tracking/coordinate-frames
+            
+            "pose	The World position of the camera, regarding the other camera of the setup"
+            - https://www.stereolabs.com/docs/api/python/classpyzed_1_1sl_1_1Fusion.html#a91061e5f56803c445cdf9ea7c0cf51c6
+            -- update_pose
             """
 
             if not np.any(zed_params.fusion):   # Cam 1
                 N = copy.copy(M)    # table coords --> Cam 1 coords (Cam 1 as seen from table)
                 # [obj]world frame = N * [obj]cam frame
                 P = inverse_transform(N[0:3, 0:3], N[0:3, 3])
-                M = np.eye(4)
+                # M = np.eye(4)
                 zed_params.cam_transform = N
             else:
                 Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
-                M = N @ Q
-                # M = P @ M  
+                # M = N @ Q
+                M = P @ M @ N 
             # if user_params.display_skeleton == True:    # To relocate display so it is visible in GLViewer
             #     visual_correction = np.array([[0, 0,  0, 0],
             #                                   [0, 0,  0, 1],
@@ -121,7 +148,7 @@ def init_zed_params(user_params):
             # Pp = P - visual_correction
             # Mp = Pp @ M
             # visuals.plot_axes(Pp, M)
-            # M = zed_params.base_transform @ M
+            M = S @ M @ R
             # visual_correction = np.array([[0, 0,  0, 1],
             #                               [0, 0,  0, 0],
             #                               [0, 0, 0, -1],
@@ -133,8 +160,6 @@ def init_zed_params(user_params):
                     T[j,k] = M[j,k]
             fus.pose = T
             zed_params.fusion.append(fus)
-        else:
-            zed_params.base_transform = M
      
     if len(zed_params.fusion) < 2:
         logger.error("Invalid config file.")
