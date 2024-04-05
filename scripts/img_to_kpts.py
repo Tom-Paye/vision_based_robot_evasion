@@ -55,6 +55,7 @@ def init_user_params():
 
     user_params.display_video = 0                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
     user_params.display_skeleton = False    # DO NOT USE, OPENGL IS A CANCER WHICH SHOULD NEVER BE GIVEN RAM
+    user_params.display_fused_limbs = 0
     user_params.time_loop = False
 
     user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
@@ -136,25 +137,6 @@ def init_zed_params(user_params):
                 # M = P @ M @ N
                 # M = N @ M @ P 
                 M = M @ P
-            # if user_params.display_skeleton == True:    # To relocate display so it is visible in GLViewer
-            #     visual_correction = np.array([[0, 0,  0, 0],
-            #                                   [0, 0,  0, 1],
-            #                                   [0, 0, 0, -3],
-            #                                   [0, 0,  0, 0]])
-            #     M = M + visual_correction
-            
-            # visualize: 
-            # Np = np.eye(4) + visual_correction
-            # Pp = inverse_transform(Np[0:3, 0:3], Np[0:3, 3])
-            # Pp = P - visual_correction
-            # Mp = Pp @ M
-            # visuals.plot_axes(Pp, M)
-            # M = R @ M @ S
-            # visual_correction = np.array([[0, 0,  0, 1],
-            #                               [0, 0,  0, 0],
-            #                               [0, 0, 0, -1],
-            #                               [0, 0,  0, 0]])
-            # M = M - visual_correction
             T = sl.Transform()
             for j in range(4):
                 for k in range(4):
@@ -217,8 +199,8 @@ def init_zed_params(user_params):
     zed_params.body_tracking_fusion.enable_body_fitting = True
 
     zed_params.body_tracking_fusion_runtime = sl.BodyTrackingFusionRuntimeParameters()
-    zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 7
-    # zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_camera = 1
+    zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 5
+    zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_camera = 2
     # zed_params.body_tracking_fusion_runtime.skeleton_smoothing = 0.5
 
     if user_params.body_type == 'BODY_18':
@@ -243,7 +225,7 @@ def inverse_transform(R, t):
     return T_inv
 
 
-def fetch_skeleton(bodies, user_params, zed_params, known_bodies):
+def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
     
     """
     For each detected body, save arm and trunk keypoint locations in a separate numpy array,
@@ -272,44 +254,53 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies):
 
             # Only keep bodies close to the origin
             dist = np.linalg.norm(position)
-            if dist < 2:
+            if dist < 1.5:
 
-                # ##################### Visual Check
-                
-                # lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
-                # rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
-                # lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
-                # rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
-
-
-                # lsl = np.hstack((lsl, np.ones((len(lsl), 1))))
-                # rsl = np.hstack((rsl, np.ones((len(rsl), 1))))
-                # lss = np.hstack((lss, np.ones((len(lss), 1))))
-                # rss = np.hstack((rss, np.ones((len(rss), 1))))
-
-                # R = zed_params.R @ zed_params.cam_transform
-                # # zed_params.cam_transform @ zed_params.R
-                # S = zed_params.S
-                # # R = np.matmul(self.zed_params.cam_transform, self.user_params.pos_transform)
-                # # R = self.zed_params.cam_transform
-                # # Rp = inverse_transform(R[0:3, 0:3], R[0:3, 3])
-                # # R = Rp
-                
-                # lsl = (R @ lsl.T).T[:, 0:3]
-                # rsl = (R @ rsl.T).T[:, 0:3]
-                # lss = (R @ lss.T).T[:, 0:3]
-                # rss = (R @ rss.T).T[:, 0:3]
-
-                # # lsl = np.matmul(R, lsl.T).T[:, 0:3]
-                # # rsl = np.matmul(R, rsl.T).T[:, 0:3]
-                # # lss = np.matmul(R, lss.T).T[:, 0:3]
-                # # rss = np.matmul(R, rss.T).T[:, 0:3]
+                if user_params.display_fused_limbs:
+                    ##################### Visual Check
+                    
+                    lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
+                    rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
+                    lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
+                    rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
 
 
-                # # # visuals.quick_plot(lsl, rsl, lss, rss)
-                
+                    lsl = np.hstack((lsl, np.ones((len(lsl), 1))))
+                    rsl = np.hstack((rsl, np.ones((len(rsl), 1))))
+                    lss = np.hstack((lss, np.ones((len(lss), 1))))
+                    rss = np.hstack((rss, np.ones((len(rss), 1))))
 
-                # #####################
+                    R = zed_params.R @ zed_params.cam_transform
+                    # zed_params.cam_transform @ zed_params.R
+                    S = zed_params.S
+                    # R = np.matmul(self.zed_params.cam_transform, self.user_params.pos_transform)
+                    # R = self.zed_params.cam_transform
+                    # Rp = inverse_transform(R[0:3, 0:3], R[0:3, 3])
+                    # R = Rp
+                    
+                    lsl = (R @ lsl.T).T[:, 0:3]
+                    rsl = (R @ rsl.T).T[:, 0:3]
+                    lss = (R @ lss.T).T[:, 0:3]
+                    rss = (R @ rss.T).T[:, 0:3]
+
+                    # lsl = np.matmul(R, lsl.T).T[:, 0:3]
+                    # rsl = np.matmul(R, rsl.T).T[:, 0:3]
+                    # lss = np.matmul(R, lss.T).T[:, 0:3]
+                    # rss = np.matmul(R, rss.T).T[:, 0:3]
+
+
+                    # # visuals.quick_plot(lsl, rsl, lss, rss)
+
+                    # if body_id == 1:
+                    geom = {'lsl' : lsl,
+                            'rsl' : rsl,
+                            'lss' : lss,
+                            'rss' : rss}
+                    
+                    fig[body_id] = visuals.plot_held(fig[body_id], geom)
+                    
+
+                    #####################
                 
                 "select the keypoints we are interested in"
                 left_matrix = np.array(body.keypoint[left_kpt_idx])
@@ -335,7 +326,7 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies):
                 known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
     if type(known_bodies) != dict:
         known_bodies = {}
-    return known_bodies
+    return known_bodies, fig
     
 
 #############################################ZED API PROCESSES##############################################
@@ -617,8 +608,8 @@ class geometry_publisher(Node):
             pose.position = point
             msg_vec.poses.append(pose)
  
-        # self.get_logger().info(label)
-        # self.get_logger().info(str(data))
+        self.get_logger().info(label)
+        self.get_logger().info(str(data))
         self.publisher_vec.publish(msg_vec)
         self.key = cv2.pollKey()
         self.i += 1
@@ -642,6 +633,7 @@ class geometry_publisher(Node):
 def main(args=None):
     
     known_bodies = {}
+    fig = [0, 0, 0, 0, 0]
     user_params = init_user_params()
     zed_params = init_zed_params(user_params)
 
@@ -660,7 +652,7 @@ def main(args=None):
     while not end_flag:
         
         cam.zed_loop()
-        known_bodies = fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies)
+        [known_bodies, fig] = fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
         if np.any(list(known_bodies.keys())):
             publisher.publish_all_bodies(known_bodies)
         

@@ -284,7 +284,7 @@ class Subscriber(Node):
         self.reset = 0.0
         self.x = []
         self.bodies = {}
-        self.subject = '0'
+        self.subject = '1'
         self.placeholder_Pe = np.array([[0., 0., 0.],
                                         [0., -.1, .3],
                                         [0., .1, .3],
