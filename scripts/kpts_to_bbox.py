@@ -2,52 +2,38 @@
 
 import rclpy
 from rclpy.node import Node
-import my_cpp_py_pkg.kalman as kalman
-import my_cpp_py_pkg.visuals as visuals
-
-import numpy as np
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
+
+import my_cpp_py_pkg.kalman as kalman
+import my_cpp_py_pkg.visuals as visuals
+
+import numpy as np
 import math
 import time
 import copy
-
-def rearrange_trunk(coords):
-    """
-    Current suggestion (uneducated)
-    1) for each P: physically consecutive pair of keypoints in a group (eg wrist-elbow, elbow-shoulder, NOT wrist-shoulder)
-        create the 3d axis joining them both
-        1.1: Find the orthogonal vector OV to the axis which crosses the end effector EE
-        1.2: Check if OV crosses between the KPts
-            1.2.1 if yes, calculate Da(P), the min distance from the axis to the EE
-            1.2.2 if no, find the Ca(P): the closest KPt on the axis to the EE.
-    2) take the min of all Da, Ca
-    This technique is not robust to hugging the robot, and may cause it to enter a blood rage.
-    A simple, if computationally effective solution would be to exert pressure from each P to limit bang-bang interactions
-    Complexity: O(num_nodes)*O(perp_axis)*constant
-
-    Problem: We also need to save the direction along which the distance is the shortest, and take into account the robot
-    links as well, which squares the whole complexity.
-    For starters, it might be more practical to simply calculate the closest human-lint to robot-link distance and direction.
-
-    Also, would a kalman filter on the human pos be a good idea? Is it already implemented by ZED? --> no,
-    TODO:investigate kalman filtering
-    """
+import logging
 
 
-    coords_l = coords[[0, 1, 2, 4], :]
-    coords_r = coords[[0, 1, 3, 5], :]
-    return coords_l, coords_r
     
 def link_dists(pos_body, pos_robot):
     """
+    Given the positions of two bodies, this function returns:
+        - the minimum distance between them
+        - the points on each body which are closest to the other
+        - the direction connecting both bodies
+        
+    The bodies are considered as chains, not webs (each keypoint is connected to two other joints MAX)
+    
+    
+    
     INPUT---------------------------
     Takes pos_body: [M, 3] array of keypoint positions IN PHYSICALLY CONSECUTIVE ORDER
     (i.e. don't feed it a hand keypoint followed by the head keypoint or it will assume you have antennae)
 
-    Takes pos_robot: [N, 3] vector corresponding to end effector position
+    Takes pos_robot: [N, 3] vector corresponding to robot joint positions (locations in cartesian space)
 
     OUTPUT--------------------------
     Returns dist: [P, Q] array of distances
@@ -80,29 +66,17 @@ def link_dists(pos_body, pos_robot):
     """
 
 
-    # # pos_body = np.array([[0, 0, 0], [1, 1, 0], [0, 0, 0]])
-    # # pos_robot = [0, -3, 0]
-    # pos_body = np.reshapos_robot(pos_body, [-1,3])
-    # dP = np.diff(pos_body, axis=0) / np.linalg.norm(np.diff(pos_body, axis=0))
-    # dpos_robot = pos_robot - pos_body[:-1, :]
-    # c = np.diag(np.matmul(dP, np.transpose(dpos_robot)))     # distance of the plane along the axis from the first point
-
-    # dist = np.zeros(len(dP))
-    # for i in range(len(dist)):
-    #     if c[i] <= 0:
-    #         dist[i] = np.linalg.norm(pos_robot - pos_body[i])
-    #     if c[i] >=1:
-    #         dist[i] = np.linalg.norm(pos_robot - pos_body[i+1])
-    #     if c[i] < 1 and c[i] > 0:
-    #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
-
     # TODO: // implement marking of imaginary joints
     # TODO: // articulate body geometry into a format suitable for this function
     # TODO: Make the Kalman Filter 3D
     # TODO: Create estimation of body speeds
     # TODO: make kalman filter real-time
     # TODO: // fix the coordinate system
+    
+    logger = logging.getLogger(__name__)
 
+    #####################
+    # # FOR SIMULATION AND TESTING
 
     # links_r = np.array([[0, 0, 0], [1, 1, 0]])
     # links_b = np.array([[0, 2, 0], [1, 2, 0]])
@@ -115,7 +89,6 @@ def link_dists(pos_body, pos_robot):
 
     # links_r = np.array([[0, 0, 0], [2, 0, 0]])
     # links_b = np.array([[1, 2, 0], [1, 1, 0]])
-    chkpt_1 = time.time()
 
     # links_r = np.array([[0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
     #                     [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0],
@@ -132,6 +105,9 @@ def link_dists(pos_body, pos_robot):
     #                     [4, 3, 0]])
     # pos_b = copy.copy(links_b)
     # pos_r = copy.copy(links_r)
+    
+    #####################
+    
     
     links_b, links_r = pos_body, pos_robot
     
@@ -166,20 +142,6 @@ def link_dists(pos_body, pos_robot):
     else:
         links_r = mat_roll
         links_b = mat_static
-        
-    # while n % m == 0:
-    #     rep_array = np.ones(n).astype(int)
-    #     rep_array[-1] = 2
-    #     links_b = np.repeat(links_b, rep_array, axis=0)
-    #     m = len(links_b)
-    #     q += 1
-    # links_b = np.tile(links_b, (n, 1))
-    # links_r = np.tile(links_r, (m, 1))
-    #####
-
-
-    # links_r = np.repeat(links_r, m*np.ones(n).astype(int), axis=0)
-    # links_b = np.tile(links_b, (n, 1))
 
     pseudo_links = np.array([links_r[:, :-1, :], links_b[:, :-1, :]])
 
@@ -191,30 +153,16 @@ def link_dists(pos_body, pos_robot):
     len_r = np.linalg.norm(d_r, axis=-1)**2
     len_b = np.linalg.norm(d_b, axis=-1)**2
     if 0 in len_r or 0 in len_b:
-        # self.get_logger().info('err: Link without length')
-        print('err: Link without length')
+        logger().info('err: Link without length')
     R = np.einsum('ijk, ijk->ij', d_r, d_b)
-    # R = np.dot(d_r, d_b) # use np.einsum
     denom = len_r*len_b - R**2
     S1 = np.einsum('ijk, ijk->ij', d_r, d_rb)
     S2 = np.einsum('ijk, ijk->ij', d_b, d_rb)
-    # S1 = np.dot(d_r, d_rb)
-    # S2 = np.dot(d_b, d_rb)
 
     paral = (denom<0.001)
-    # t = (1-paral) * (S1*len_b-S2*len_r) / denom
     t = (1-paral) * (S1*len_b-S2*R) / denom
     t = np.nan_to_num(t)
     t = np.clip(t, 0, 1)
-    # if np.abs(denom) < 0.001:
-    #     print('Parallel')
-    #     t=0
-    # else:
-    #     t = (S1*len_b-S2*len_r) / denom
-    #     if t>1:
-    #         t=1
-    #     if t<0:
-    #         t=0
 
     u = (t*R - S2) / (len_b)
     u = np.nan_to_num(u)
@@ -228,7 +176,6 @@ def link_dists(pos_body, pos_robot):
     up = np.transpose(np.array([u]*3), (1, 2, 0))
     diffs_3d = np.multiply(d_r, tp) - np.multiply(d_b, up) - d_rb
     dist = np.sqrt(np.sum(diffs_3d**2, axis=-1))
-    # dist = np.sqrt(np.sum(( np.transpose(d_r, axes=(0,2,1))*t - d_b.T*u - d_rb.T )**2, axis=1))
 
     distp = copy.copy(dist)
     dist = np.around(dist, decimals=6)
@@ -242,11 +189,6 @@ def link_dists(pos_body, pos_robot):
     
     t = np.around(t, decimals=6)
     u = np.around(u, decimals=6)
-
-    chkpt_2 = time.time()
-    elapsed_time = chkpt_2 - chkpt_1
-    # print('elapsed time:')
-    # print(elapsed_time)
 
     [i, j] = np.where(dist == np.min(dist))
     t = t[i, j]
@@ -285,6 +227,9 @@ class Subscriber(Node):
 
     def __init__(self):
         super().__init__('minimal_subscriber')
+        
+        logger = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.DEBUG)
 
         self.initialize_variables()
 
@@ -295,7 +240,7 @@ class Subscriber(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
-        self.timer = self.create_timer(0.01, self.calc_callback)
+        self.timer = self.create_timer(0.01, self.dist_callback)
         # self.timer = self.create_timer(0.01, self.kalman_callback)
         
     
@@ -317,6 +262,8 @@ class Subscriber(Node):
                                         [1., -.1, .6],
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
+        self.max_dist = 0.2      # distance at which the robot feels a force exerted by proximity to a human
+        self.in_dist = 0.005     # distance at which the robot is most strongly pushed bach by a human
 
     def kalman_callback(self):
 
@@ -329,21 +276,19 @@ class Subscriber(Node):
             kalman.kaltest(self.x)
         
 
-    def calc_callback(self):
+    def dist_callback(self):
         if self.subject in self.bodies:
             self.get_logger().debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
             self.get_logger().debug(str(self.reset and np.any(self.bodies[self.subject][0])))
             # Make the body outline fit the head
             if self.reset and np.any(self.bodies[self.subject][0]):
-                # if len(self.bodies[self.subject][2]) >= 6:
-                #     new_order = [1, 0, 4, 2, 3, 5, 0]
-                #     self.bodies[self.subject][2] = self.bodies[self.subject][2][new_order, :][:]
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
                 arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, self.placeholder_Pe)
                 trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
 
                 ###############
+                # Plotting the distances
                 class geom(): pass
                 geom.arm_pos = arms
                 geom.trunk_pos = self.bodies[self.subject][2]
@@ -366,8 +311,49 @@ class Subscriber(Node):
                 min_dist = min(min_dist_arms, min_dist_trunk)
                 # self.get_logger().info('Minimum distance:')
                 # self.get_logger().info(str(min_dist))
+                arms_geom = {'dist':arms_dist, 'direc':arms_direc,
+                             't':arms_t      , 'u':arms_u,
+                             'closest_r':c_r_a        , 'closest_b':c_a_r}
+                trunk_geom = {'dist':trunk_dist, 'direc':trunk_direc,
+                             't':trunk_t      , 'u':trunk_u,
+                             'closest_r':c_r_t        , 'closest_b':c_t_r}
+                return arms_geom, trunk_geom
+                
+                
+    def force_estimator(self, body_geom, robot_pose):
+        
+        """
+        Calculates the force imparted on the robot by the bounding box of another body
+        This can be conceptualized as pushing on a part of the robot
+        (as opposed to forces on the joint motors, which are determined in another function)
+        
+        INPUT---------------------------
+        body_geom: dict whose elements are the output of the "link_dists"
+        
+        robot_pose: [N, 3] vector corresponding to robot joint positions (locations in cartesian space)
+        
+        INPUT---------------------------
+        force: [N] vector of magnitudes of forces to be applied to the robot
+            force is given as a float between 0 and 1, 1 being the strongest
+        
+        direc: [N, 3] array containing the direction along which the force is applied
+        
+        application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
+                                                                                         extremity at the base)
+        application_dist: [N] vector of the distance along a segment at which a force is applied
+        
+        """
+        force = copy.copy(body_geom['dist'])
+        direc = body_geom['direc']
+        application_segments = body_geom['closest_r']
+        application_dist = body_geom['t']
+        
+        mag = 1 - (mag-self.min_dist)/(self.max_dist - self.min_dist)
+        mag = np.clip(mag, 0, 1)
 
-
+            
+            
+        
 
 
     # def label_callback(self, msg):
