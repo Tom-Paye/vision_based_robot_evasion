@@ -608,8 +608,8 @@ class geometry_publisher(Node):
             pose.position = point
             msg_vec.poses.append(pose)
  
-        self.get_logger().info(label)
-        self.get_logger().info(str(data))
+        # self.get_logger().info(label)
+        # self.get_logger().info(str(data))
         self.publisher_vec.publish(msg_vec)
         self.key = cv2.pollKey()
         self.i += 1

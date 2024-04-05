@@ -59,27 +59,27 @@ def plot_skeletons(fig, geom):
     robot_cp_arm_idx, s = geom.robot_cp_arm_idx, geom.s
     robot_cp_trunk_idx, t = geom.robot_cp_trunk_idx, geom.t
 
-    print('arms: ')
-    for idx in arm_cp_idx:
-        print(str(idx))
-    print('trunk: ')
-    for idx in trunk_cp_idx:
-        print(str(idx))
+    # print('arms: ')
+    # for idx in arm_cp_idx:
+    #     print(str(idx))
+    # print('trunk: ')
+    # for idx in trunk_cp_idx:
+    #     print(str(idx))
     
     # Create the geometry linking human and robot
     if type(u) == float:
-        arm_cp = arm_pos[arm_cp_idx,:]*u + arm_pos[arm_cp_idx+1,:] * (1-u)
-        trunk_cp = trunk_pos[trunk_cp_idx,:]*v + trunk_pos[trunk_cp_idx+1,:] * (1-v)
-        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s + robot_pos[robot_cp_arm_idx+1,:] * (1-s)
-        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)
+        arm_cp = arm_pos[arm_cp_idx,:]*(1-u) + arm_pos[arm_cp_idx+1,:] * u
+        trunk_cp = trunk_pos[trunk_cp_idx,:]*(1-v) + trunk_pos[trunk_cp_idx+1,:] * v
+        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*(1-s) + robot_pos[robot_cp_arm_idx+1,:] * s
+        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*(1-t) + robot_pos[robot_cp_trunk_idx+1,:] * t
         
         ra_pos = np.array([arm_cp, robot_cp_arm])
         rt_pos = np.array([trunk_cp, robot_cp_trunk])
     else:
-        arm_cp = arm_pos[arm_cp_idx,:]*u[:, np.newaxis] + arm_pos[arm_cp_idx+1,:] * (1-u)[:, np.newaxis]
-        trunk_cp = trunk_pos[trunk_cp_idx,:]*v[:, np.newaxis] + trunk_pos[trunk_cp_idx+1,:] * (1-v)[:, np.newaxis]
-        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s[:, np.newaxis] + robot_pos[robot_cp_arm_idx+1,:] * (1-s)[:, np.newaxis]
-        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t[:, np.newaxis] + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)[:, np.newaxis]
+        arm_cp = arm_pos[arm_cp_idx,:]*(1-u)[:, np.newaxis] + arm_pos[arm_cp_idx+1,:] * u[:, np.newaxis]
+        trunk_cp = trunk_pos[trunk_cp_idx,:]*(1-v)[:, np.newaxis] + trunk_pos[trunk_cp_idx+1,:] * v[:, np.newaxis]
+        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*(1-s)[:, np.newaxis] + robot_pos[robot_cp_arm_idx+1,:] * s[:, np.newaxis]
+        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*(1-t)[:, np.newaxis] + robot_pos[robot_cp_trunk_idx+1,:] * t[:, np.newaxis]
         
         ra_pos = np.array([arm_cp, robot_cp_arm])
         rt_pos = np.array([trunk_cp, robot_cp_trunk])
@@ -94,12 +94,12 @@ def plot_skeletons(fig, geom):
         ax = fig.add_subplot(111, projection='3d')
         plt.xlabel("X")
         plt.ylabel("Y")
-        # ax.set_xlim(-1, 2)
-        # ax.set_ylim(0, 2)
-        # ax.set_zlim(-1, 2)
         ax.set_xlim(-1, 1)
         ax.set_ylim(-1, 1)
         ax.set_zlim(-1, 1)
+        # ax.set_xlim(0, 4)
+        # ax.set_ylim(0, 4)
+        # ax.set_zlim(0, 4)
     else:
         # inherit and reset a figure object
         ax = fig.axes[0]

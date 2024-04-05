@@ -97,11 +97,11 @@ def link_dists(pos_body, pos_robot):
     #         dist[i] = np.linalg.norm(pos_robot - c[i] - pos_body[i])
 
     # TODO: // implement marking of imaginary joints
-    # TODO: articulate body geometry into a format suitable for this function
+    # TODO: // articulate body geometry into a format suitable for this function
     # TODO: Make the Kalman Filter 3D
     # TODO: Create estimation of body speeds
     # TODO: make kalman filter real-time
-    # TODO: fix the coordinate system
+    # TODO: // fix the coordinate system
 
 
     # links_r = np.array([[0, 0, 0], [1, 1, 0]])
@@ -125,6 +125,13 @@ def link_dists(pos_body, pos_robot):
     #                     [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0],
     #                     [0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
     #                     [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0]])
+    
+    # links_r = np.array([[0, 0, 0], [1, 1, 0], [1, 2, 0], [2, 1, 0],
+    #                     [3, 1, 0]])
+    # links_b = np.array([[1/2, 4, 0], [1, 3, 0], [2, 2, 0], [5/2, 3, 0],
+    #                     [4, 3, 0]])
+    # pos_b = copy.copy(links_b)
+    # pos_r = copy.copy(links_r)
     
     links_b, links_r = pos_body, pos_robot
     
@@ -212,17 +219,11 @@ def link_dists(pos_body, pos_robot):
     u = (t*R - S2) / (len_b)
     u = np.nan_to_num(u)
     u = np.clip(u, 0, 1)
-    # if u>1:
-    #     u=1
-    # if u<0:
-    #     u=0
 
     t = (u*R + S1) / len_r
     t = np.clip(t, 0, 1)
-    # if t>1:
-    #     t=1
-    # if t<0:
-    #     t=0
+
+
     tp = np.transpose(np.array([t]*3), (1, 2, 0))
     up = np.transpose(np.array([u]*3), (1, 2, 0))
     diffs_3d = np.multiply(d_r, tp) - np.multiply(d_b, up) - d_rb
@@ -258,6 +259,24 @@ def link_dists(pos_body, pos_robot):
     else:
         closest_b = j
         closest_r = (j+i)%n
+
+    # #######################
+    # # Plots for testing purposes
+    # class geom(): pass
+    # geom.arm_pos = pos_b
+    # geom.trunk_pos = pos_b
+    # geom.robot_pos = pos_r
+    # geom.arm_cp_idx = closest_b
+    # geom.u = u
+    # geom.trunk_cp_idx = closest_b
+    # geom.v = u
+    # geom.robot_cp_arm_idx = closest_r
+    # geom.s = t
+    # geom.robot_cp_trunk_idx = closest_r
+    # geom.t = t
+
+    # visuals.plot_skeletons(0, geom)
+    # #######################
 
     return dist, direc, t, u, closest_r, closest_b
 
@@ -368,8 +387,8 @@ class Subscriber(Node):
             if self.subject in self.bodies:
                 for id in self.bodies.keys():
                     body = self.bodies[id]
-                    self.get_logger().info('Body' + id + ' Left side')
-                    self.get_logger().info(str(body[0]))
+                    # self.get_logger().info('Body' + id + ' Left side')
+                    # self.get_logger().info(str(body[0]))
             else:
                 pass
         else:
