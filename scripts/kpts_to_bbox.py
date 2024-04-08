@@ -330,17 +330,19 @@ class Subscriber(Node):
         INPUT---------------------------
         body_geom: dict whose elements are the output of the "link_dists"
         
-        robot_pose: [N, 3] vector corresponding to robot joint positions (locations in cartesian space)
+        robot_pose: [M, 3] vector corresponding to robot joint positions (locations in cartesian space)
         
-        INPUT---------------------------
+        OUTPUT---------------------------
         force: [N] vector of magnitudes of forces to be applied to the robot
             force is given as a float between 0 and 1, 1 being the strongest
         
-        direc: [N, 3] array containing the direction along which the force is applied
+        direc: [N, 3] array containing the direction along which the force is applied (with norm of 1)
         
         application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
                                                                                          extremity at the base)
         application_dist: [N] vector of the distance along a segment at which a force is applied
+        
+        force_vec: [N, 3] array containing the direction along which the force is applied scaled by the force (0 to 1)
         
         """
         force = copy.copy(body_geom['dist'])
@@ -348,11 +350,61 @@ class Subscriber(Node):
         application_segments = body_geom['closest_r']
         application_dist = body_geom['t']
         
-        mag = 1 - (mag-self.min_dist)/(self.max_dist - self.min_dist)
-        mag = np.clip(mag, 0, 1)
-
+        force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
+        force = np.clip(force, 0, 1)
+        
+        force_vec = np.repmat(force, [1, 3])*direc
+        
+    
+    def force_translator(self, robot_pose, force_vec, application_segments, application_dist):
+        
+        """
+        Translates body forces on the robot to moments on its joints
+        --> assumes infinitely rigid links and 1 DOF joints
+        --> for each joint, assumes all other joints are rigid
+        
+        INPUT---------------------------
+        
+        robot_pose: [M, 3] vector corresponding to robot joint positions (locations in cartesian space)
+            NOTE: joints must be given in physically consecutive order (ie consecutive joints are physically connected
+                                                                        by a single segment of the robot)
+        
+        force_vec: [N, 3] array containing the direction along which the force is applied scaled by the force (0 to 1)
+            --> 1 line for each separate BODY force, NOT joint torque
+        
+        application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
+                                                                                         extremity at the base)
+        application_dist: [N] vector of the distance along a segment at which a force is applied
+        
+        OUTPUT---------------------------
+        
+        torques: [M] vector of torques on the robot's joints
+            --> 1 row per joint
+            TODO: define robot position by joint positions to disambiguate torque direction
+            TODO: Rescale torques to account for the compliance of other joints and redistribute to prevent stall
+            TODO: add a function to calculate robot cartesian positions from angles
             
-            
+        
+        """
+        torques = np.zeros(len(robot_pose))
+        
+        for i, force in enumerate(force_vec):
+            for j, joint in enumerate(robot_pose):
+                
+                # Determine the axis of the joint
+                joint_axis = [1, 1, 1]
+                
+                # Determine moment of force on the joint
+                force_pos = (robot_pose[application_segments[i],:]*(1-application_dist[i]))+\
+                            (robot_pose[application_segments[i+1],:]*application_dist[i])
+                force_relative_pos = force_pose - joint
+                moment_raw = np.cross(force, force_relative_pos)
+                
+                # scale by the colinearity between moment and joint axis
+                moment_scaled = np.dot(moment_raw, joint_axis)
+                
+                torques[j] += moment_scaled
+        
         
 
 
