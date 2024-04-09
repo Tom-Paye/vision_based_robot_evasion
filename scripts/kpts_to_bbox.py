@@ -16,6 +16,19 @@ import time
 import copy
 import logging
 
+def calc_jacobian(link, position, gometry):
+    """
+    Created the jacobian of a new point located at <position> along <link> on a body of given <geometry>
+
+    INPUT---------------------------
+
+    link: int, identifies which link to place the new point on
+    position: float, 0<=position<1, how far along the link to go (in the direction of the EE)
+    geometry: [N, 3] array of joint positions
+
+    """
+
+    
 
     
 def link_dists(pos_body, pos_robot):
@@ -375,6 +388,12 @@ class Subscriber(Node):
         application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
                                                                                          extremity at the base)
         application_dist: [N] vector of the distance along a segment at which a force is applied
+
+        jacobians: [N, 6, N] array containing the jacobians of each joint
+            1st dim: Which joint is this jacobian for
+            2nd dim: Which translation / rotation
+            3rd dim: onto which joint does this map (joint torque = jacobian * Force on end effector)
+            NOTE: the joints are the ones at the 'END' of the corresponding links
         
         OUTPUT---------------------------
         
@@ -386,6 +405,19 @@ class Subscriber(Node):
             
         
         """
+        '''
+                Substituting the joint torque with the end-effector force pre-multiplied with the Jaco-
+                bian transposed
+                τ = JTe Fe (3.85)
+                yields the end-effector dynamics
+                - Robot Dynamics
+
+                https://frankaemika.github.io/libfranka/structfranka_1_1RobotState.html
+
+                https://frankaemika.github.io/docs/franka_ros2.html#setup
+                --> /home/tom/franka_ros2_ws/src/franka_ros2/franka_example_controllers/src
+                    --> model_example_controller.cpp
+                '''
         torques = np.zeros(len(robot_pose))
         
         for i, force in enumerate(force_vec):
