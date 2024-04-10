@@ -28,7 +28,7 @@ def calc_jacobian(link, position, gometry):
 
     """
 
-    
+
 
     
 def link_dists(pos_body, pos_robot):
@@ -76,6 +76,7 @@ def link_dists(pos_body, pos_robot):
 
         
     https://www.sciencedirect.com/science/article/pii/0020019085900328 
+    
     """
 
 
@@ -275,8 +276,8 @@ class Subscriber(Node):
                                         [1., -.1, .6],
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
-        self.max_dist = 0.2      # distance at which the robot feels a force exerted by proximity to a human
-        self.in_dist = 0.005     # distance at which the robot is most strongly pushed bach by a human
+        self.max_dist = 3      # distance at which the robot feels a force exerted by proximity to a human
+        self.min_dist = 0     # distance at which the robot is most strongly pushed bach by a human
 
     def kalman_callback(self):
 
@@ -330,6 +331,7 @@ class Subscriber(Node):
                 trunk_geom = {'dist':trunk_dist, 'direc':trunk_direc,
                              't':trunk_t      , 'u':trunk_u,
                              'closest_r':c_r_t        , 'closest_b':c_t_r}
+                self.force_estimator(arms_geom, self.placeholder_Pe)
                 return arms_geom, trunk_geom
                 
                 
@@ -339,6 +341,10 @@ class Subscriber(Node):
         Calculates the force imparted on the robot by the bounding box of another body
         This can be conceptualized as pushing on a part of the robot
         (as opposed to forces on the joint motors, which are determined in another function)
+
+        For easier calculation, transform each force on a part of a link into:
+        (a force at the end of that link closest to the base) + (a moment on that end)
+
         
         INPUT---------------------------
         body_geom: dict whose elements are the output of the "link_dists"
@@ -359,14 +365,20 @@ class Subscriber(Node):
         
         """
         force = copy.copy(body_geom['dist'])
+        moment = np.zeros([len(force), 3])
         direc = body_geom['direc']
         application_segments = body_geom['closest_r']
         application_dist = body_geom['t']
         
         force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
         force = np.clip(force, 0, 1)
-        
-        force_vec = np.repmat(force, [1, 3])*direc
+        force_vec = np.tile(force, [1, 3])*direc
+
+        # determine which forces are not applied to a joint, and transform into a force + a moment
+        excentered_idx = np.where(application_dist)
+        levers = np.diff(robot_pose, axis = 0)[application_segments[excentered_idx]] * application_dist
+        moment[excentered_idx] = np.cross(levers, force_vec)
+        a = 2
         
     
     def force_translator(self, robot_pose, force_vec, application_segments, application_dist):
@@ -417,6 +429,12 @@ class Subscriber(Node):
                 https://frankaemika.github.io/docs/franka_ros2.html#setup
                 --> /home/tom/franka_ros2_ws/src/franka_ros2/franka_example_controllers/src
                     --> model_example_controller.cpp
+
+                /home/tom/franka_ros2_ws/install/franka_semantic_components/include/franka_semantic_components
+                franka_robot_model.hpp 
+                --> describes the calculation of a jacobian
+                    NOTE: Column major format?
+
                 '''
         torques = np.zeros(len(robot_pose))
         
@@ -429,7 +447,7 @@ class Subscriber(Node):
                 # Determine moment of force on the joint
                 force_pos = (robot_pose[application_segments[i],:]*(1-application_dist[i]))+\
                             (robot_pose[application_segments[i+1],:]*application_dist[i])
-                force_relative_pos = force_pose - joint
+                force_relative_pos = force_pos - joint
                 moment_raw = np.cross(force, force_relative_pos)
                 
                 # scale by the colinearity between moment and joint axis
