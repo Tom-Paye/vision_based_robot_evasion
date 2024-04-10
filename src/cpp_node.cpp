@@ -10,13 +10,16 @@
 //     return 0;
 // }
 
-
-
-
-// #include "my_cpp_py_pkg/model_example_controller.hpp"
+#include "my_cpp_py_pkg/model_example_controller.hpp"
 
 // #include "hardware_interface/types/hardware_interface_return_values.hpp"
 // #include "hardware_interface/types/hardware_interface_type_values.hpp"
+
+int main(int argc, char **argv)
+  {
+    int a = 2;
+    return 0;
+  }
 
 // namespace {
 // template <class T, size_t N>

@@ -51,7 +51,8 @@ def plot_skeletons(fig, geom):
     """
     
     # unpack variables for better readability
-    arm_pos, trunk_pos, robot_pos = geom.arm_pos, geom.trunk_pos, geom.robot_pos
+    arm_pos, trunk_pos = geom.arm_pos, geom.trunk_pos
+    robot_pos = geom.robot_pos
     # dist = geom.dist
     arm_cp_idx, u = geom.arm_cp_idx, geom.u
     trunk_cp_idx, v = geom.trunk_cp_idx, geom.v
@@ -65,23 +66,23 @@ def plot_skeletons(fig, geom):
     # for idx in trunk_cp_idx:
     #     print(str(idx))
     
-    # # Create the geometry linking human and robot
-    # if type(u) == float:
-    #     arm_cp = arm_pos[arm_cp_idx,:]*u + arm_pos[arm_cp_idx+1,:] * (1-u)
-    #     trunk_cp = trunk_pos[trunk_cp_idx,:]*v + trunk_pos[trunk_cp_idx+1,:] * (1-v)
-    #     robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s + robot_pos[robot_cp_arm_idx+1,:] * (1-s)
-    #     robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)
+    # Create the geometry linking human and robot
+    if type(u) == float:
+        arm_cp = arm_pos[arm_cp_idx,:]*(1-u) + arm_pos[arm_cp_idx+1,:] * u
+        trunk_cp = trunk_pos[trunk_cp_idx,:]*(1-v) + trunk_pos[trunk_cp_idx+1,:] * v
+        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*(1-s) + robot_pos[robot_cp_arm_idx+1,:] * s
+        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*(1-t) + robot_pos[robot_cp_trunk_idx+1,:] * t
         
-    #     ra_pos = np.array([arm_cp, robot_cp_arm])
-    #     rt_pos = np.array([trunk_cp, robot_cp_trunk])
-    # else:
-    #     arm_cp = arm_pos[arm_cp_idx,:]*u[:, np.newaxis] + arm_pos[arm_cp_idx+1,:] * (1-u)[:, np.newaxis]
-    #     trunk_cp = trunk_pos[trunk_cp_idx,:]*v[:, np.newaxis] + trunk_pos[trunk_cp_idx+1,:] * (1-v)[:, np.newaxis]
-    #     robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*s[:, np.newaxis] + robot_pos[robot_cp_arm_idx+1,:] * (1-s)[:, np.newaxis]
-    #     robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*t[:, np.newaxis] + robot_pos[robot_cp_trunk_idx+1,:] * (1-t)[:, np.newaxis]
+        ra_pos = np.array([arm_cp, robot_cp_arm])
+        rt_pos = np.array([trunk_cp, robot_cp_trunk])
+    else:
+        arm_cp = arm_pos[arm_cp_idx,:]*(1-u)[:, np.newaxis] + arm_pos[arm_cp_idx+1,:] * u[:, np.newaxis]
+        trunk_cp = trunk_pos[trunk_cp_idx,:]*(1-v)[:, np.newaxis] + trunk_pos[trunk_cp_idx+1,:] * v[:, np.newaxis]
+        robot_cp_arm = robot_pos[robot_cp_arm_idx,:]*(1-s)[:, np.newaxis] + robot_pos[robot_cp_arm_idx+1,:] * s[:, np.newaxis]
+        robot_cp_trunk = robot_pos[robot_cp_trunk_idx,:]*(1-t)[:, np.newaxis] + robot_pos[robot_cp_trunk_idx+1,:] * t[:, np.newaxis]
         
-    #     ra_pos = np.array([arm_cp, robot_cp_arm])
-    #     rt_pos = np.array([trunk_cp, robot_cp_trunk])
+        ra_pos = np.array([arm_cp, robot_cp_arm])
+        rt_pos = np.array([trunk_cp, robot_cp_trunk])
     
 
     # initialize or iterate figure
@@ -91,12 +92,14 @@ def plot_skeletons(fig, geom):
         # create figure object
         fig = plt.figure(figsize=(4,4))
         ax = fig.add_subplot(111, projection='3d')
-        ax.set_xlim(0, 2)
-        ax.set_ylim(-1, -3)
-        ax.set_zlim(2, 4)
-        # ax.set_xlim(-1, 1)
-        # ax.set_ylim(-1, 1)
-        # ax.set_zlim(-1, 1)
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+        ax.set_zlim(-1, 1)
+        # ax.set_xlim(0, 4)
+        # ax.set_ylim(0, 4)
+        # ax.set_zlim(0, 4)
     else:
         # inherit and reset a figure object
         ax = fig.axes[0]
@@ -114,18 +117,72 @@ def plot_skeletons(fig, geom):
     ax.plot(robot_pos[:, 0], robot_pos[:, 1], robot_pos[:, 2], 'o-r')
 
     
-    # # draw the lines from human to robot
-    # if type(u) == float:
-    #     ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
-    #     ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
-    # else:
-    #     for i in range(np.shape(ra_pos)[1]):
-    #         ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
-    #     for i in range(np.shape(rt_pos)[1]):
-    #         ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
-    
+    # draw the lines from human to robot
+    if type(u) == float:
+        ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
+        ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
+    else:
+        for i in range(np.shape(ra_pos)[1]):
+            ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
+        for i in range(np.shape(rt_pos)[1]):
+            ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
+    set_axes_equal(ax)
     plt.pause(0.001)
     return fig
+
+
+def plot_held(fig, geom):
+    
+    """
+    This function shows the position of the body over time
+    
+    Input:----------------
+    
+    Takes fig: int or matplotlib figure object
+        During initialization, feed an int to this function, and it will create
+        the figure object on it's own
+        For a call to update an existing figure, 'fig' must be the figure to be
+        updated
+        
+    Takes geom, a dict containing every geometry object to draw:
+        
+        - XXX_pos : [n,3] array of keypoint positions of the arms
+            (in physical order)
+    """
+
+    colors = ['r', 'g', 'b', 'm', 'y', 'c', 'k'] 
+    limbs = list(geom.keys())
+
+    # initialize or iterate figure
+    plt.ion()
+    
+    if type(fig) == int:
+        # create figure object
+        fig = plt.figure(figsize=(4,4))
+        ax = fig.add_subplot(111, projection='3d')
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        # ax.set_xlim(-1, 2)
+        # ax.set_ylim(0, 2)
+        # ax.set_zlim(-1, 2)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(-1, 0)
+        ax.set_zlim(-.5, .5)
+    else:
+        # inherit and reset a figure object
+        ax = fig.axes[0]
+        for art in list(ax.lines):
+            art.remove()
+    
+    # plot the human and robot
+    for i, limb in enumerate(limbs):
+        pos = geom[limb]
+        ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], 'o-', color=colors[i])
+    set_axes_equal(ax)
+    plt.pause(0.001)
+    return fig
+
+
 
 def quick_plot(lsh, rsh, lsl, rsl):
     fig = plt.figure(figsize=(4,4))
@@ -135,6 +192,8 @@ def quick_plot(lsh, rsh, lsl, rsl):
     ax.plot(lsl[:,0], lsl[:,1], lsl[:,2], 'o-g')
     ax.plot(rsl[:,0], rsl[:,1], rsl[:,2], 'o-m')
     set_axes_equal(ax)
+    plt.xlabel("X")
+    plt.ylabel("Y")
     plt.show()
 
 def plot_axes(S, T):

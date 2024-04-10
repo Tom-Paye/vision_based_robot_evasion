@@ -17,7 +17,9 @@
                 "/opt/ros/humble/include/**",
                 "/usr/include/**",
                 "/opt/ros/humble/include/sensor_msgs",
-                "/usr/local/zed/**"
+                "/opt/ros/humble/include/controller_interface",
+                "/usr/local/zed/**",
+                "${workspaceFolder}/include"
             ],
             "name": "ROS",
             "intelliSenseMode": "gcc-x64",

@@ -1450,6 +1450,38 @@
 			"value" : "tom-Vivobook-ASUSLaptop-M7400QE-M7400QE"
 		},
 		{
+			"name" : "TINYXML2_INCLUDE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/include"
+		},
+		{
+			"name" : "TINYXML2_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/usr/lib/x86_64-linux-gnu/libtinyxml2.so"
+		},
+		{
 			"name" : "TinyXML2_DIR",
 			"properties" : 
 			[
@@ -1951,7 +1983,19 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/opt/ros/humble/lib/libsensor_msgs__rosidl_typesupport_fastrtps_cpp.so"
+			"value" : "/opt/ros/humble/lib/libcontroller_interface.so"
+		},
+		{
+			"name" : "action_msgs_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for action_msgs."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/action_msgs/cmake"
 		},
 		{
 			"name" : "ament_cmake_DIR",
@@ -2338,6 +2382,54 @@
 			"value" : "/opt/ros/humble/share/builtin_interfaces/cmake"
 		},
 		{
+			"name" : "class_loader_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for class_loader."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/class_loader/cmake"
+		},
+		{
+			"name" : "console_bridge_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for console_bridge."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/lib/x86_64-linux-gnu/console_bridge/cmake"
+		},
+		{
+			"name" : "control_msgs_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for control_msgs."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/control_msgs/cmake"
+		},
+		{
+			"name" : "controller_interface_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for controller_interface."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/controller_interface/cmake"
+		},
+		{
 			"name" : "fastcdr_DIR",
 			"properties" : 
 			[
@@ -2410,6 +2502,18 @@
 			"value" : "/opt/ros/humble/share/geometry_msgs/cmake"
 		},
 		{
+			"name" : "hardware_interface_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for hardware_interface."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/hardware_interface/cmake"
+		},
+		{
 			"name" : "libstatistics_collector_DIR",
 			"properties" : 
 			[
@@ -2432,6 +2536,18 @@
 			],
 			"type" : "PATH",
 			"value" : "/opt/ros/humble/share/libyaml_vendor/cmake"
+		},
+		{
+			"name" : "lifecycle_msgs_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for lifecycle_msgs."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/lifecycle_msgs/cmake"
 		},
 		{
 			"name" : "my_cpp_py_pkg_BINARY_DIR",
@@ -2502,6 +2618,18 @@
 			"value" : "/usr/lib/x86_64-linux-gnu/libssl.so"
 		},
 		{
+			"name" : "pluginlib_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for pluginlib."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/pluginlib/cmake"
+		},
+		{
 			"name" : "prefix_result",
 			"properties" : 
 			[
@@ -2536,6 +2664,18 @@
 			],
 			"type" : "PATH",
 			"value" : "/opt/ros/humble/share/rcl_interfaces/cmake"
+		},
+		{
+			"name" : "rcl_lifecycle_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for rcl_lifecycle."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/rcl_lifecycle/cmake"
 		},
 		{
 			"name" : "rcl_logging_interface_DIR",
@@ -2584,6 +2724,18 @@
 			],
 			"type" : "PATH",
 			"value" : "/opt/ros/humble/share/rclcpp/cmake"
+		},
+		{
+			"name" : "rclcpp_lifecycle_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for rclcpp_lifecycle."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/rclcpp_lifecycle/cmake"
 		},
 		{
 			"name" : "rclpy_DIR",
@@ -2934,6 +3086,18 @@
 			"value" : "/opt/ros/humble/share/std_msgs/cmake"
 		},
 		{
+			"name" : "tinyxml2_vendor_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for tinyxml2_vendor."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/tinyxml2_vendor/cmake"
+		},
+		{
 			"name" : "tracetools_DIR",
 			"properties" : 
 			[
@@ -2944,6 +3108,30 @@
 			],
 			"type" : "PATH",
 			"value" : "/opt/ros/humble/share/tracetools/cmake"
+		},
+		{
+			"name" : "trajectory_msgs_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for trajectory_msgs."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/trajectory_msgs/cmake"
+		},
+		{
+			"name" : "unique_identifier_msgs_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for unique_identifier_msgs."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/opt/ros/humble/share/unique_identifier_msgs/cmake"
 		},
 		{
 			"name" : "xmllint_BIN",
