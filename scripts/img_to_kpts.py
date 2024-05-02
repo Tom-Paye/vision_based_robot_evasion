@@ -48,18 +48,22 @@ def init_user_params():
     # '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
     # '/usr/local/zed/tools/zed_calib.json'
 
+    # External params
     user_params.video_src = 'SVO'                                       # SVO, Live
     user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
     user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
     user_params.svo_suffix = '_720p_30fps.svo'
 
+    # View params
     user_params.display_video = 0                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
     user_params.display_skeleton = False    # DO NOT USE, OPENGL IS A CANCER WHICH SHOULD NEVER BE GIVEN RAM
-    user_params.display_fused_limbs = 0
+    user_params.display_fused_limbs = 1
     user_params.time_loop = False
 
+    # Script params
     user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
     user_params.real_time = True
+    user_params.fusion = False
 
     logging.basicConfig(level=logging.DEBUG)
     
@@ -148,13 +152,15 @@ def init_zed_params(user_params):
         logger.error("Invalid config file.")
         exit(1)
 
+    zed_params.R = zed_params.R @ zed_params.cam_transform
+
     
     
     "Initialization parameters"
     zed_params.init = sl.InitParameters()
     zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.IMAGE # RIGHT_HANDED_Y_UP, IMAGE
     zed_params.init.coordinate_units = sl.UNIT.METER
-    zed_params.init.depth_mode = sl.DEPTH_MODE.NEURAL  # PERFORMANCE, NEURAL, ULTRA
+    zed_params.init.depth_mode = sl.DEPTH_MODE.PERFORMANCE  # PERFORMANCE, NEURAL, ULTRA
     zed_params.init.camera_resolution = sl.RESOLUTION.HD720
     # zed_params.init.camera_fps = 30
     if user_params.video_src == 'SVO' and user_params.real_time == True:
@@ -183,7 +189,7 @@ def init_zed_params(user_params):
     zed_params.body_tracking.enable_tracking = True
 
     zed_params.body_tracking_runtime = sl.BodyTrackingRuntimeParameters()
-    zed_params.body_tracking_runtime.detection_confidence_threshold = 70 #confidence threshold actually works?
+    # zed_params.body_tracking_runtime.detection_confidence_threshold = 70 #confidence threshold actually works?
     # zed_params.body_tracking_runtime.detection_confidence_threshold = 100 # default value = 50
     # zed_params.body_tracking_runtime.minimum_keypoints_threshold = 12 # default value = 0
 
@@ -225,7 +231,7 @@ def inverse_transform(R, t):
     return T_inv
 
 
-def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
+def fetch_skeleton_fused(bodies, user_params, zed_params, known_bodies, fig):
     
     """
     For each detected body, save arm and trunk keypoint locations in a separate numpy array,
@@ -270,9 +276,9 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
                     lss = np.hstack((lss, np.ones((len(lss), 1))))
                     rss = np.hstack((rss, np.ones((len(rss), 1))))
 
-                    R = zed_params.R @ zed_params.cam_transform
+                    R = zed_params.R
                     # zed_params.cam_transform @ zed_params.R
-                    S = zed_params.S
+                    # S = zed_params.S
                     # R = np.matmul(self.zed_params.cam_transform, self.user_params.pos_transform)
                     # R = self.zed_params.cam_transform
                     # Rp = inverse_transform(R[0:3, 0:3], R[0:3, 3])
@@ -309,7 +315,7 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
                 
                     
                 "The transform to get from camera POV to world view"
-                R = zed_params.R @ zed_params.cam_transform    
+                R = zed_params.R    
 
                 "Convert to 4D poses"
                 left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
@@ -324,6 +330,120 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
 
                 
                 known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
+    if type(known_bodies) != dict:
+        known_bodies = {}
+    return known_bodies, fig
+
+
+def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
+    
+    """
+    For each detected body, save arm and trunk keypoint locations in a separate numpy array,
+    all packaged as a dictionary value
+
+    This function assumes that if two bodies are sufficiently close, then they are detected by different cameras.
+    This is not safe.
+    """
+    
+    if len(bodies) > 0:
+               
+        left_kpt_idx = zed_params.left_arm_keypoints
+        right_kpt_idx = zed_params.right_arm_keypoints
+        trunk_kpt_idx = zed_params.trunk_keypoints
+        
+        positions = []
+        cam_idx = []
+        for object in bodies:
+            cam_idx.append(object[0])
+            body = object[1]
+
+            "https://www.stereolabs.com/docs/api/python/classpyzed_1_1sl_1_1BodyData.html#acd55fe117eb554b1eddae3d5c23481f5"
+            body_id = body.id
+            body_unique_id = body.unique_object_id
+            body_tracking_state = body.tracking_state # if the current body is being tracked
+            body_action_state = body.action_state # idle or moving
+            body_kpt = body.keypoint
+            body_kpt_confidence = body.keypoint_confidence
+            position = body.position
+
+            positions.append(position)
+
+        positions = np.array(positions)
+        # positions = np.array([
+        #     [0, 0, 0],
+        #     [1, 1, 1],
+        #     [5, 5, 5], 
+        #     [5, 5, 6]
+        # ])
+
+        distances = np.ones([len(positions), len(positions)-1])*1000
+        closest_h = np.tile(np.arange(len(positions)), (len(positions)-1, 1)).T
+        closest_v = np.tile(np.arange(len(positions)-1), (len(positions), 1))
+        closest = (closest_h+closest_v+1)%len(positions)
+        pair = []
+        for rot in range(len(positions)-1):
+            pos_rot = np.roll(positions, -rot-1, axis=0)
+            distances[:,rot] = np.linalg.norm(positions - pos_rot, axis=1)
+        idx = np.argsort(distances, axis=1)
+        # idx = np.array([idx.flatten(), closest_h.flatten()]).T
+        # closest_ordered = closest[idx] 
+        closest_ordered = np.take_along_axis(closest, idx, axis=1)  
+        if len(positions)>2:
+            a=0
+        for i in range(len(positions)):
+            if closest_ordered[closest_ordered[i, 0], 0] == i:
+                if not np.any(np.array(pair).flatten()==i):
+                    pair.append([i , closest_ordered[i, 0]])
+        
+        for objects in pair:
+            body_0 = bodies[objects[0]][1]
+            cam_0 = bodies[objects[0]][0]
+            body_1 = bodies[objects[0]][1]
+            cam_1 = bodies[objects[0]][0]
+
+            confidence_0 = body_0.confidence
+            confidence_1 = body_1.confidence
+
+            left_matrix_0 = np.array(body_0.keypoint[left_kpt_idx])
+            right_matrix_0 = np.array(body_0.keypoint[right_kpt_idx])
+            trunk_matrix_0 = np.array(body_0.keypoint[trunk_kpt_idx])
+
+            left_matrix_1 = np.array(body_1.keypoint[left_kpt_idx])
+            right_matrix_1 = np.array(body_1.keypoint[right_kpt_idx])
+            trunk_matrix_1 = np.array(body_1.keypoint[trunk_kpt_idx])
+
+            left_matrix = (left_matrix_0 * confidence_0 + left_matrix_1 * confidence_1) / (confidence_0+confidence_1)
+            right_matrix = (right_matrix_0 * confidence_0 + right_matrix_1 * confidence_1) / (confidence_0+confidence_1)
+            trunk_matrix = (trunk_matrix_0 * confidence_0 + trunk_matrix_1 * confidence_1) / (confidence_0+confidence_1)
+
+            "The transform to get from camera POV to world view"
+            R = zed_params.R    
+
+            "Convert to 4D poses"
+            left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
+            right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
+            trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
+
+            left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
+            right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
+            trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
+ 
+            known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
+
+            if user_params.display_fused_limbs:
+                    ##################### Visual Check
+
+                    # if body_id == 1:
+                    geom = {'lsl' : left_matrix,
+                            'rsl' : right_matrix,
+                            'lss' : trunk_matrix,
+                            'rss' : trunk_matrix}
+                    
+                    fig[body_id] = visuals.plot_held(fig[body_id], geom)
+                    
+
+                    #####################
+
     if type(known_bodies) != dict:
         known_bodies = {}
     return known_bodies, fig
@@ -409,7 +529,7 @@ class vision():
         self.fusion = fusion
         
     
-    def subscribe_to_cam_outputs(self):
+    def subscribe_to_cam_outputs_fused(self):
                 
         bodies = sl.Bodies()        
         for serial in self.senders:
@@ -446,7 +566,7 @@ class vision():
         self.camera_identifiers = camera_identifiers
 
 
-    def init_body_tracking_and_viewer(self):
+    def init_body_tracking_and_viewer_fused(self):
         
         self.fusion.enable_body_tracking(self.zed_params.body_tracking_fusion)
     
@@ -470,8 +590,21 @@ class vision():
         single_bodies = [sl.Bodies]
         self.single_bodies = single_bodies
 
+    def startup_split(self):
+        bodies = sl.Bodies()        
+        for serial in self.senders:
+            zed = self.senders[serial]
+            status = zed.grab()
+            if status == sl.ERROR_CODE.SUCCESS:
+                zed.retrieve_bodies(bodies, self.zed_params.body_tracking_runtime)
+            else:
+                self.logger.error('Could not grab zed output during initialization')
+                self.logger.error(status)
+        
+        self.bodies = []
 
-    def zed_loop(self):
+
+    def zed_loop_fused(self):
 
         for idx, serial in enumerate(self.senders):
             zed = self.senders[serial]
@@ -545,6 +678,39 @@ class vision():
                         #             # cv2.drawMarker(img, ctpt, (0, 0, 255), markerType=cv2.MARKER_CROSS, markerSize=30)
                         #             #print("confidence is ", detected_body_list[0].confidence)
                         #             # print("lenght of detecetd bodies is ", len(detected_body_list))
+
+    
+    def zed_loop(self):
+
+        all_bodies = []
+        cam_check = [0, 0]
+        for idx, serial in enumerate(self.senders):
+            bodies = sl.Bodies()
+            zed = self.senders[serial]
+            status = zed.grab()
+            if status != sl.ERROR_CODE.SUCCESS:
+                self.logger.error(status)
+                if status == sl.ERROR_CODE.END_OF_SVOFILE_REACHED:
+                    self.error = 1
+            else:
+                status = zed.retrieve_bodies(bodies)
+                if status != sl.ERROR_CODE.SUCCESS:
+                    self.logger.error(status)
+                    self.error = 1
+
+            for body in bodies.body_list:
+                position = body.position
+
+                # Only keep bodies close to the origin
+                dist = np.linalg.norm(position)
+                if dist < 1.5:
+                    all_bodies.append([serial, body])
+                    cam_check[idx] = 1
+
+        # Only keep bodies seen by both cams
+        if cam_check == [1, 1]:
+            self.bodies = all_bodies
+
                         
                     
         
@@ -608,8 +774,8 @@ class geometry_publisher(Node):
             pose.position = point
             msg_vec.poses.append(pose)
  
-        # self.get_logger().info(label)
-        # self.get_logger().info(str(data))
+        self.get_logger().info(label)
+        self.get_logger().info(str(data))
         self.publisher_vec.publish(msg_vec)
         self.key = cv2.pollKey()
         self.i += 1
@@ -643,16 +809,24 @@ def main(args=None):
     cam = vision(user_params, zed_params)
 
     cam.connect_cams()
-    cam.init_fusion()
-    cam.subscribe_to_cam_outputs()
-    cam.init_body_tracking_and_viewer()
+    if user_params.fusion == True:
+        cam.init_fusion()
+        cam.subscribe_to_cam_outputs_fused()
+        cam.init_body_tracking_and_viewer_fused()
+    else:
+        cam.startup_split()
     
     end_flag = 0
     key = ''
     while not end_flag:
         
-        cam.zed_loop()
-        [known_bodies, fig] = fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
+        if user_params.fusion == True:
+            cam.zed_loop_fused()
+            [known_bodies, fig] = fetch_skeleton_fused(cam.bodies, user_params, zed_params, known_bodies, fig)
+        else:
+            cam.zed_loop()
+            fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
+
         if np.any(list(known_bodies.keys())):
             publisher.publish_all_bodies(known_bodies)
         
