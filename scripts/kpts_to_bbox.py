@@ -6,6 +6,7 @@ from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
+from sensor_msgs.msg import JointState
 
 import my_cpp_py_pkg.kalman as kalman
 import my_cpp_py_pkg.visuals as visuals
@@ -16,7 +17,7 @@ import time
 import copy
 import logging
 
-def calc_jacobian(link, position, gometry):
+def calc_jacobian(link, position, geometry):
     """
     Created the jacobian of a new point located at <position> along <link> on a body of given <geometry>
 
@@ -27,6 +28,101 @@ def calc_jacobian(link, position, gometry):
     geometry: [N, 3] array of joint positions
 
     """
+
+
+def Rz(a):
+    c, s = np.cos(a), np.sin(a)
+    T = np.array([ [c, -s, 0, 0],
+                   [s, c , 0, 0],
+                   [0 , 0, 1, 0],
+                   [0 , 0, 0, 1]])
+    return T
+
+def Ry(a):
+    c, s = np.cos(a), np.sin(a)
+    T = np.array([ [c , 0, s, 0],
+                   [0 , 1, 0, 0],
+                   [-s, 0, c, 0],
+                   [0 , 0, 0, 1]])
+    return T
+
+def Rx(a):
+    c, s = np.cos(a), np.sin(a)
+    T = np.array([ [1, 0, 0 , 0],
+                   [0, c, -s, 0],
+                   [0, s, c , 0],
+                   [0, 0, 0 , 1]])
+    return T
+
+def translation(a=[0, 0, 0]):
+    x, y, z = a[0], a[1], a[2]
+    T = np.array([ [1, 0, 0, x],
+                   [0, 1, 0, y],
+                   [0, 0, 1, z],
+                   [0, 0, 0, 1]])
+    return T
+
+def joint_to_cartesian(joint_states= [0, 0.8, 0, -2, 0, 0, 0]):
+    """
+    Transform joint states into joint poisitions in cartesian space
+
+    INPUT---------------------------
+
+    joint_states: [7] vector of joint angles in radians TODO: figure out what position corresponds to 0 rads for each joint
+
+    OUTPUT--------------------------
+
+    joint_positions: [7, 3] array of cartesian positions of every joint
+
+    joint_rotations: [7, 3, 3] array of cartesian rotations of every joint axis
+
+    """
+
+    """
+    Geometry is taken from https://www.generationrobots.com/media/franka-emika-research-3-robot-datasheet.pdf
+    or here https://frankaemika.github.io/docs/control_parameters.html 
+    https://www.researchgate.net/figure/The-Elementary-Transform-Sequence-of-the-7-degree-offreedom-Franka-Emika-Panda_fig1_361785335 
+    Because those specifications do not allow us to easily describe the robot as a set of cylinders,
+    I made some modifications:
+    - define the position of A3 as 316-82 = 234 mm away from A2
+    - define A5 as 384-82 = 302mm away from A6
+    - define A7 as 88 mm away from A6
+    - add an 'A8' to represent the gripper, at distance 107mm from A7
+    """
+
+    link_lengths = [    [0, 0, 0.333],\
+                        np.zeros(3),\
+                        [0, 0, 0.316],\
+                        [0.0825, 0, 0],\
+                        [-0.0825, 0, 0.384],\
+                        np.zeros(3),\
+                        [0, 0, 0.107],\
+                        [-0.088, 0, 0] ]
+    
+    T00 = np.zeros([4,4])
+    T00[3, 3] = 1
+    
+    T01 = Rz(joint_states[0]) @ translation(link_lengths[0])
+
+    T02 = T01 @ Ry(joint_states[1])
+
+    T03 = T02 @ Rz(joint_states[2]) @ translation(link_lengths[2])
+
+    T04 = T03 @ Ry(joint_states[3]) @ translation(link_lengths[3])
+    
+    T05 = T04 @ Rz(joint_states[4]) @ translation(link_lengths[4])
+
+    T06 = T05 @ Ry(joint_states[5])
+
+    T07 = T06 @ Ry(joint_states[6]) @ translation(link_lengths[7]) @ Rz(np.pi) @ translation(link_lengths[6])
+
+    Transforms = np.array([T00, T01, T02, T03, T04, T05, T06, T07])
+
+    joint_positions = Transforms[:, 0:3, 3].reshape(8, 3)
+
+    return joint_positions
+    
+    
 
 
 
@@ -167,7 +263,7 @@ def link_dists(pos_body, pos_robot):
     len_r = np.linalg.norm(d_r, axis=-1)**2
     len_b = np.linalg.norm(d_b, axis=-1)**2
     if 0 in len_r or 0 in len_b:
-        logger().info('err: Link without length')
+        logger.info('err: Link without length')
     R = np.einsum('ijk, ijk->ij', d_r, d_b)
     denom = len_r*len_b - R**2
     S1 = np.einsum('ijk, ijk->ij', d_r, d_rb)
@@ -254,6 +350,12 @@ class Subscriber(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
+        self.robot_data = self.create_subscription(
+            JointState,
+            'robot_data',
+            self.get_robot_joints,
+            10)
+
         self.timer = self.create_timer(0.01, self.dist_callback)
         # self.timer = self.create_timer(0.01, self.kalman_callback)
         
@@ -298,15 +400,20 @@ class Subscriber(Node):
             if self.reset and np.any(self.bodies[self.subject][0]):
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
-                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, self.placeholder_Pe)
-                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+
+                robot_pos = joint_to_cartesian()
+
+                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe
+                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], robot_pos) # self.placeholder_Pe
+
+
 
                 ###############
                 # Plotting the distances
                 class geom(): pass
                 geom.arm_pos = arms
                 geom.trunk_pos = self.bodies[self.subject][2]
-                geom.robot_pos = self.placeholder_Pe
+                geom.robot_pos = robot_pos  # self.placeholder_Pe
                 geom.arm_cp_idx = c_a_r
                 geom.u = arms_u
                 geom.trunk_cp_idx = c_t_r
@@ -331,7 +438,7 @@ class Subscriber(Node):
                 trunk_geom = {'dist':trunk_dist, 'direc':trunk_direc,
                              't':trunk_t      , 'u':trunk_u,
                              'closest_r':c_r_t        , 'closest_b':c_t_r}
-                self.force_estimator(arms_geom, self.placeholder_Pe)
+                # self.force_estimator(arms_geom, self.placeholder_Pe)
                 return arms_geom, trunk_geom
                 
                 
@@ -494,55 +601,19 @@ class Subscriber(Node):
 
             threshold = 0.002
             if str(body_id) in self.bodies:
-                # if region == 'left':
-                #     if np.shape(self.bodies[str(body_id)][0]) == np.shape(poses):
-                #         if np.any(np.linalg.norm(self.bodies[str(body_id)][0]-poses, axis=0) < threshold):
-                #             poses = self.bodies[str(body_id)][0]    # do not update position if it has not moved sufficiently?
-                #     self.bodies[str(body_id)][0] = poses
-                # if region == 'right':
-                #     if np.shape(self.bodies[str(body_id)][1]) == np.shape(poses):
-                #         if np.any(np.linalg.norm(self.bodies[str(body_id)][1]-poses, axis=0) < threshold):
-                #             poses = self.bodies[str(body_id)][1]
-                #     self.bodies[str(body_id)][1] = poses
-                # if region == 'trunk':
-                #     if np.shape(self.bodies[str(body_id)][2]) == np.shape(poses):
-                #         if np.any(np.linalg.norm(self.bodies[str(body_id)][2]-poses, axis=0) < threshold):
-                #             poses = self.bodies[str(body_id)][2]
-                #     self.bodies[str(body_id)][2] = poses
                 self.bodies[str(body_id)][limb_dict[region]] = poses
             else:
                     self.bodies[str(body_id)] = [poses[0:3,:], poses[0:3,:], poses]
 
+    def get_robot_joints(self, msg):
+        """
+        For now, it looks like the best we can do is get joint angles and transform that into a position manually
+        so we just apply a matrix transformation to the list of joint angles to get the joint positions
+        """
+
         
 
-            # data = []
-            # data_ros = msg.poses
-            # for pose in data_ros:
-            #     data.append([pose.position.x, pose.position.y, pose.position.z])
-            # data = np.array(data)
-            # if region == 'left':
-            #     self.data_left = data
-            # if region == 'right':
-            #     self.data_right = data
-            # if region == 'trunk':
-            #     self.data_trunk = data
 
-
-            # if region == 0:
-            #     if len(self.data_left) <1: #not np.any(self.data_left):
-            #         self.data_left = np.array([[msg.x, msg.y, msg.z]])
-            #     else:
-            #         self.data_left = np.append(self.data_left, np.array([msg.x, msg.y, msg.z]))
-            # if region == 1:
-            #     if len(self.data_right) <1: #not np.any(self.data_right):
-            #         self.data_right = np.array([[msg.x, msg.y, msg.z]])
-            #     else:
-            #         self.data_right = np.append(self.data_right, np.array([msg.x, msg.y, msg.z]))
-            # if region == 2:
-            #     if len(self.data_trunk) <1: #not np.any(self.data_trunk):
-            #         self.data_trunk = np.array([[msg.x, msg.y, msg.z]])
-            #     else:
-            #         self.data_trunk = np.append(self.data_trunk, np.array([msg.x, msg.y, msg.z]))
 
 
 

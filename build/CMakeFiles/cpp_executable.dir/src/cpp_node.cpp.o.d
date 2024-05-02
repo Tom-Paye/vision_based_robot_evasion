@@ -645,4 +645,6 @@ CMakeFiles/cpp_executable.dir/src/cpp_node.cpp.o: \
  /usr/include/franka/control_types.h /usr/include/franka/lowpass_filter.h \
  /usr/include/research_interface/robot/service_types.h \
  /opt/ros/humble/include/semantic_components/semantic_component_interface.hpp \
- /opt/ros/humble/include/controller_interface/helpers.hpp
+ /opt/ros/humble/include/controller_interface/helpers.hpp \
+ /opt/ros/humble/include/hardware_interface/types/hardware_interface_return_values.hpp \
+ /opt/ros/humble/include/hardware_interface/types/hardware_interface_type_values.hpp

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # import my_cpp_py_pkg.module_to_import
-# __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run my_cpp_py_pkg py_node.py
+# __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run my_cpp_py_pkg img_to_kpts.py
 
 import rclpy
 from rclpy.node import Node
@@ -106,7 +106,7 @@ def init_zed_params(user_params):
             - https://www.stereolabs.com/docs/fusion/zed360
             ==> the world origin is actually at a distance of -H in z?
             
-            "The file also contains the camera’s world data. It is defined by its rotation (radians) and its
+            "The file also contains the camera's world data. It is defined by its rotation (radians) and its
             translation (meters). The position should be defined in UNIT::METER and COORDINATE_SYSTEM::IMAGE,
             the API read/write functions will handle the metric and coordinate system changes."
             - https://www.stereolabs.com/docs/fusion/overview
@@ -154,7 +154,7 @@ def init_zed_params(user_params):
     zed_params.init = sl.InitParameters()
     zed_params.init.coordinate_system = sl.COORDINATE_SYSTEM.IMAGE # RIGHT_HANDED_Y_UP, IMAGE
     zed_params.init.coordinate_units = sl.UNIT.METER
-    zed_params.init.depth_mode = sl.DEPTH_MODE.PERFORMANCE  # PERFORMANCE, NEURAL, ULTRA
+    zed_params.init.depth_mode = sl.DEPTH_MODE.NEURAL  # PERFORMANCE, NEURAL, ULTRA
     zed_params.init.camera_resolution = sl.RESOLUTION.HD720
     # zed_params.init.camera_fps = 30
     if user_params.video_src == 'SVO' and user_params.real_time == True:
@@ -162,7 +162,7 @@ def init_zed_params(user_params):
 
     "Communication parameters"
     zed_params.communication = sl.CommunicationParameters()
-    zed_params.communication.set_for_shared_memory()        # no clue what this does
+    # zed_params.communication.set_for_shared_memory()        # no clue what this does
 
     "Positional tracking parameters (Camera)"
     zed_params.positional_tracking = sl.PositionalTrackingParameters()
@@ -183,7 +183,7 @@ def init_zed_params(user_params):
     zed_params.body_tracking.enable_tracking = True
 
     zed_params.body_tracking_runtime = sl.BodyTrackingRuntimeParameters()
-    # zed_params.body_tracking_runtime.detection_confidence_threshold = 0.85 #confidence threshold actually doesnt work
+    zed_params.body_tracking_runtime.detection_confidence_threshold = 70 #confidence threshold actually works?
     # zed_params.body_tracking_runtime.detection_confidence_threshold = 100 # default value = 50
     # zed_params.body_tracking_runtime.minimum_keypoints_threshold = 12 # default value = 0
 

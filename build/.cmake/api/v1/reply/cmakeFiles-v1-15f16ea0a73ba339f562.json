@@ -4802,6 +4802,14 @@
 		},
 		{
 			"isExternal" : true,
+			"path" : "/opt/ros/humble/share/hardware_interface/cmake/hardware_interfaceConfig-version.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "/opt/ros/humble/share/hardware_interface/cmake/hardware_interfaceConfig.cmake"
+		},
+		{
+			"isExternal" : true,
 			"path" : "/opt/ros/humble/share/std_msgs/cmake/std_msgsConfig-version.cmake"
 		},
 		{
