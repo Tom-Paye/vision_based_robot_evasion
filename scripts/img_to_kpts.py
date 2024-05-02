@@ -57,7 +57,7 @@ def init_user_params():
     # View params
     user_params.display_video = 0                                   # 0: none, 1: cam 1, 2: cam 2, 3: both cams
     user_params.display_skeleton = False    # DO NOT USE, OPENGL IS A CANCER WHICH SHOULD NEVER BE GIVEN RAM
-    user_params.display_fused_limbs = 1
+    user_params.display_fused_limbs = 0
     user_params.time_loop = False
 
     # Script params

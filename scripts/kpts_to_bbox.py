@@ -401,10 +401,11 @@ class Subscriber(Node):
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
 
-                robot_pos = joint_to_cartesian()
+                # robot_pos = joint_to_cartesian()
 
-                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe
-                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], robot_pos) # self.placeholder_Pe
+                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, self.placeholder_Pe) # self.placeholder_Pe, robot_pos
+                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+                # self.placeholder_Pe, robot_pos
 
 
 
@@ -413,7 +414,7 @@ class Subscriber(Node):
                 class geom(): pass
                 geom.arm_pos = arms
                 geom.trunk_pos = self.bodies[self.subject][2]
-                geom.robot_pos = robot_pos  # self.placeholder_Pe
+                geom.robot_pos = self.placeholder_Pe  # self.placeholder_Pe, robot_pos
                 geom.arm_cp_idx = c_a_r
                 geom.u = arms_u
                 geom.trunk_cp_idx = c_t_r
