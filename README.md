@@ -27,30 +27,36 @@ TODO:
 
 /2nd goal: combine body tracking
   int goals:
-  /- can I run this from ROS?
-  /- Output actual hand coordinates in ROS
-  (- create config file to load ROS and local options)
-  (/- perform better calibration and data recordings)
-  (- make code easier to port: put all files in the same folder as the code)
+  - /  can I run this from ROS?
+  - /  Output actual hand coordinates in ROS
+  - (create config file to load ROS and local options)
+  - /  (perform better calibration and data recordings)
+  - (make code easier to port: put all files in the same folder as the code)
   - Perform 3rd party sensor fusion and qualified position detection
+
 3rd goal: create bubble
-  - /calculate the distances and directions between he robot and human
-  - /vectorize these calculations to work on both entire bodies at once
-  - /determine where on the robot to exert pseudo-force
+  - /  calculate the distances and directions between he robot and human
+  - /  vectorize these calculations to work on both entire bodies at once
+  - /  determine where on the robot to exert pseudo-force
   - determine force application policy (repulsion, dodging)
   - Justify the safety of the strategy
+
 4th goal: fetch robot positions
   - set up the docker environment for the RT kernel
   - use codin's controller to connect to the robot
   - read position values from the franka broadcasters
   - reconstruct accurate robot geometry and volume
+
 5th goal: Calculate jacobians to translate to moments of force
   - check out frankaemika's jakobians
   - how to create new jacobian along a link
   - implement in python or C++?
+
 6th goal: Perform robot control to apply the calculated force
   - Talk to Curdin's controller over ros2
+
 7th goal : redo fusion so it actually runs instead of stuttering pathetically
+
 8th goal: incorporate 3D models, or show that it is unnecessary
   - body fitting models which are accurate and SAFE
   - infer body proportions using learned estimators?
