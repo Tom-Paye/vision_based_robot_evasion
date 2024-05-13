@@ -22,19 +22,21 @@ __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 launch cartesi
 - activate kpts_to_bbox.py: __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run my_cpp_py_pkg kpts_to_bbox.py
 
 TODO:
-//1st goal: Talk to 2 different cameras over ros
-//2nd goal: combine body tracking
+
+/1st goal: Talk to 2 different cameras over ros
+
+/2nd goal: combine body tracking
   int goals:
-  //- can I run this from ROS?
-  //- Output actual hand coordinates in ROS
+  /- can I run this from ROS?
+  /- Output actual hand coordinates in ROS
   (- create config file to load ROS and local options)
-  (//- perform better calibration and data recordings)
+  (/- perform better calibration and data recordings)
   (- make code easier to port: put all files in the same folder as the code)
   - Perform 3rd party sensor fusion and qualified position detection
 3rd goal: create bubble
-  - //calculate the distances and directions between he robot and human
-  - //vectorize these calculations to work on both entire bodies at once
-  - //determine where on the robot to exert pseudo-force
+  - /calculate the distances and directions between he robot and human
+  - /vectorize these calculations to work on both entire bodies at once
+  - /determine where on the robot to exert pseudo-force
   - determine force application policy (repulsion, dodging)
   - Justify the safety of the strategy
 4th goal: fetch robot positions
