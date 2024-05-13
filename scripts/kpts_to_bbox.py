@@ -65,6 +65,8 @@ def translation(a=[0, 0, 0]):
 def joint_to_cartesian(joint_states= [0, 0.8, 0, -2, 0, 0, 0]):
     """
     Transform joint states into joint poisitions in cartesian space
+    TODO: More accurate volumetric description of the robot
+    CURRENT GOAL:
 
     INPUT---------------------------
 
