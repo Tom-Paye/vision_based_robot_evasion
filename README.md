@@ -5,7 +5,8 @@ Currently works on an Ubuntu 22.04 RT kernel, uses Franka Robotics and Stereolab
 
 Currently implemented: body detection (camera fusion needs a rework) and link-wise distance estimation between the operator and robot.
 
-Relies on Software from Frankaemika, Stereolabs, and Curdin Deplazes : https://github.com/CurdinDeplazes/cartesian_impedance_control
+Relies on Software from Frankaemika, Stereolabs, and Curdin Deplazes : https://github.com/CurdinDeplazes/cartesian_impedance_control,
+forked at https://github.com/lambdacitizen/cartesian_impedance_control.git
 
 Contents:
 - img_to_kpts.py  : communicates with cameras / svo files, outputs the keypoints of the bodies detected via ROS2
@@ -51,6 +52,7 @@ TODO:
   - check out frankaemika's jakobians
   - how to create new jacobian along a link
   - implement in python or C++?
+  - hijack Curdin's code to generate the torques straight from the forces
 
 6th goal: Perform robot control to apply the calculated force
   - Talk to Curdin's controller over ros2
