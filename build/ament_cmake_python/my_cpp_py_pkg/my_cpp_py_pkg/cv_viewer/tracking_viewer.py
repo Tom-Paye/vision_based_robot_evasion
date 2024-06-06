@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from my_cpp_py_pkg.cv_viewer.utils import *
+from Vision_based_robot_evasion.cv_viewer.utils import *
 import pyzed.sl as sl
 
 #----------------------------------------------------------------------

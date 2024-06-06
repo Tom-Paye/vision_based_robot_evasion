@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(my_cpp_py_pkg)
+project(Vision_based_robot_evasion)
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
@@ -14,10 +14,9 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(controller_interface REQUIRED)
-find_package(hardware_interface REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(messages_fr3 REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -28,7 +27,8 @@ include_directories(include)
 
 # Create Cpp executable
 add_executable(cpp_executable src/cpp_node.cpp)
-ament_target_dependencies(cpp_executable rclcpp sensor_msgs controller_interface hardware_interface)
+ament_target_dependencies(cpp_executable rclcpp sensor_msgs messages_fr3)
+
 # Install Cpp executables
 install(TARGETS
   cpp_executable

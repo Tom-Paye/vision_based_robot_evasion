@@ -7,9 +7,10 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 from sensor_msgs.msg import JointState
+from messages_fr3.msg import Array2d
 
-import my_cpp_py_pkg.kalman as kalman
-import my_cpp_py_pkg.visuals as visuals
+import Vision_based_robot_evasion.kalman as kalman
+import Vision_based_robot_evasion.visuals as visuals
 
 import numpy as np
 import math
@@ -62,7 +63,7 @@ def translation(a=[0, 0, 0]):
                    [0, 0, 0, 1]])
     return T
 
-def joint_to_cartesian(joint_states= [0, 0.8, 0, -2, 0, 0, 0]):
+def joint_to_cartesian(joint_states= [0., -0.8, 0., -2.36, 0., 1.57, 0.79]):
     """
     Transform joint states into joint poisitions in cartesian space
     TODO: More accurate volumetric description of the robot
@@ -101,6 +102,8 @@ def joint_to_cartesian(joint_states= [0, 0.8, 0, -2, 0, 0, 0]):
                         [0, 0, 0.107],\
                         [-0.088, 0, 0] ]
     
+    joint_states= np.zeros(8)
+    
     T00 = np.zeros([4,4])
     T00[3, 3] = 1
     
@@ -110,13 +113,13 @@ def joint_to_cartesian(joint_states= [0, 0.8, 0, -2, 0, 0, 0]):
 
     T03 = T02 @ Rz(joint_states[2]) @ translation(link_lengths[2])
 
-    T04 = T03 @ Ry(joint_states[3]) @ translation(link_lengths[3])
+    T04 = T03 @ Ry(-joint_states[3]) @ translation(link_lengths[3])
     
     T05 = T04 @ Rz(joint_states[4]) @ translation(link_lengths[4])
 
-    T06 = T05 @ Ry(joint_states[5])
+    T06 = T05 @ Ry(-joint_states[5])
 
-    T07 = T06 @ Ry(joint_states[6]) @ translation(link_lengths[7]) @ Rz(np.pi) @ translation(link_lengths[6])
+    T07 = T06 @ Ry(joint_states[6]) @ translation(link_lengths[7]) @ Rx(np.pi) @ translation(link_lengths[6])
 
     Transforms = np.array([T00, T01, T02, T03, T04, T05, T06, T07])
 
@@ -281,6 +284,7 @@ def link_dists(pos_body, pos_robot):
     u = np.clip(u, 0, 1)
 
     t = (u*R + S1) / len_r
+    t = np.nan_to_num(t)
     t = np.clip(t, 0, 1)
 
 
@@ -403,10 +407,10 @@ class Subscriber(Node):
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
 
-                # robot_pos = joint_to_cartesian()
+                robot_pos = joint_to_cartesian()
 
-                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, self.placeholder_Pe) # self.placeholder_Pe, robot_pos
-                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], self.placeholder_Pe)
+                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
+                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], robot_pos)
                 # self.placeholder_Pe, robot_pos
 
 
@@ -416,7 +420,7 @@ class Subscriber(Node):
                 class geom(): pass
                 geom.arm_pos = arms
                 geom.trunk_pos = self.bodies[self.subject][2]
-                geom.robot_pos = self.placeholder_Pe  # self.placeholder_Pe, robot_pos
+                geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
                 geom.arm_cp_idx = c_a_r
                 geom.u = arms_u
                 geom.trunk_cp_idx = c_t_r
@@ -441,7 +445,7 @@ class Subscriber(Node):
                 trunk_geom = {'dist':trunk_dist, 'direc':trunk_direc,
                              't':trunk_t      , 'u':trunk_u,
                              'closest_r':c_r_t        , 'closest_b':c_t_r}
-                # self.force_estimator(arms_geom, self.placeholder_Pe)
+                self.force_estimator(arms_geom, robot_pos)    # self.placeholder_Pe, robot_pos
                 return arms_geom, trunk_geom
                 
                 
@@ -455,32 +459,50 @@ class Subscriber(Node):
         For easier calculation, transform each force on a part of a link into:
         (a force at the end of that link closest to the base) + (a moment on that end)
 
+        NOTE: This function assumes all joints are capable of the same torque.
+        Another function should be implemented to give physical meanings to the output of this one,
+        which merely gives forces/moments relative to the strongest force
+
+        NOTE: The output of this function has one less row than the input, because we take 8 points
+        (1 for each joint including the base) + 1 point for the EE, but we only output to the joints
+
         
         INPUT---------------------------
         body_geom: dict whose elements are the output of the "link_dists"
         
-        robot_pose: [M, 3] vector corresponding to robot joint positions (locations in cartesian space)
+        robot_pose: [8, 3] vector corresponding to robot joint positions (locations in cartesian space)
         
         OUTPUT---------------------------
-        force: [N] vector of magnitudes of forces to be applied to the robot
+        forces: [7,3] vector of magnitudes of forces to be applied to the robot in 3D space
             force is given as a float between 0 and 1, 1 being the strongest
         
-        direc: [N, 3] array containing the direction along which the force is applied (with norm of 1)
+        // direc: [N, 3] array containing the direction along which the force is applied (with norm of 1)
         
-        application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
+        // application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
                                                                                          extremity at the base)
-        application_dist: [N] vector of the distance along a segment at which a force is applied
+        // application_dist: [N] vector of the distance along a segment at which a force is applied
         
-        force_vec: [N, 3] array containing the direction along which the force is applied scaled by the force (0 to 1)
+        // force_vec: [N, 3] array containing the direction along which the force is applied scaled by the force (0 to 1)
+
+        // moment:    [N, 3] array containing the direction along which the moment is applied scaled by the moment (0 to 1)
         
         """
-        force = copy.copy(body_geom['dist'])
-        moment = np.zeros([len(force), 3])
+        
+        
         direc = body_geom['direc']
         application_segments = body_geom['closest_r']
         application_dist = body_geom['t']
+
+        force = copy.copy(body_geom['dist'])
+        forces = np.zeros(np.shape(robot_pose))
+        forces[application_segments] = direc
+
+        moments = np.zeros(np.shape(robot_pose))
+        moment = np.zeros([len(force), 3])
         
         force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
+
+        # rescale forces and moments to values from 0 to 1
         force = np.clip(force, 0, 1)
         force_vec = np.tile(force, [1, 3])*direc
 
@@ -488,6 +510,42 @@ class Subscriber(Node):
         excentered_idx = np.where(application_dist)
         levers = np.diff(robot_pose, axis = 0)[application_segments[excentered_idx]] * application_dist
         moment[excentered_idx] = np.cross(levers, force_vec)
+
+        forces = forces * force
+        moments[application_segments] = moment
+
+        # transform all forces and moments on the EE into a force and moment on the nearest actual joint
+        forces[-2,:] = forces[-2,:] + forces[-1,:]
+        moments[-2,:] = moments[-2,:] + moments[-1,:] + np.cross(np.diff(robot_pose, axis = 0)[-1], forces[-1,:])
+        
+        
+
+        output = np.hstack((forces, moments))
+
+        return output
+
+        
+
+
+    def generate_repulsive_force_message(self, robot_pose, force_vec, application_segments, application_dist):
+        
+        """
+        Given an array of the repulsion forces to impose on the robot, it outputs a vector message to send them to 
+        Curdin's code
+
+        INPUT---------------------------
+        forces : [7, 6] array of forces and moments applied to every joint of the robot
+        
+        OUTPUT---------------------------
+        rep_msg: Custom ROS2 message of type Array2d containing:
+            - array  : [n] vector (flattened array) encoding each component of each force on each joint
+            - height : int number of rows of the unflattened array
+            - width  : int number of cols of the unflattened array
+        NOTE: [height, width] should be [6, 7] for 6DOF and 7 joints, but the C++ Eigen library is 
+        COLUMN MAJOR order, which may need added translation
+        """
+        self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_force', 10)
+
         a = 2
         
     
@@ -497,6 +555,7 @@ class Subscriber(Node):
         Translates body forces on the robot to moments on its joints
         --> assumes infinitely rigid links and 1 DOF joints
         --> for each joint, assumes all other joints are rigid
+        NOTE: This is now done within Curdin's controller, this function is unnecessary
         
         INPUT---------------------------
         

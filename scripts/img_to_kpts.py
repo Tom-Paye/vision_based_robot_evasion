@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# import my_cpp_py_pkg.module_to_import
-# __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run my_cpp_py_pkg img_to_kpts.py
+# import Vision_based_robot_evasion.module_to_import
+# __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run Vision_based_robot_evasion img_to_kpts.py
 
 import rclpy
 from rclpy.node import Node
@@ -12,15 +12,15 @@ from std_msgs.msg import Header
 from std_msgs.msg import String
 
 import pyzed.sl as sl
-import my_cpp_py_pkg.visuals as visuals
+import Vision_based_robot_evasion.visuals as visuals
 
 from ament_index_python.packages import get_package_share_directory
 
 import cv2
-import my_cpp_py_pkg.cv_viewer.tracking_viewer as cv_viewer
+import Vision_based_robot_evasion.cv_viewer.tracking_viewer as cv_viewer
 from cv_bridge import CvBridge, CvBridgeError
 
-import my_cpp_py_pkg.ogl_viewer.viewer as gl
+import Vision_based_robot_evasion.ogl_viewer.viewer as gl
 
 import logging
 import time
@@ -42,9 +42,9 @@ def init_user_params():
     class user_params(): pass
 
     user_params.from_sl_config_file = False
-    user_params.config_pth = '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib_2.json'
-    # '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib_2.json'
-    # '/home/tom/ros2_ws/src/my_cpp_py_pkg/my_cpp_py_pkg/zed_calib.json'
+    user_params.config_pth = '/home/tom/franka_ros2_ws/src/Vision_based_robot_evasion/Vision_based_robot_evasion/zed_calib_2.json'
+    # '/home/tom/ros2_ws/src/Vision_based_robot_evasion/Vision_based_robot_evasion/zed_calib_2.json'
+    # '/home/tom/ros2_ws/src/Vision_based_robot_evasion/Vision_based_robot_evasion/zed_calib.json'
     # '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
     # '/usr/local/zed/tools/zed_calib.json'
 
