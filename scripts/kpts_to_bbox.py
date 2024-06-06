@@ -336,6 +336,29 @@ def link_dists(pos_body, pos_robot):
     # visuals.plot_skeletons(0, geom)
     # #######################
 
+    # convert all results so only the 'base' end of a link is used (i.e. never have t or u == 1)
+    closest_r = closest_r + np.floor(t)
+    t = t * (1 - np.floor(t))
+    
+    closest_b = closest_b + np.floor(u)
+    u = u * (1 - np.floor(u))
+
+    if len(closest_r) > 1:
+        # remove repeated values so we only have separate pairs
+        full_info = np.hstack((dist[:, np.newaxis], direc,\
+                               t[:, np.newaxis], u[:, np.newaxis], closest_r[:, np.newaxis], closest_b[:, np.newaxis]))
+        unq = np.unique(full_info, axis=0)
+        dist = unq[:,0]
+        direc = unq[:,1:4]
+        t = unq[:,4]
+        u = unq[:,5]
+        closest_r = unq[:,6].astype(int)
+        closest_b = unq[:,7].astype(int)
+
+    closest_r = closest_r.astype(int)
+    closest_b = closest_b.astype(int)
+
+
     return dist, direc, t, u, closest_r, closest_b
 
 
@@ -361,6 +384,8 @@ class Subscriber(Node):
             'robot_data',
             self.get_robot_joints,
             10)
+        
+        self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
         self.timer = self.create_timer(0.01, self.dist_callback)
         # self.timer = self.create_timer(0.01, self.kalman_callback)
@@ -445,7 +470,8 @@ class Subscriber(Node):
                 trunk_geom = {'dist':trunk_dist, 'direc':trunk_direc,
                              't':trunk_t      , 'u':trunk_u,
                              'closest_r':c_r_t        , 'closest_b':c_t_r}
-                self.force_estimator(arms_geom, robot_pos)    # self.placeholder_Pe, robot_pos
+                forces = self.force_estimator(arms_geom, robot_pos)    # self.placeholder_Pe, robot_pos
+                self.generate_repulsive_force_message(forces)
                 return arms_geom, trunk_geom
                 
                 
@@ -488,6 +514,25 @@ class Subscriber(Node):
         
         """
         
+
+        direc = body_geom['direc']
+        application_segments = body_geom['closest_r']
+        application_dist = body_geom['t']
+        
+
+        force = copy.copy(body_geom['dist'])
+        force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
+        # rescale forces and moments to values from 0 to 1
+        force = np.clip(force, 0, 1)
+        force_vec = np.tile(force, [3, 1]).T*direc
+        
+
+
+
+
+
+
+
         
         direc = body_geom['direc']
         application_segments = body_geom['closest_r']
@@ -504,7 +549,7 @@ class Subscriber(Node):
 
         # rescale forces and moments to values from 0 to 1
         force = np.clip(force, 0, 1)
-        force_vec = np.tile(force, [1, 3])*direc
+        force_vec = np.tile(force, [3, 1]).T*direc
 
         # determine which forces are not applied to a joint, and transform into a force + a moment
         excentered_idx = np.where(application_dist)
@@ -527,7 +572,7 @@ class Subscriber(Node):
         
 
 
-    def generate_repulsive_force_message(self, robot_pose, force_vec, application_segments, application_dist):
+    def generate_repulsive_force_message(self, forces):
         
         """
         Given an array of the repulsion forces to impose on the robot, it outputs a vector message to send them to 
@@ -544,7 +589,13 @@ class Subscriber(Node):
         NOTE: [height, width] should be [6, 7] for 6DOF and 7 joints, but the C++ Eigen library is 
         COLUMN MAJOR order, which may need added translation
         """
-        self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_force', 10)
+        
+        forces_flattened = forces.flatten(order='C')
+
+        force_message = Array2d()
+        force_message.array = list(forces_flattened.astype(float))
+        [force_message.height, force_message.width]  = np.shape(forces)
+        self.force_publisher_.publish(force_message)
 
         a = 2
         
