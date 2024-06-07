@@ -504,68 +504,46 @@ class Subscriber(Node):
         
         // direc: [N, 3] array containing the direction along which the force is applied (with norm of 1)
         
-        // application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
+        // application_segments: [N = 8] vector of robot segments on which to apply each force (segment 0 has an
                                                                                          extremity at the base)
         // application_dist: [N] vector of the distance along a segment at which a force is applied
         
         // force_vec: [N, 3] array containing the direction along which the force is applied scaled by the force (0 to 1)
 
         // moment:    [N, 3] array containing the direction along which the moment is applied scaled by the moment (0 to 1)
+
+        TODO: Implement the rescaling, current forces / moments are left unscaled
         
         """
         
 
-        direc = body_geom['direc']
-        application_segments = body_geom['closest_r']
-        application_dist = body_geom['t']
+        direc = body_geom['direc']                      # unit vectors associated with each force
+        application_segments = body_geom['closest_r']   # segment on which the force is applied
+        application_dist = body_geom['t']               # fraction of each segment at which each force is applied
+
+        levers = np.diff(robot_pose, axis = 0)          # vectors pointing along the robot links
         
 
-        force = copy.copy(body_geom['dist'])
-        force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
-        # rescale forces and moments to values from 0 to 1
-        force = np.clip(force, 0, 1)
-        force_vec = np.tile(force, [3, 1]).T*direc
-        
+        dists = copy.copy(body_geom['dist'])
 
+        full_force_vec = np.zeros([8, 6])
 
+        for i, force in enumerate(dists):
+            vec = direc[i,:]
+            seg = application_segments[i]
+            dist = application_dist[i]
 
+            force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
+            force_vec = force * vec
+            moment = np.zeros(3)
 
-
-
-
-        
-        direc = body_geom['direc']
-        application_segments = body_geom['closest_r']
-        application_dist = body_geom['t']
-
-        force = copy.copy(body_geom['dist'])
-        forces = np.zeros(np.shape(robot_pose))
-        forces[application_segments] = direc
-
-        moments = np.zeros(np.shape(robot_pose))
-        moment = np.zeros([len(force), 3])
-        
-        force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
-
-        # rescale forces and moments to values from 0 to 1
-        force = np.clip(force, 0, 1)
-        force_vec = np.tile(force, [3, 1]).T*direc
-
-        # determine which forces are not applied to a joint, and transform into a force + a moment
-        excentered_idx = np.where(application_dist)
-        levers = np.diff(robot_pose, axis = 0)[application_segments[excentered_idx]] * application_dist
-        moment[excentered_idx] = np.cross(levers, force_vec)
-
-        forces = forces * force
-        moments[application_segments] = moment
-
-        # transform all forces and moments on the EE into a force and moment on the nearest actual joint
-        forces[-2,:] = forces[-2,:] + forces[-1,:]
-        moments[-2,:] = moments[-2,:] + moments[-1,:] + np.cross(np.diff(robot_pose, axis = 0)[-1], forces[-1,:])
-        
-        
-
-        output = np.hstack((forces, moments))
+            if dist > 0:
+                lever = levers[seg,:]
+                moment = np.cross(lever*dist, force_vec)
+            
+            full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
+            
+        output = full_force_vec
 
         return output
 
