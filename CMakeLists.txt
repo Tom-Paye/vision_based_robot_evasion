@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(Vision_based_robot_evasion)
+project(vision_based_robot_evasion)
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)

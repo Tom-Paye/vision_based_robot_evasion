@@ -9,8 +9,8 @@ from std_msgs.msg import Header
 from sensor_msgs.msg import JointState
 from messages_fr3.msg import Array2d
 
-import Vision_based_robot_evasion.kalman as kalman
-import Vision_based_robot_evasion.visuals as visuals
+import vision_based_robot_evasion.kalman as kalman
+import vision_based_robot_evasion.visuals as visuals
 
 import numpy as np
 import math
@@ -18,50 +18,60 @@ import time
 import copy
 import logging
 
-def calc_jacobian(link, position, geometry):
-    """
-    Created the jacobian of a new point located at <position> along <link> on a body of given <geometry>
+"""
+Right now, this function just reads values for robot and body positions whenever it cans,
+and updates accordingly.
 
-    INPUT---------------------------
+This makes speed estimation kinda crap, especially for the human.
+Reading the timestamp of received info should help
 
-    link: int, identifies which link to place the new point on
-    position: float, 0<=position<1, how far along the link to go (in the direction of the EE)
-    geometry: [N, 3] array of joint positions
+TODO: Restructure the body geom class so it contains all info for both the arms and torso
+TODO: Calculate body speed for the robot and human
+    --> Robot : We read the jacobians, so it should be doable by reading joint velocities and multiplying
+    --> Human : Naive approach: Divide motion between reads by timestamp diff btw/ reads
+                    Problem: High noise
+                Naive solution : smoothed model from past values with high weight, new
+                measurement with low weight, weighted average of both?
+TODO: Create clever law combining effects of distance and relative speed to apply force
+    --> multiplicative force calculation : F = A x B
+        A is a term depending on distance: Fmax * [!- max(D - Dmin, 0)]
+        B is a term depending on speed : exp(V) => smaller force if we are moving away
+"""
 
-    """
+class geom_transformations:
 
 
-def Rz(a):
-    c, s = np.cos(a), np.sin(a)
-    T = np.array([ [c, -s, 0, 0],
-                   [s, c , 0, 0],
-                   [0 , 0, 1, 0],
-                   [0 , 0, 0, 1]])
-    return T
+    def Rz(self, a=0):
+        c, s = np.cos(a), np.sin(a)
+        T = np.array([ [c, -s, 0, 0],
+                    [s, c , 0, 0],
+                    [0 , 0, 1, 0],
+                    [0 , 0, 0, 1]])
+        return T
 
-def Ry(a):
-    c, s = np.cos(a), np.sin(a)
-    T = np.array([ [c , 0, s, 0],
-                   [0 , 1, 0, 0],
-                   [-s, 0, c, 0],
-                   [0 , 0, 0, 1]])
-    return T
+    def Ry(self, a=0):
+        c, s = np.cos(a), np.sin(a)
+        T = np.array([ [c , 0, s, 0],
+                    [0 , 1, 0, 0],
+                    [-s, 0, c, 0],
+                    [0 , 0, 0, 1]])
+        return T
 
-def Rx(a):
-    c, s = np.cos(a), np.sin(a)
-    T = np.array([ [1, 0, 0 , 0],
-                   [0, c, -s, 0],
-                   [0, s, c , 0],
-                   [0, 0, 0 , 1]])
-    return T
+    def Rx(self, a=0):
+        c, s = np.cos(a), np.sin(a)
+        T = np.array([ [1, 0, 0 , 0],
+                    [0, c, -s, 0],
+                    [0, s, c , 0],
+                    [0, 0, 0 , 1]])
+        return T
 
-def translation(a=[0, 0, 0]):
-    x, y, z = a[0], a[1], a[2]
-    T = np.array([ [1, 0, 0, x],
-                   [0, 1, 0, y],
-                   [0, 0, 1, z],
-                   [0, 0, 0, 1]])
-    return T
+    def translation(self, a=[0, 0, 0]):
+        x, y, z = a[0], a[1], a[2]
+        T = np.array([ [1, 0, 0, x],
+                    [0, 1, 0, y],
+                    [0, 0, 1, z],
+                    [0, 0, 0, 1]])
+        return T
 
 def joint_to_cartesian(joint_states= [0., -0.8, 0., -2.36, 0., 1.57, 0.79]):
     """
@@ -102,7 +112,10 @@ def joint_to_cartesian(joint_states= [0., -0.8, 0., -2.36, 0., 1.57, 0.79]):
                         [0, 0, 0.107],\
                         [-0.088, 0, 0] ]
     
-    joint_states= np.zeros(8)
+    # joint_states= np.zeros(8)
+
+    Rx, Ry, Rz, translation = geom_transformations.Rx, geom_transformations.Ry, geom_transformations.RZ,\
+                                geom_transformations.translation
     
     T00 = np.zeros([4,4])
     T00[3, 3] = 1
@@ -362,7 +375,7 @@ def link_dists(pos_body, pos_robot):
     return dist, direc, t, u, closest_r, closest_b
 
 
-class Subscriber(Node):
+class bbox_generator(Node):
 
     def __init__(self):
         super().__init__('minimal_subscriber')
@@ -379,7 +392,13 @@ class Subscriber(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
-        self.robot_data = self.create_subscription(
+        self.robot_joint_state = self.create_subscription(
+            JointState,
+            'robot_data',
+            self.get_robot_joints,
+            10)
+        
+        self.robot_joint_velocity = self.create_subscription(
             JointState,
             'robot_data',
             self.get_robot_joints,
@@ -432,7 +451,7 @@ class Subscriber(Node):
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
 
-                robot_pos = joint_to_cartesian()
+                robot_pos = joint_to_cartesian(self.robot_joint_state)
 
                 arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
                 trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], robot_pos)
@@ -461,19 +480,19 @@ class Subscriber(Node):
 
                 min_dist_arms = np.min(arms_dist)
                 min_dist_trunk = np.min(trunk_dist)
-                min_dist = min(min_dist_arms, min_dist_trunk)
+                # min_dist = min(min_dist_arms, min_dist_trunk)
                 # self.get_logger().info('Minimum distance:')
                 # self.get_logger().info(str(min_dist))
-                arms_geom = {'dist':arms_dist, 'direc':arms_direc,
-                             't':arms_t      , 'u':arms_u,
-                             'closest_r':c_r_a        , 'closest_b':c_a_r}
-                trunk_geom = {'dist':trunk_dist, 'direc':trunk_direc,
-                             't':trunk_t      , 'u':trunk_u,
-                             'closest_r':c_r_t        , 'closest_b':c_t_r}
-                forces = self.force_estimator(arms_geom, robot_pos)    # self.placeholder_Pe, robot_pos
-                self.generate_repulsive_force_message(forces)
-                return arms_geom, trunk_geom
-                
+                if min_dist_arms < min_dist_trunk:
+                    body_geom = {'dist':arms_dist, 'direc':arms_direc,
+                                't':arms_t      , 'u':arms_u,
+                                'closest_r':c_r_a        , 'closest_b':c_a_r}
+                else:
+                    body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
+                                't':trunk_t      , 'u':trunk_u,
+                                'closest_r':c_r_t        , 'closest_b':c_t_r}
+                forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
+                self.generate_repulsive_force_message(forces)                
                 
     def force_estimator(self, body_geom, robot_pose):
         
@@ -611,7 +630,7 @@ class Subscriber(Node):
             --> 1 row per joint
             TODO: define robot position by joint positions to disambiguate torque direction
             TODO: Rescale torques to account for the compliance of other joints and redistribute to prevent stall
-            TODO: add a function to calculate robot cartesian positions from angles
+            # TODO: add a function to calculate robot cartesian positions from angles
             
         
         """
@@ -721,7 +740,7 @@ def main(args = None):
     
     rclpy.init(args=args)
 
-    subscriber = Subscriber()
+    subscriber = bbox_generator()
 
     rclpy.spin(subscriber)
 
