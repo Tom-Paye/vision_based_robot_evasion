@@ -43,8 +43,7 @@ TODO:
   - Justify the safety of the strategy
 
 4th goal: fetch robot positions
-  - set up the docker environment for the RT kernel
-  - use codin's controller to connect to the robot
+  - use Curdin's controller to connect to the robot
   - read position values from the franka broadcasters
   - reconstruct accurate robot geometry and volume
 
