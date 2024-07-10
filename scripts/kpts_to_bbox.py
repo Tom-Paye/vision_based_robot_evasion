@@ -42,7 +42,7 @@ TODO: Create clever law combining effects of distance and relative speed to appl
 class geom_transformations:
 
 
-    def Rz(self, a=0):
+    def Rz(a=0):
         c, s = np.cos(a), np.sin(a)
         T = np.array([ [c, -s, 0, 0],
                     [s, c , 0, 0],
@@ -50,7 +50,7 @@ class geom_transformations:
                     [0 , 0, 0, 1]])
         return T
 
-    def Ry(self, a=0):
+    def Ry(a=0):
         c, s = np.cos(a), np.sin(a)
         T = np.array([ [c , 0, s, 0],
                     [0 , 1, 0, 0],
@@ -58,7 +58,7 @@ class geom_transformations:
                     [0 , 0, 0, 1]])
         return T
 
-    def Rx(self, a=0):
+    def Rx(a=0):
         c, s = np.cos(a), np.sin(a)
         T = np.array([ [1, 0, 0 , 0],
                     [0, c, -s, 0],
@@ -66,7 +66,7 @@ class geom_transformations:
                     [0, 0, 0 , 1]])
         return T
 
-    def translation(self, a=[0, 0, 0]):
+    def translation(a=[0, 0, 0]):
         x, y, z = a[0], a[1], a[2]
         T = np.array([ [1, 0, 0, x],
                     [0, 1, 0, y],
@@ -114,26 +114,24 @@ def joint_to_cartesian(joint_states= [0., -0.8, 0., -2.36, 0., 1.57, 0.79]):
                         [-0.088, 0, 0] ]
     
     # joint_states= np.zeros(8)
-
-    Rx, Ry, Rz, translation = geom_transformations.Rx, geom_transformations.Ry, geom_transformations.RZ,\
-                                geom_transformations.translation
     
     T00 = np.zeros([4,4])
     T00[3, 3] = 1
     
-    T01 = Rz(joint_states[0]) @ translation(link_lengths[0])
+    T01 = geom_transformations.Rz(joint_states[0]) @ geom_transformations.translation(link_lengths[0])
 
-    T02 = T01 @ Ry(joint_states[1])
+    T02 = T01 @ geom_transformations.Ry(joint_states[1])
 
-    T03 = T02 @ Rz(joint_states[2]) @ translation(link_lengths[2])
+    T03 = T02 @ geom_transformations.Rz(joint_states[2]) @ geom_transformations.translation(link_lengths[2])
 
-    T04 = T03 @ Ry(-joint_states[3]) @ translation(link_lengths[3])
+    T04 = T03 @ geom_transformations.Ry(-joint_states[3]) @ geom_transformations.translation(link_lengths[3])
     
-    T05 = T04 @ Rz(joint_states[4]) @ translation(link_lengths[4])
+    T05 = T04 @ geom_transformations.Rz(joint_states[4]) @ geom_transformations.translation(link_lengths[4])
 
-    T06 = T05 @ Ry(-joint_states[5])
+    T06 = T05 @ geom_transformations.Ry(-joint_states[5])
 
-    T07 = T06 @ Ry(joint_states[6]) @ translation(link_lengths[7]) @ Rx(np.pi) @ translation(link_lengths[6])
+    T07 = T06 @ geom_transformations.Ry(joint_states[6]) @ geom_transformations.translation(link_lengths[7])\
+              @ geom_transformations.Rx(np.pi) @ geom_transformations.translation(link_lengths[6])
 
     Transforms = np.array([T00, T01, T02, T03, T04, T05, T06, T07])
 
@@ -399,11 +397,6 @@ class bbox_generator(Node):
             self.get_robot_joints,
             10)
         
-        self.robot_joint_velocity = self.create_subscription(
-            JointState,
-            'robot_data',
-            self.get_robot_joints,
-            10)
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
@@ -431,6 +424,8 @@ class bbox_generator(Node):
         self.fig = 0
         self.max_dist = 3      # distance at which the robot feels a force exerted by proximity to a human
         self.min_dist = 0     # distance at which the robot is most strongly pushed bach by a human
+        self.joint_pos = [0., -0.8, 0., -2.36, 0., 1.57, 0.79]
+        self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
 
     def kalman_callback(self):
 
@@ -452,7 +447,7 @@ class bbox_generator(Node):
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
 
-                robot_pos = joint_to_cartesian(self.robot_joint_state)
+                robot_pos = joint_to_cartesian(self.joint_pos)
 
                 arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
                 trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], robot_pos)
@@ -721,6 +716,9 @@ class bbox_generator(Node):
         For now, it looks like the best we can do is get joint angles and transform that into a position manually
         so we just apply a matrix transformation to the list of joint angles to get the joint positions
         """
+
+        self.joint_pos = msg.position
+        self.joint_vel = msg.velocity
 
         
 
