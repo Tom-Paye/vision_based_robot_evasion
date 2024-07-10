@@ -7,6 +7,7 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 from sensor_msgs.msg import JointState
+from urdf_parser_py.urdf import URDF
 # import messages_fr3
 from messages_fr3.msg import Array2d
 
@@ -424,8 +425,10 @@ class bbox_generator(Node):
         self.fig = 0
         self.max_dist = 3      # distance at which the robot feels a force exerted by proximity to a human
         self.min_dist = 0     # distance at which the robot is most strongly pushed bach by a human
-        self.joint_pos = [0., -0.8, 0., -2.36, 0., 1.57, 0.79]
+        self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
+        urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
+        urdf = open(urdf_path).read()
 
     def kalman_callback(self):
 
