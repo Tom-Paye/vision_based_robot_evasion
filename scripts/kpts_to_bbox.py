@@ -7,6 +7,7 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 from sensor_msgs.msg import JointState
+# import messages_fr3
 from messages_fr3.msg import Array2d
 
 import vision_based_robot_evasion.kalman as kalman
