@@ -29,7 +29,7 @@ function(ament_cmake_uninstall_target_remove_empty_directories path)
 endfunction()
 
 # uninstall files installed using the standard install() function
-set(install_manifest "/home/tom/ros2_ws/src/my_cpp_py_pkg/build/install_manifest.txt")
+set(install_manifest "/home/tom/franka_ros2_ws/src/vision_based_robot_evasion/build/install_manifest.txt")
 if(NOT EXISTS "${install_manifest}")
   message(FATAL_ERROR "Cannot find install manifest: ${install_manifest}")
 endif()

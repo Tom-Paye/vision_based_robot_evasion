@@ -1,1 +1,0 @@
-/home/tom/ros2_ws/src/my_cpp_py_pkg/scripts/kpts_to_bbox.py

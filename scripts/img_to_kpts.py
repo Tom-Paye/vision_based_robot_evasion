@@ -12,7 +12,6 @@ from std_msgs.msg import Header
 from std_msgs.msg import String
 
 import pyzed.sl as sl
-import vision_based_robot_evasion.visuals as visuals
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -21,6 +20,7 @@ import vision_based_robot_evasion.cv_viewer.tracking_viewer as cv_viewer
 from cv_bridge import CvBridge, CvBridgeError
 
 import vision_based_robot_evasion.ogl_viewer.viewer as gl
+import vision_based_robot_evasion.visuals as visuals
 
 import logging
 import time
@@ -50,7 +50,8 @@ def init_user_params():
 
     # External params
     user_params.video_src = 'SVO'                                       # SVO, Live
-    user_params.svo_pth = '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
+    user_params.svo_pth = '/home/tom/Downloads/'
+    # '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
     user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
     user_params.svo_suffix = '_720p_30fps.svo'
 

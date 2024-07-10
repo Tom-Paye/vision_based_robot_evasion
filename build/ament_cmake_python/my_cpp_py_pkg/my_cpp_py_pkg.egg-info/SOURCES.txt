@@ -1,9 +1,0 @@
-setup.py
-my_cpp_py_pkg/Sample_code.py
-my_cpp_py_pkg/__init__.py
-my_cpp_py_pkg/kalman.py
-my_cpp_py_pkg/visuals.py
-my_cpp_py_pkg.egg-info/PKG-INFO
-my_cpp_py_pkg.egg-info/SOURCES.txt
-my_cpp_py_pkg.egg-info/dependency_links.txt
-my_cpp_py_pkg.egg-info/top_level.txt
