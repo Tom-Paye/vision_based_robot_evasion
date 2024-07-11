@@ -424,7 +424,7 @@ class bbox_generator(Node):
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
         self.max_dist = 3      # distance at which the robot feels a force exerted by proximity to a human
-        self.min_dist = 0     # distance at which the robot is most strongly pushed bach by a human
+        self.min_dist = 0     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
