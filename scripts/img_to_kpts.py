@@ -804,14 +804,14 @@ class img_to_kpts(Node):
         known_bodies = {}
         fig = [0, 0, 0, 0, 0]
         user_params = init_user_params()
-        zed_params = init_zed_params(self.user_params)
+        zed_params = init_zed_params(user_params)
 
         publisher = geometry_publisher()
 
-        cam = vision(self.user_params, self.zed_params)
+        cam = vision(user_params, zed_params)
 
         cam.connect_cams()
-        if self.user_params.fusion == True:
+        if user_params.fusion == True:
             cam.init_fusion()
             cam.subscribe_to_cam_outputs_fused()
             cam.init_body_tracking_and_viewer_fused()
