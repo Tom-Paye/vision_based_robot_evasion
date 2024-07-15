@@ -801,64 +801,44 @@ class img_to_kpts(Node):
         super().__init__("img_to_kpts")
         self.get_logger().info("img_to_kpts started")
 
-        self.known_bodies = {}
-        self.fig = [0, 0, 0, 0, 0]
-        self.user_params = init_user_params()
-        self.zed_params = init_zed_params(self.user_params)
+        known_bodies = {}
+        fig = [0, 0, 0, 0, 0]
+        user_params = init_user_params()
+        zed_params = init_zed_params(self.user_params)
 
-        self.publisher = geometry_publisher()
+        publisher = geometry_publisher()
 
-        self.cam = vision(self.user_params, self.zed_params)
+        cam = vision(self.user_params, self.zed_params)
 
-        self.cam.connect_cams()
+        cam.connect_cams()
         if self.user_params.fusion == True:
-            self.cam.init_fusion()
-            self.cam.subscribe_to_cam_outputs_fused()
-            self.cam.init_body_tracking_and_viewer_fused()
+            cam.init_fusion()
+            cam.subscribe_to_cam_outputs_fused()
+            cam.init_body_tracking_and_viewer_fused()
         else:
-            self.cam.startup_split()
+            cam.startup_split()
         
-        self.end_flag = 0
-        self.key = ''
-        # while not end_flag:
+        end_flag = 0
+        key = ''
+        while not end_flag:
         
-        #     if user_params.fusion == True:
-        #         cam.zed_loop_fused()
-        #         [known_bodies, fig] = fetch_skeleton_fused(cam.bodies, user_params, zed_params, known_bodies, fig)
-        #     else:
-        #         cam.zed_loop()
-        #         fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
-
-        #     if np.any(list(known_bodies.keys())):
-        #         publisher.publish_all_bodies(known_bodies)
-            
-        #     key = cv2.pollKey()
-        #     if key == ord("q") or cam.error == 1:
-        #         end_flag = 1
-
-        # cam.close()
-
-        self.loop_callback()
- 
-
-    def loop_callback(self):
-        if not self.end_flag:
-            if self.user_params.fusion == True:
-                self.cam.zed_loop_fused()
-                [self.known_bodies, self.fig] = fetch_skeleton_fused(self.cam.bodies, self.user_params, self.zed_params,\
-                                                                      self.known_bodies, self.fig)
+            if user_params.fusion == True:
+                cam.zed_loop_fused()
+                [known_bodies, fig] = fetch_skeleton_fused(cam.bodies, user_params, zed_params, known_bodies, fig)
             else:
-                self.cam.zed_loop()
-                fetch_skeleton(self.cam.bodies, self.user_params, self.zed_params, self.known_bodies, self.fig)
+                cam.zed_loop()
+                fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
 
-            if np.any(list(self.known_bodies.keys())):
-                self.publisher.publish_all_bodies(self.known_bodies)
+            if np.any(list(known_bodies.keys())):
+                publisher.publish_all_bodies(known_bodies)
             
             key = cv2.pollKey()
-            if key == ord("q") or self.cam.error == 1:
-                self.end_flag = 1
-        else:
-            self.cam.close()
+            if key == ord("q") or cam.error == 1:
+                end_flag = 1
+
+        cam.close()
+
+    
 
 
 def main(args=None):

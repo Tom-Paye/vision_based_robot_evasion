@@ -398,6 +398,11 @@ class bbox_generator(Node):
             self.get_robot_joints,
             10)
         
+        self.robot_joint_state = self.create_subscription(
+            JointState,
+            'robot_data',
+            self.transform_callback,
+            10)
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
@@ -722,6 +727,12 @@ class bbox_generator(Node):
 
         self.joint_pos = msg.position
         self.joint_vel = msg.velocity
+
+
+    def transform_callback(self, tf_message):
+        header = tf_message.header
+        body = tf_message.body
+
 
         
 
