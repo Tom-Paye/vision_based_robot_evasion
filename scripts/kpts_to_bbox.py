@@ -5,6 +5,8 @@ from rclpy.node import Node
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
+from geometry_msgs.msg import TransformStamped
+from tf2_msgs.msg import TFMessage
 from std_msgs.msg import Header
 from sensor_msgs.msg import JointState
 from urdf_parser_py.urdf import URDF
@@ -380,7 +382,7 @@ class bbox_generator(Node):
     def __init__(self):
         super().__init__('minimal_subscriber')
         
-        logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)
         logging.basicConfig(level=logging.DEBUG)
 
         self.initialize_variables()
@@ -392,17 +394,17 @@ class bbox_generator(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
-        self.robot_joint_state = self.create_subscription(
-            JointState,
-            'robot_data',
-            self.get_robot_joints,
-            10)
+        # self.robot_joint_state = self.create_subscription(
+        #     JointState,
+        #     'robot_data',
+        #     self.get_robot_joints,
+        #     10)
         
         self.robot_joint_state = self.create_subscription(
-            JointState,
-            'robot_data',
+            TFMessage,
+            'tf',
             self.transform_callback,
-            10)
+            1)
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
@@ -432,8 +434,9 @@ class bbox_generator(Node):
         self.min_dist = 0     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
-        urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
-        urdf = open(urdf_path).read()
+        self.robot_cartesian_positions = np.zeros((9, 3))
+        # urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
+        # urdf = open(urdf_path).read()
 
     def kalman_callback(self):
 
@@ -455,7 +458,8 @@ class bbox_generator(Node):
                 # make one line from the left hand to the right
                 arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
 
-                robot_pos = joint_to_cartesian(self.joint_pos)
+                # robot_pos = joint_to_cartesian(self.joint_pos)
+                robot_pos = self.robot_cartesian_positions
 
                 arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
                 trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], robot_pos)
@@ -730,8 +734,14 @@ class bbox_generator(Node):
 
 
     def transform_callback(self, tf_message):
-        header = tf_message.header
-        body = tf_message.body
+        robot_cartesian_positions = np.zeros((9,3))
+        for i, transform in enumerate(tf_message.transforms):
+            vector = transform.transform.translation
+            robot_cartesian_positions[i,:] = [vector.x, vector.y, vector.z]
+
+        # self.logger.info('body: \n', str(robot_cartesian_positions))
+        self.robot_cartesian_positions = robot_cartesian_positions
+        
 
 
         
