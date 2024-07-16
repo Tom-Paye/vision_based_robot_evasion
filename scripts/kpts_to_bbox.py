@@ -6,6 +6,7 @@ from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import Quaternion
 from tf2_msgs.msg import TFMessage
 from std_msgs.msg import Header
 from sensor_msgs.msg import JointState
@@ -17,6 +18,7 @@ import vision_based_robot_evasion.kalman as kalman
 import vision_based_robot_evasion.visuals as visuals
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 import math
 import time
 import copy
@@ -41,6 +43,43 @@ TODO: Create clever law combining effects of distance and relative speed to appl
         A is a term depending on distance: Fmax * [!- max(D - Dmin, 0)]
         B is a term depending on speed : exp(V) => smaller force if we are moving away
 """
+
+def quaternion_multiply(q0, q1):
+    """
+    Multiplies two quaternions.
+
+    Input
+    :param q0: A 4 element array containing the first quaternion (q01, q11, q21, q31)
+    :param q1: A 4 element array containing the second quaternion (q02, q12, q22, q32)
+
+    Output
+    :return: A 4 element array containing the final quaternion (q03,q13,q23,q33)
+
+    """
+    # Extract the values from q0
+    w0 = q0[0]
+    x0 = q0[1]
+    y0 = q0[2]
+    z0 = q0[3]
+
+    # Extract the values from q1
+    w1 = q1[0]
+    x1 = q1[1]
+    y1 = q1[2]
+    z1 = q1[3]
+
+    # Computer the product of the two quaternions, term by term
+    q0q1_w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1
+    q0q1_x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1
+    q0q1_y = w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1
+    q0q1_z = w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1
+
+    # Create a 4 element array containing the final quaternion
+    final_quaternion = np.array([q0q1_w, q0q1_x, q0q1_y, q0q1_z])
+
+    # Return a 4 element array containing the final quaternion (q02,q12,q22,q32)
+    return final_quaternion
+
 
 class geom_transformations:
 
@@ -404,7 +443,7 @@ class bbox_generator(Node):
             TFMessage,
             'tf',
             self.transform_callback,
-            1)
+            10)
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
@@ -553,7 +592,7 @@ class bbox_generator(Node):
 
         dists = copy.copy(body_geom['dist'])
 
-        full_force_vec = np.zeros([8, 6])
+        full_force_vec = np.zeros([9, 6])
 
         for i, force in enumerate(dists):
             vec = direc[i,:]
@@ -734,13 +773,65 @@ class bbox_generator(Node):
 
 
     def transform_callback(self, tf_message):
-        robot_cartesian_positions = np.zeros((9,3))
-        for i, transform in enumerate(tf_message.transforms):
-            vector = transform.transform.translation
-            robot_cartesian_positions[i,:] = [vector.x, vector.y, vector.z]
+        
 
-        # self.logger.info('body: \n', str(robot_cartesian_positions))
-        self.robot_cartesian_positions = robot_cartesian_positions
+        t_raw = np.zeros((9,3))
+        r_raw = np.zeros((9,4))
+        r_raw[:,0] = np.ones(9)
+
+        for transform in tf_message.transforms:
+            rot_ros = transform.transform.rotation
+            trans_ros = transform.transform.translation
+            id = transform.child_frame_id
+            if id[-1].isnumeric():
+                i = int(id[-1])-1
+            else:
+                if id == 'panda_leftfinger':
+                    i = -2
+                else:
+                    i = -1
+
+            
+            vec_t = np.array([trans_ros.x, trans_ros.y, trans_ros.z])
+            vec_r = np.array([rot_ros.w, rot_ros.x, rot_ros.y, rot_ros.z])
+
+            t_raw[i] = vec_t
+            r_raw[i] = vec_r
+
+        robot_translation = copy.copy(t_raw)
+        robot_rotation = copy.copy(r_raw)
+
+        total_trans = copy.copy(robot_translation[0])
+        total_rot = copy.copy(robot_rotation[0])
+
+
+        for i in range(len(t_raw)-1):
+
+            t_r = t_raw[i+1]
+            r_r = r_raw[i+1]
+
+            # inv_vec = np.array([r_r[0], r_r[1], r_r[2], -r_r[3]])
+
+            total_rot = quaternion_multiply(total_rot, r_r)
+            robot_rotation[i+1] = total_rot
+
+            current_rot = r_raw[i]
+            # inv_rot = np.array([current_rot[0], current_rot[1], current_rot[2], -current_rot[3]])
+            rot_mat = R.from_quat(current_rot).as_matrix()
+            
+            
+            total_trans = total_trans - np.linalg.inv(rot_mat) @ t_r
+            robot_translation[i+1] = total_trans
+            
+
+
+        robot_rotation = np.roll(robot_rotation, 3, axis=1)
+        r_raw = np.roll(r_raw, 3, axis=1)
+            
+
+        # self.logger.info('body: \n', str(robot_translation))
+
+        self.robot_cartesian_positions = robot_translation
         
 
 
