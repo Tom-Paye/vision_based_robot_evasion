@@ -44,7 +44,7 @@ TODO:
 
 4th goal: fetch robot positions
   - use Curdin's controller to connect to the robot
-  - read position values from the franka broadcasters
+  -  / read position values from the franka broadcasters
   - reconstruct accurate robot geometry and volume
 
 5th goal: Calculate jacobians to translate to moments of force
@@ -54,7 +54,7 @@ TODO:
   - hijack Curdin's code to generate the torques straight from the forces
 
 6th goal: Perform robot control to apply the calculated force
-  - Talk to Curdin's controller over ros2
+  -  / Talk to Curdin's controller over ros2
 
 7th goal : redo fusion so it actually runs instead of stuttering pathetically
 

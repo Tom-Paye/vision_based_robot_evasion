@@ -856,11 +856,6 @@ class bbox_generator(Node):
             robot_translation[i+1] = total_trans
             
 
-
-        robot_rotation = np.roll(robot_rotation, 3, axis=1)
-        r_raw = np.roll(r_raw, 3, axis=1)
-            
-
         # self.logger.info('body: \n', str(robot_translation))
 
         self.robot_cartesian_positions = robot_translation
