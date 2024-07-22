@@ -80,6 +80,27 @@ def quaternion_multiply(q0, q1):
     # Return a 4 element array containing the final quaternion (q02,q12,q22,q32)
     return final_quaternion
 
+def skew(a):
+    [x, y, z] = a
+    b = np.array([[ 0, -z,  y],\
+                  [ z,  0, -x],\
+                  [-y,  x,  0]])
+    return b
+
+def QuatToRotMat(q):
+    w = q[0]
+    n = q[1:]
+    C = np.eye(3)*(2*w**2-1) + 2*w*skew(n) + 2*(n*n.T)
+    r = R.from_quat(np.roll(q,3)).as_matrix()
+    return C
+
+def RotMatToQuat(c):
+    quat = 0.5* np.array([np.sqrt(np.trace(c)+1),\
+                 np.sign(c[2,1]-c[1,2]) * np.sqrt(c[0,0]-c[1,1]-c[2,2]+1),\
+                 np.sign(c[0,2]-c[2,0]) * np.sqrt(c[1,1]-c[2,2]-c[0,0]+1),\
+                 np.sign(c[1,0]-c[0,1]) * np.sqrt(c[2,2]-c[0,0]-c[1,1]+1)])
+    return quat
+
 
 class geom_transformations:
 
@@ -777,7 +798,7 @@ class bbox_generator(Node):
 
         t_raw = np.zeros((9,3))
         r_raw = np.zeros((9,4))
-        r_raw[:,0] = np.ones(9)
+        r_raw[:,-1] = np.ones(9)
 
         for transform in tf_message.transforms:
             rot_ros = transform.transform.rotation
@@ -793,7 +814,7 @@ class bbox_generator(Node):
 
             
             vec_t = np.array([trans_ros.x, trans_ros.y, trans_ros.z])
-            vec_r = np.array([rot_ros.w, rot_ros.x, rot_ros.y, rot_ros.z])
+            vec_r = np.array([rot_ros.x, rot_ros.y, rot_ros.z, rot_ros.w])
 
             t_raw[i] = vec_t
             r_raw[i] = vec_r
@@ -810,18 +831,41 @@ class bbox_generator(Node):
             t_r = t_raw[i+1]
             r_r = r_raw[i+1]
 
-            # inv_vec = np.array([r_r[0], r_r[1], r_r[2], -r_r[3]])
+            #######################
+            # trm = QuatToRotMat(total_rot)
+            # srm = QuatToRotMat(r_r)
+            trm = R.from_quat(total_rot)
+            srm = R.from_quat(r_r)
+            watch_trm = trm.as_matrix()
+            watch_srm = srm.as_matrix()
 
-            total_rot = quaternion_multiply(total_rot, r_r)
-            robot_rotation[i+1] = total_rot
 
-            current_rot = r_raw[i]
-            # inv_rot = np.array([current_rot[0], current_rot[1], current_rot[2], -current_rot[3]])
-            rot_mat = R.from_quat(current_rot).as_matrix()
+            ntrm = trm * srm
+            watch_ntrm = np.around(ntrm.as_matrix(),3)
+            watch_quat = ntrm.as_quat()
+            total_rot = watch_quat
+            a = 2
+            #######################
+
+            # inv_vec = np.array([r_r[0], -r_r[1], -r_r[2], -r_r[3]])
+            # inv_rot = np.array([total_rot[0], -total_rot[1], -total_rot[2], -total_rot[3]])
+
+            # # part_rot = total_rot
+            # # part_rot = quaternion_multiply(r_r, part_rot)
+            # # part_rot = quaternion_multiply(inv_rot, part_rot)
+            # total_rot = quaternion_multiply(r_r, total_rot)
+            # # total_rot = np.array([total_rot[0], total_rot[1], total_rot[2], -total_rot[3]])
+
+            # watch_rot = np.around(np.roll(total_rot, 3), 3)
+            # robot_rotation[i+1] = total_rot
+
+            # current_rot = r_raw[i]
+            # # inv_rot = np.array([current_rot[0], current_rot[1], current_rot[2], -current_rot[3]])
+            # rot_mat = R.from_quat(current_rot).as_matrix()
             
-            
-            total_trans = total_trans - np.linalg.inv(rot_mat) @ t_r
-            robot_translation[i+1] = total_trans
+            # inv_mat = np.linalg.inv(rot_mat)
+            # total_trans = total_trans - inv_mat @ t_r # - works?
+            # robot_translation[i+1] = total_trans
             
 
 
