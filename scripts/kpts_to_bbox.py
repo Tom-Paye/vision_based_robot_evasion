@@ -832,8 +832,6 @@ class bbox_generator(Node):
             r_r = r_raw[i+1]
 
             #######################
-            # trm = QuatToRotMat(total_rot)
-            # srm = QuatToRotMat(r_r)
             trm = R.from_quat(total_rot)
             srm = R.from_quat(r_r)
             watch_trm = trm.as_matrix()
@@ -847,25 +845,15 @@ class bbox_generator(Node):
             a = 2
             #######################
 
-            # inv_vec = np.array([r_r[0], -r_r[1], -r_r[2], -r_r[3]])
-            # inv_rot = np.array([total_rot[0], -total_rot[1], -total_rot[2], -total_rot[3]])
 
-            # # part_rot = total_rot
-            # # part_rot = quaternion_multiply(r_r, part_rot)
-            # # part_rot = quaternion_multiply(inv_rot, part_rot)
-            # total_rot = quaternion_multiply(r_r, total_rot)
-            # # total_rot = np.array([total_rot[0], total_rot[1], total_rot[2], -total_rot[3]])
+            quat_rot = R.from_quat(robot_rotation[i]).apply(t_r)
+            # inv_rot = [-total_rot[0], total_rot[1], total_rot[2], total_rot[3]]
+            total_trans = total_trans + quat_rot
 
-            # watch_rot = np.around(np.roll(total_rot, 3), 3)
-            # robot_rotation[i+1] = total_rot
-
-            # current_rot = r_raw[i]
-            # # inv_rot = np.array([current_rot[0], current_rot[1], current_rot[2], -current_rot[3]])
-            # rot_mat = R.from_quat(current_rot).as_matrix()
             
-            # inv_mat = np.linalg.inv(rot_mat)
-            # total_trans = total_trans - inv_mat @ t_r # - works?
-            # robot_translation[i+1] = total_trans
+            
+            robot_rotation[i+1] = total_rot
+            robot_translation[i+1] = total_trans
             
 
 
