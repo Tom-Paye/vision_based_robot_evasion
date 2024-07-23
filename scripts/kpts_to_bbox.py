@@ -613,7 +613,7 @@ class bbox_generator(Node):
 
         dists = copy.copy(body_geom['dist'])
 
-        full_force_vec = np.zeros([9, 6])
+        full_force_vec = np.zeros([len(robot_pose), 6])
 
         for i, force in enumerate(dists):
             vec = direc[i,:]
@@ -796,9 +796,9 @@ class bbox_generator(Node):
     def transform_callback(self, tf_message):
         
 
-        t_raw = np.zeros((9,3))
-        r_raw = np.zeros((9,4))
-        r_raw[:,-1] = np.ones(9)
+        t_raw = np.zeros((10,3))
+        r_raw = np.zeros((10,4))
+        r_raw[:,-1] = np.ones(10)
 
         for transform in tf_message.transforms:
             rot_ros = transform.transform.rotation
@@ -808,16 +808,16 @@ class bbox_generator(Node):
                 i = int(id[-1])-1
             else:
                 if id == 'panda_leftfinger':
-                    i = -2
+                    i = -3
                 else:
-                    i = -1
+                    i = -2
 
             
             vec_t = np.array([trans_ros.x, trans_ros.y, trans_ros.z])
             vec_r = np.array([rot_ros.x, rot_ros.y, rot_ros.z, rot_ros.w])
 
-            t_raw[i] = vec_t
-            r_raw[i] = vec_r
+            t_raw[i+1] = vec_t
+            r_raw[i+1] = vec_r
 
         robot_translation = copy.copy(t_raw)
         robot_rotation = copy.copy(r_raw)
@@ -826,7 +826,7 @@ class bbox_generator(Node):
         total_rot = copy.copy(robot_rotation[0])
 
 
-        for i in range(len(t_raw)-1):
+        for i in range(len(t_raw)-2):
 
             t_r = t_raw[i+1]
             r_r = r_raw[i+1]
@@ -854,7 +854,15 @@ class bbox_generator(Node):
             
             robot_rotation[i+1] = total_rot
             robot_translation[i+1] = total_trans
-            
+
+        # repeat the last step manually for the left finger, which is based on the hand and not the right finger
+        robot_rotation[-1] = robot_rotation[-2]
+        quat_rot = R.from_quat(robot_rotation[-3]).apply(t_raw[-1])
+        robot_translation[-1] =  robot_translation[-3] + quat_rot
+
+        # add a line between the fingers so links will always go through the hand
+        robot_rotation = np.insert(robot_rotation, -1, robot_rotation[-3], axis=0)
+        robot_translation = np.insert(robot_translation, -1, robot_translation[-3], axis=0)
 
         # self.logger.info('body: \n', str(robot_translation))
 
