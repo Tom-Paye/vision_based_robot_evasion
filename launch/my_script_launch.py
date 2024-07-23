@@ -11,14 +11,14 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='vision_based_robot_evasion',
-            executable='img_to_kpts',
+            executable='img_to_kpts.py',
             name='img_to_kpts'
         ),
-        # Node(
-        #     package='vision_based_robot_evasion',
-        #     executable='kpts_to_bbox',
-        #     name='kpts_to_bbox'
-        # ),
+        Node(
+            package='vision_based_robot_evasion',
+            executable='kpts_to_bbox.py',
+            name='kpts_to_bbox'
+        ),
         
     ])
   

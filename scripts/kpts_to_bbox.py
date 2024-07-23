@@ -437,7 +437,7 @@ def link_dists(pos_body, pos_robot):
     return dist, direc, t, u, closest_r, closest_b
 
 
-class bbox_generator(Node):
+class kpts_to_bbox(Node):
 
     def __init__(self):
         super().__init__('minimal_subscriber')
@@ -889,9 +889,9 @@ def main(args = None):
     
     rclpy.init(args=args)
 
-    subscriber = bbox_generator()
+    bbox_generator = kpts_to_bbox()
 
-    rclpy.spin(subscriber)
+    rclpy.spin(bbox_generator)
 
 
 
@@ -899,7 +899,7 @@ def main(args = None):
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    subscriber.destroy_node()
+    bbox_generator.destroy_node()
     rclpy.shutdown()
     
     print('done')
