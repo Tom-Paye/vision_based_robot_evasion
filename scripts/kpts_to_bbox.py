@@ -8,9 +8,10 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import TransformStamped
 from geometry_msgs.msg import Quaternion
 from tf2_msgs.msg import TFMessage
-from std_msgs.msg import Header
+from std_msgs.msg import String
 from sensor_msgs.msg import JointState
 from urdf_parser_py.urdf import URDF
+from urdf_parser_py.urdf import Robot
 # import messages_fr3
 from messages_fr3.msg import Array2d
 
@@ -23,6 +24,14 @@ import math
 import time
 import copy
 import logging
+from pathlib import Path
+
+import subprocess
+import tempfile
+from urdfpy import URDF
+import trimesh
+
+
 
 """
 Right now, this function just reads values for robot and body positions whenever it cans,
@@ -44,62 +53,42 @@ TODO: Create clever law combining effects of distance and relative speed to appl
         B is a term depending on speed : exp(V) => smaller force if we are moving away
 """
 
-def quaternion_multiply(q0, q1):
-    """
-    Multiplies two quaternions.
+class robot_description(Node):
 
-    Input
-    :param q0: A 4 element array containing the first quaternion (q01, q11, q21, q31)
-    :param q1: A 4 element array containing the second quaternion (q02, q12, q22, q32)
+    def __init__(self):
+        super().__init__('robot_description')
+        self.caught = 0
+        self.robot_des = self.create_subscription(
+            String,
+            'robot_description',
+            self.description_callback,
+            10)
 
-    Output
-    :return: A 4 element array containing the final quaternion (q03,q13,q23,q33)
 
-    """
-    # Extract the values from q0
-    w0 = q0[0]
-    x0 = q0[1]
-    y0 = q0[2]
-    z0 = q0[3]
+    def description_callback(self, des_message):
+        # only published to once, at the launch of the controller
 
-    # Extract the values from q1
-    w1 = q1[0]
-    x1 = q1[1]
-    y1 = q1[2]
-    z1 = q1[3]
+        a = des_message
+        robot = Robot.from_xml_string(a.data)
+        # Check if robot model is valid
+        robot.check_valid()
+        # Print the robot model
+        # print(robot)
+        self.robot = robot
+        self.caught = 1
+        # urdf file read : /home/tom/franka_ros2_ws/install/franka_description/share/franka_description/robots/panda_arm.urdf.xacro
 
-    # Computer the product of the two quaternions, term by term
-    q0q1_w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1
-    q0q1_x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1
-    q0q1_y = w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1
-    q0q1_z = w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1
+        # Call xacro to convert xacro to urdf
+    # subprocess.run(['ros2', 'run', 'xacro', 'xacro', xacro_path, '-o', urdf_path], check=True)
+    
+    # def the_rest():    
+    #     link_poses = self.compute_robot_pose(robot, node)
 
-    # Create a 4 element array containing the final quaternion
-    final_quaternion = np.array([q0q1_w, q0q1_x, q0q1_y, q0q1_z])
-
-    # Return a 4 element array containing the final quaternion (q02,q12,q22,q32)
-    return final_quaternion
-
-def skew(a):
-    [x, y, z] = a
-    b = np.array([[ 0, -z,  y],\
-                  [ z,  0, -x],\
-                  [-y,  x,  0]])
-    return b
-
-def QuatToRotMat(q):
-    w = q[0]
-    n = q[1:]
-    C = np.eye(3)*(2*w**2-1) + 2*w*skew(n) + 2*(n*n.T)
-    r = R.from_quat(np.roll(q,3)).as_matrix()
-    return C
-
-def RotMatToQuat(c):
-    quat = 0.5* np.array([np.sqrt(np.trace(c)+1),\
-                 np.sign(c[2,1]-c[1,2]) * np.sqrt(c[0,0]-c[1,1]-c[2,2]+1),\
-                 np.sign(c[0,2]-c[2,0]) * np.sqrt(c[1,1]-c[2,2]-c[0,0]+1),\
-                 np.sign(c[1,0]-c[0,1]) * np.sqrt(c[2,2]-c[0,0]-c[1,1]+1)])
-    return quat
+    #     # Now you can use the link_poses dictionary to visualize or analyze the robot's current pose.
+    #     for link_name, pose in link_poses.items():
+    #         print(f"Link: {link_name}")
+    #         print(pose)
+    #     a=2
 
 
 class geom_transformations:
@@ -447,6 +436,16 @@ class kpts_to_bbox(Node):
 
         self.initialize_variables()
 
+        # get the robot description
+        caught = 0
+        description_node = robot_description()
+        self.logger.info('Waiting for robot_description message...')
+        # rclpy.spin(description_node)
+        while not caught:
+            rclpy.spin_once(description_node)
+            caught = description_node.caught
+        self.robot = description_node.robot
+        self.logger.info('Robot model loaded!')
         self.subscription_data = self.create_subscription(
             PoseArray,
             'kpt_data',
@@ -465,6 +464,12 @@ class kpts_to_bbox(Node):
             'tf',
             self.transform_callback,
             10)
+        
+        
+        
+        descript = robot_description()
+        descript.get_robot_description(self.xacro_path)
+        # link_poses = self.compute_robot_pose(robot, node)
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
@@ -497,6 +502,7 @@ class kpts_to_bbox(Node):
         self.robot_cartesian_positions = np.zeros((9, 3))
         # urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
         # urdf = open(urdf_path).read()
+        self.xacro_path = '/home/tom/franka_ros2_ws/install/franka_description/share/franka_description/robots/panda_arm.urdf.xacro'
 
     def kalman_callback(self):
 
@@ -629,6 +635,10 @@ class kpts_to_bbox(Node):
                 moment = np.cross(lever*dist, force_vec)
             
             full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
+
+        # account for some joints being merged: 
+        # jts 1 and 2 are superimposed
+        # all superimposed jts: 1-2, 5-6, 8-hand
             
         output = full_force_vec
 
@@ -791,6 +801,7 @@ class kpts_to_bbox(Node):
 
         self.joint_pos = msg.position
         self.joint_vel = msg.velocity
+        
 
 
     def transform_callback(self, tf_message):
@@ -799,6 +810,12 @@ class kpts_to_bbox(Node):
         t_raw = np.zeros((10,3))
         r_raw = np.zeros((10,4))
         r_raw[:,-1] = np.ones(10)
+        joint_name = [None] * 10
+
+        #####################
+        for transform in tf_message.transforms:
+            self.transforms[transform.child_frame_id] = transform
+        #####################
 
         for transform in tf_message.transforms:
             rot_ros = transform.transform.rotation
@@ -818,6 +835,7 @@ class kpts_to_bbox(Node):
 
             t_raw[i+1] = vec_t
             r_raw[i+1] = vec_r
+            joint_name[i+1] = id
 
         robot_translation = copy.copy(t_raw)
         robot_rotation = copy.copy(r_raw)
@@ -869,9 +887,42 @@ class kpts_to_bbox(Node):
         self.robot_cartesian_positions = robot_translation
         
 
+    
 
         
+######################################################################
+    def get_transform(self, frame_id):
+                return self.transforms.get(frame_id, None)
 
+    def create_transform_matrix(self, transform):
+        import numpy as np
+        from scipy.spatial.transform import Rotation as R
+        
+        translation = transform.transform.translation
+        rotation = transform.transform.rotation
+
+        trans_matrix = np.eye(4)
+        trans_matrix[:3, 3] = [translation.x, translation.y, translation.z]
+
+        rot = R.from_quat([rotation.x, rotation.y, rotation.z, rotation.w])
+        trans_matrix[:3, :3] = rot.as_matrix()
+
+        return trans_matrix
+
+
+    def get_link_transform(self, link_name, tf_listener):
+        transform = tf_listener.get_transform(link_name)
+        if transform:
+            return self.create_transform_matrix(transform)
+        return np.eye(4)
+
+    def compute_robot_pose(self, robot, tf_listener):
+        link_poses = {}
+        for link in robot.links:
+            link_poses[link.name] = self.get_link_transform(link.name, tf_listener)
+        return link_poses
+
+#######################################################################
 
 
 
