@@ -191,7 +191,39 @@ def joint_to_cartesian(joint_states= [0., -0.8, 0., -2.36, 0., 1.57, 0.79]):
 
     return joint_positions
     
+def calculate_transforms(robot, tf_world):
+    link_poses = {}
+    legacy_link = np.eye(4)
+    for link in robot.links:
+        link_poses[link.name] = legacy_link
+        if link.name in tf_world:
+            link_poses[link.name] = create_transform_matrix(tf_world[link.name][0], tf_world[link.name][1])
+        legacy_link = link_poses[link.name]
+    return link_poses 
+
+
+def create_transform_matrix(translation, rotation):    
+    trans_matrix = np.eye(4)
+    trans_matrix[:3, 3] = translation
+
+    rot = R.from_quat(rotation)
+    trans_matrix[:3, :3] = rot.as_matrix()
+
+    return trans_matrix
+
+def remove_double_joints(pos):
+    # to determine which joints are actually in the same place:
+    idx = np.sum(np.abs(np.diff(pos, axis=0)),axis=1) < 0.0005
+    mask = np.invert(idx)
     
+
+    # I magically know which joints are in the same place:
+    # mask = np.array([True, False, True, True, True, False, True, False, False,\
+    #         False, True, True])
+
+    pos_new = pos[np.where(mask)]
+        
+    return pos_new
 
 
 
@@ -287,6 +319,10 @@ def link_dists(pos_body, pos_robot):
     
     #####################
     
+    # TODO:create dummy joint situated in the hand between both fingers, to prevent
+    # a link being made between the fingers
+    # TODO: run distance finder on all gazilion links, but during the fore transfer, only consider the important 7
+
     
     links_b, links_r = pos_body, pos_robot
     
@@ -466,9 +502,6 @@ class kpts_to_bbox(Node):
             10)
         
         
-        
-        descript = robot_description()
-        descript.get_robot_description(self.xacro_path)
         # link_poses = self.compute_robot_pose(robot, node)
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
@@ -499,7 +532,8 @@ class kpts_to_bbox(Node):
         self.min_dist = 0     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
-        self.robot_cartesian_positions = np.zeros((9, 3))
+        self.robot_cartesian_positions = np.zeros((7, 3))
+
         # urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
         # urdf = open(urdf_path).read()
         self.xacro_path = '/home/tom/franka_ros2_ws/install/franka_description/share/franka_description/robots/panda_arm.urdf.xacro'
@@ -812,11 +846,6 @@ class kpts_to_bbox(Node):
         r_raw[:,-1] = np.ones(10)
         joint_name = [None] * 10
 
-        #####################
-        for transform in tf_message.transforms:
-            self.transforms[transform.child_frame_id] = transform
-        #####################
-
         for transform in tf_message.transforms:
             rot_ros = transform.transform.rotation
             trans_ros = transform.transform.translation
@@ -837,6 +866,8 @@ class kpts_to_bbox(Node):
             r_raw[i+1] = vec_r
             joint_name[i+1] = id
 
+
+        
         robot_translation = copy.copy(t_raw)
         robot_rotation = copy.copy(r_raw)
 
@@ -878,58 +909,31 @@ class kpts_to_bbox(Node):
         quat_rot = R.from_quat(robot_rotation[-3]).apply(t_raw[-1])
         robot_translation[-1] =  robot_translation[-3] + quat_rot
 
-        # add a line between the fingers so links will always go through the hand
-        robot_rotation = np.insert(robot_rotation, -1, robot_rotation[-3], axis=0)
-        robot_translation = np.insert(robot_translation, -1, robot_translation[-3], axis=0)
+        # # add a line between the fingers so links will always go through the hand
+        # robot_rotation = np.insert(robot_rotation, -1, robot_rotation[-3], axis=0)
+        # robot_translation = np.insert(robot_translation, -1, robot_translation[-3], axis=0)
 
         # self.logger.info('body: \n', str(robot_translation))
 
-        self.robot_cartesian_positions = robot_translation
+        # self.robot_cartesian_positions = robot_translation
+
+        tf_world = {}
+        for i, joint in enumerate(joint_name[1:]):
+            tf_world[joint] = [robot_translation[i+1], robot_rotation[i+1]]
+        # tf_world = dict.fromkeys(joint_name, [robot_translation, robot_rotation])
+        
+        link_poses = calculate_transforms(self.robot, tf_world)
+        pos_world = np.array(list(link_poses.values()))[:, 0:3, -1]
+
+        # self.robot_cartesian_positions = remove_double_joints(pos_world)
+        self.robot_cartesian_positions = pos_world
+        return link_poses
         
 
     
 
         
-######################################################################
-    def get_transform(self, frame_id):
-                return self.transforms.get(frame_id, None)
-
-    def create_transform_matrix(self, transform):
-        import numpy as np
-        from scipy.spatial.transform import Rotation as R
-        
-        translation = transform.transform.translation
-        rotation = transform.transform.rotation
-
-        trans_matrix = np.eye(4)
-        trans_matrix[:3, 3] = [translation.x, translation.y, translation.z]
-
-        rot = R.from_quat([rotation.x, rotation.y, rotation.z, rotation.w])
-        trans_matrix[:3, :3] = rot.as_matrix()
-
-        return trans_matrix
-
-
-    def get_link_transform(self, link_name, tf_listener):
-        transform = tf_listener.get_transform(link_name)
-        if transform:
-            return self.create_transform_matrix(transform)
-        return np.eye(4)
-
-    def compute_robot_pose(self, robot, tf_listener):
-        link_poses = {}
-        for link in robot.links:
-            link_poses[link.name] = self.get_link_transform(link.name, tf_listener)
-        return link_poses
-
-#######################################################################
-
-
-
-
-
-
-        
+   
 
 
     
