@@ -53,6 +53,8 @@ TODO: Create clever law combining effects of distance and relative speed to appl
         B is a term depending on speed : exp(V) => smaller force if we are moving away
 """
 
+
+
 class robot_description(Node):
 
     def __init__(self):
@@ -321,9 +323,8 @@ def link_dists(pos_body, pos_robot):
     
     # TODO:create dummy joint situated in the hand between both fingers, to prevent
     # a link being made between the fingers
-    # TODO: run distance finder on all gazilion links, but during the fore transfer, only consider the important 7
+    # /TODO: run distance finder on all gazilion links, but during the force transfer, only consider the important 7
 
-    
     links_b, links_r = pos_body, pos_robot
     
     m = len(links_b)
@@ -367,8 +368,15 @@ def link_dists(pos_body, pos_robot):
     # calc length of both segments and check if parallel
     len_r = np.linalg.norm(d_r, axis=-1)**2
     len_b = np.linalg.norm(d_b, axis=-1)**2
-    if 0 in len_r or 0 in len_b:
-        logger.info('err: Link without length')
+
+    # for all zero-length links, pretend length is very small, so the distance along length is 0
+    zeros_r = len_r == 0
+    len_r[zeros_r] = 0.0001
+    zeros_b = len_b == 0
+    len_b[zeros_b] = 0.0001
+
+    # if 0 in len_r or 0 in len_b:
+        # logger.info('err: Link without length')
     R = np.einsum('ijk, ijk->ij', d_r, d_b)
     denom = len_r*len_b - R**2
     S1 = np.einsum('ijk, ijk->ij', d_r, d_rb)
@@ -378,14 +386,17 @@ def link_dists(pos_body, pos_robot):
     t = (1-paral) * (S1*len_b-S2*R) / denom
     t = np.nan_to_num(t)
     t = np.clip(t, 0, 1)
+    t[zeros_r] = 0
 
     u = (t*R - S2) / (len_b)
     u = np.nan_to_num(u)
     u = np.clip(u, 0, 1)
+    u[zeros_b] = 0
 
     t = (u*R + S1) / len_r
     t = np.nan_to_num(t)
     t = np.clip(t, 0, 1)
+    t[zeros_r] = 0
 
 
     tp = np.transpose(np.array([t]*3), (1, 2, 0))
@@ -551,8 +562,8 @@ class kpts_to_bbox(Node):
 
     def dist_callback(self):
         if self.subject in self.bodies:
-            self.get_logger().debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
-            self.get_logger().debug(str(self.reset and np.any(self.bodies[self.subject][0])))
+            # self.logger.debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
+            # self.logger.debug(str(self.reset and np.any(self.bodies[self.subject][0])))
             # Make the body outline fit the head
             if self.reset and np.any(self.bodies[self.subject][0]):
                 # make one line from the left hand to the right
@@ -649,6 +660,7 @@ class kpts_to_bbox(Node):
         application_dist = body_geom['t']               # fraction of each segment at which each force is applied
 
         levers = np.diff(robot_pose, axis = 0)          # vectors pointing along the robot links
+        link_lengths = np.linalg.norm(levers, axis=1)
         
 
         dists = copy.copy(body_geom['dist'])
@@ -669,6 +681,32 @@ class kpts_to_bbox(Node):
                 moment = np.cross(lever*dist, force_vec)
             
             full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
+
+        ####################ACCOUNT FOR INPUT OF SIZE 13###################
+        # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
+        # The question is, which links to keep? The ones named 1-7, or the seven with non-zero distance do the preceding?
+        for i in range(len(full_force_vec)-8):
+            l = link_lengths[-i]
+            if l == 0:
+                length_multiplier = np.eye(6)
+            else:
+                length_multiplier_force = np.concatenate((np.eye(3), np.eye(3)/l), axis=0)
+                length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
+                length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
+            full_force_vec[-i-1] += length_multiplier @ full_force_vec[-i]
+        
+        # Remove joint 0, apply only its torque to link 1
+        l = link_lengths[0]
+        if l == 0:
+            length_multiplier = np.eye(6)
+        else:
+            length_multiplier_force = np.concatenate((np.zeros((3,3)), np.eye(3)/l), axis=0)
+            length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
+            length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
+        full_force_vec[-i-1] += length_multiplier @ full_force_vec[-i]   
+
+        full_force_vec = full_force_vec[1:8]
+        #################################################################
 
         # account for some joints being merged: 
         # jts 1 and 2 are superimposed
@@ -699,11 +737,11 @@ class kpts_to_bbox(Node):
         COLUMN MAJOR order, which may need added translation
         """
         
-        forces_flattened = forces.flatten(order='C')
+        forces_flattened = forces.flatten(order='F')
 
         force_message = Array2d()
         force_message.array = list(forces_flattened.astype(float))
-        [force_message.height, force_message.width]  = np.shape(forces)
+        [force_message.height, force_message.width]  = np.shape(forces.T)
         self.force_publisher_.publish(force_message)
 
         a = 2

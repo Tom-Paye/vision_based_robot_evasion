@@ -17,6 +17,8 @@ find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(messages_fr3 REQUIRED)
+# find_package(cartesian_impedance_controller REQUIRED)
+
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
