@@ -686,7 +686,16 @@ class kpts_to_bbox(Node):
             seg = application_segments[i]
             dist = application_dist[i]
 
-            force = 1 - (force-self.min_dist)/(self.max_dist - self.min_dist)
+            force = 1 - np.abs(force-self.min_dist)/(self.max_dist - self.min_dist)
+
+            # Rescale forces vector to create actual forces, in Newtons
+            # To calculate max force, go to https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3
+            # take the lowest max moment of 12 Nm, divide by 1m to have the max force exerted onto a link bound under a safe limit
+            force_max = 12 / 1
+            force_scaling = force_max   # this works because the force is already scaled between 0 and 1
+            force = force * force_scaling
+
+
             force_vec = force * vec
             moment = np.zeros(3)
 
