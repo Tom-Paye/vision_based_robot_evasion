@@ -47,15 +47,17 @@ def generate_launch_description():
         ##################################
         DeclareLaunchArgument(
             robot_ip_parameter_name,
-            default_value='dont-care', #'192.168.1.200'
+            # default_value='192.168.1.200', #'192.168.1.200', dont-care
+            default_value='dont-care', #'192.168.1.200', dont-care
             description='Hostname or IP address of the robot.'),
         DeclareLaunchArgument(
             use_rviz_parameter_name,
-            default_value='false',
+            default_value='true',
             description='Visualize the robot in Rviz'),
         DeclareLaunchArgument(
             use_fake_hardware_parameter_name,
             default_value='true',   # false
+            # default_value='false',   # false
             description='Use fake hardware'),
         DeclareLaunchArgument(
             fake_sensor_commands_parameter_name,
