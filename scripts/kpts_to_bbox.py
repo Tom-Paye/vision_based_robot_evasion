@@ -291,33 +291,33 @@ def link_dists(pos_body, pos_robot):
     #####################
     # # FOR SIMULATION AND TESTING
 
-    # links_r = np.array([[0, 0, 0], [1, 1, 0]])
-    # links_b = np.array([[0, 2, 0], [1, 2, 0]])
+    # joints_r = np.array([[0, 0, 0], [1, 1, 0]])
+    # joints_b = np.array([[0, 2, 0], [1, 2, 0]])
 
-    # links_r = np.array([[0, -3, 0], [3, 0, 0]])
-    # links_b = np.array([[0, 0, 0], [3, -3, 0]])
+    # joints_r = np.array([[0, -3, 0], [3, 0, 0]])
+    # joints_b = np.array([[0, 0, 0], [3, -3, 0]])
 
-    # links_r = np.array([[0, 0, 0], [1, 1, 0]])
-    # links_b = np.array([[0, 1, 0], [1, 2, 0]])
+    # joints_r = np.array([[0, 0, 0], [1, 1, 0]])
+    # joints_b = np.array([[0, 1, 0], [1, 2, 0]])
 
-    # links_r = np.array([[0, 0, 0], [2, 0, 0]])
-    # links_b = np.array([[1, 2, 0], [1, 1, 0]])
+    # joints_r = np.array([[0, 0, 0], [2, 0, 0]])
+    # joints_b = np.array([[1, 2, 0], [1, 1, 0]])
 
-    # links_r = np.array([[0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
+    # joints_r = np.array([[0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
     #                     [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0],
     #                     [0, 0, 0], [1, 1, 0], [0, -3, 0], [3, 0, 0],
     #                     [0, 0, 0], [1, 1, 0], [0, 0, 0], [2, 0, 0]])
-    # links_b = np.array([[0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
+    # joints_b = np.array([[0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
     #                     [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0],
     #                     [0, 2, 0], [1, 2, 0], [0, 0, 0], [3, -3, 0],
     #                     [0, 1, 0], [1, 2, 0], [1, 2, 0], [1, 1, 0]])
     
-    # links_r = np.array([[0, 0, 0], [1, 1, 0], [1, 2, 0], [2, 1, 0],
+    # joints_r = np.array([[0, 0, 0], [1, 1, 0], [1, 2, 0], [2, 1, 0],
     #                     [3, 1, 0]])
-    # links_b = np.array([[1/2, 4, 0], [1, 3, 0], [2, 2, 0], [5/2, 3, 0],
+    # joints_b = np.array([[1/2, 4, 0], [1, 3, 0], [2, 2, 0], [5/2, 3, 0],
     #                     [4, 3, 0]])
-    # pos_b = copy.copy(links_b)
-    # pos_r = copy.copy(links_r)
+    # pos_b = copy.copy(joints_b)
+    # pos_r = copy.copy(joints_r)
     
     #####################
     
@@ -325,85 +325,98 @@ def link_dists(pos_body, pos_robot):
     # a link being made between the fingers
     # /TODO: run distance finder on all gazilion links, but during the force transfer, only consider the important 7
 
-    links_b, links_r = pos_body, pos_robot
+    joints_b, joints_r = pos_body, pos_robot # [n_jts x 3 coordinates]
     
-    m = len(links_b)
-    n = len(links_r)
+    n_joints_b = len(joints_b)
+    n_joints_r = len(joints_r)
     p, q = 0, 0
 
     #####
     
-    if m > n:
-        arr_to_roll = links_b
-        static_array = links_r
+    # Only roll over the larger array
+    if n_joints_b > n_joints_r:
+        arr_to_roll = joints_b
+        array_not_rolled = joints_r
     else:
-        arr_to_roll = links_r
-        static_array = links_b
-    n_rolls = max(m, n)
-    n_remove = min(m, n)
-    mat_roll = np.array([static_array]*n_rolls)
-    mat_static = np.array([static_array]*n_rolls)
+        arr_to_roll = joints_r
+        array_not_rolled = joints_b
+
+    # For every new rotation of the rolled array, one of the links actually doesn't exists, and should be disregarded
+    n_rolls = max(n_joints_b, n_joints_r)
+    n_compared_rows = min(n_joints_b, n_joints_r)
+    mat_roll = np.array([array_not_rolled]*n_rolls) 
+    mat_static = copy.copy(mat_roll)
     bad_segments = []
 
     for i in range(n_rolls):
         new_layer = np.roll(arr_to_roll, -i, axis=0)
-        new_layer = new_layer[0:min(m, n),:]
+        new_layer = new_layer[0:n_compared_rows,:]
         mat_roll[i,:] = new_layer
-        bad_segments.append([i, n_rolls-i-1])
-    bad_segments = np.array(bad_segments[n_rolls-n_remove+1:])
+        bad_segments.append([i, n_rolls-1 - i])
+    bad_segments = np.array(bad_segments[n_rolls-n_compared_rows+1:]) # +1 because there is 1 less links than segments
 
-    if m > n:
-        links_b = mat_roll
-        links_r = mat_static
+    if n_joints_b > n_joints_r:
+        joints_b = mat_roll         # [n_jts x n_jnts_2 x 3 coordinates]
+        joints_r = mat_static
     else:
-        links_r = mat_roll
-        links_b = mat_static
+        joints_r = mat_roll
+        joints_b = mat_static
 
-    pseudo_links = np.array([links_r[:, :-1, :], links_b[:, :-1, :]])
+    link_origins = np.array([joints_r[:, :-1, :], joints_b[:, :-1, :]])
 
-    d_r = np.diff(links_r, axis=1)
-    d_b = np.diff(links_b, axis=1)
-    d_rb = np.diff(pseudo_links, axis=0)[0]
+    links_r = np.diff(joints_r, axis=1)     # [n_jts x n_jnts_2-1 x 3 coordinates]
+    links_b = np.diff(joints_b, axis=1)
+    links_r_b = np.diff(link_origins, axis=0)[0]    # [n_jts x n_jnts_2-1 x 3 coordinates], the [0] is to remove 4th dim
 
+    # Step 1
     # calc length of both segments and check if parallel
-    len_r = np.linalg.norm(d_r, axis=-1)**2
-    len_b = np.linalg.norm(d_b, axis=-1)**2
+    D1 = np.linalg.norm(links_r, axis=-1)**2         # [n_jts x n_jnts_2-1]
+    D2 = np.linalg.norm(links_b, axis=-1)**2
 
-    # for all zero-length links, pretend length is very small, so the distance along length is 0
-    zeros_r = len_r == 0
-    len_r[zeros_r] = 0.0001
-    zeros_b = len_b == 0
-    len_b[zeros_b] = 0.0001
+    # for all zero-length links, pretend length is very small, so the distance is 0. We need to set their m to 0 later on
+    # This exists solely so numpy will stop throwing runtime errors about division by zero
+    zeros_r = D1 == 0
+    D1[zeros_r] = 0.0001
+    zeros_b = D2 == 0
+    D2[zeros_b] = 0.0001
 
-    # if 0 in len_r or 0 in len_b:
+    # if 0 in D1 or 0 in D2:
         # logger.info('err: Link without length')
-    R = np.einsum('ijk, ijk->ij', d_r, d_b)
-    denom = len_r*len_b - R**2
-    S1 = np.einsum('ijk, ijk->ij', d_r, d_rb)
-    S2 = np.einsum('ijk, ijk->ij', d_b, d_rb)
 
-    paral = (denom<0.001)
-    t = (1-paral) * (S1*len_b-S2*R) / denom
-    t = np.nan_to_num(t)
+    R = np.einsum('ijk, ijk->ij', links_r, links_b)     # [n_jts x n_jnts_2-1]
+    S1 = np.einsum('ijk, ijk->ij', links_r, links_r_b)
+    S2 = np.einsum('ijk, ijk->ij', links_b, links_r_b)
+
+    denom = D1*D2 - R**2                                # [n_jts x n_jnts_2-1]
+    paral = (np.abs(denom)<0.001)
+    denom[paral] = 0.0001
+
+
+    # Step 2
+    t = (1-paral) * (S1*D2-S2*R) / denom            # t corresponds to the robot. it is the fraction of length along each link
+    # t = np.nan_to_num(t)                              [n_jts x n_jnts_2-1]
     t = np.clip(t, 0, 1)
     t[zeros_r] = 0
 
-    u = (t*R - S2) / (len_b)
-    u = np.nan_to_num(u)
+    # Step 3
+    u = (t*R - S2) / (D2)                           # u corresponds to the robot. it is the fraction of length along each link
+    # u = np.nan_to_num(u)
     u = np.clip(u, 0, 1)
     u[zeros_b] = 0
 
-    t = (u*R + S1) / len_r
-    t = np.nan_to_num(t)
+    # Step 4
+    t = (u*R + S1) / D1
+    # t = np.nan_to_num(t)
     t = np.clip(t, 0, 1)
     t[zeros_r] = 0
 
+    # Step 5
+    link_scaling_r = np.transpose(np.array([t]*3), (1, 2, 0))       # [n_jts x n_jnts_2-1 x 3 dims]
+    link_scaling_b = np.transpose(np.array([u]*3), (1, 2, 0))
+    diffs_3d = links_r * link_scaling_r - links_b * link_scaling_b - links_r_b  # 3d vectors btw each link pair
+    dist = np.sqrt(np.sum(diffs_3d**2, axis=-1))    # DD    [n_jts x n_jnts_2-1]
 
-    tp = np.transpose(np.array([t]*3), (1, 2, 0))
-    up = np.transpose(np.array([u]*3), (1, 2, 0))
-    diffs_3d = np.multiply(d_r, tp) - np.multiply(d_b, up) - d_rb
-    dist = np.sqrt(np.sum(diffs_3d**2, axis=-1))
-
+    # Unit direction betwen each link pair. Where both links intersect, set the direction close to 0 instead
     distp = copy.copy(dist)
     dist = np.around(dist, decimals=6)
     distp[dist == 0] = 1000
@@ -417,17 +430,18 @@ def link_dists(pos_body, pos_robot):
     t = np.around(t, decimals=6)
     u = np.around(u, decimals=6)
 
+    # Fetch only the information related to the closest links
     [i, j] = np.where(dist == np.min(dist))
     t = t[i, j]
     u = u[i, j]
     dist = dist[i, j]
     direc = direc[i, j,:]
-    if m > n:
+    if n_joints_b > n_joints_r:     
         closest_r = j
-        closest_b = (j+i-1)%m
+        closest_b = (j+i)%n_joints_b      # I think the -1 is superfluous
     else:
         closest_b = j
-        closest_r = (j+i)%n
+        closest_r = (j+i)%n_joints_r
 
     # #######################
     # # Plots for testing purposes
@@ -454,8 +468,8 @@ def link_dists(pos_body, pos_robot):
     closest_b = closest_b + np.floor(u)
     u = u * (1 - np.floor(u))
 
+    # remove repeated values so we only have separate pairs
     if len(closest_r) > 1:
-        # remove repeated values so we only have separate pairs
         full_info = np.hstack((dist[:, np.newaxis], direc,\
                                t[:, np.newaxis], u[:, np.newaxis], closest_r[:, np.newaxis], closest_b[:, np.newaxis]))
         unq = np.unique(full_info, axis=0)
@@ -573,7 +587,7 @@ class kpts_to_bbox(Node):
                 robot_pos = self.robot_cartesian_positions
 
                 arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
-                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][0], robot_pos)
+                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][2], robot_pos)
                 # self.placeholder_Pe, robot_pos
 
 

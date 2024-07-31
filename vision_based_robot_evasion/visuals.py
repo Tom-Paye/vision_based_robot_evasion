@@ -352,26 +352,31 @@ def main():
     Placeholder function to illustrate the workings of the visualizer
     
     """
+    a = [[[0, 2, 1], [0, 2, 2]], [[0, 2, 2], [0, 2, 1]]]
+    b = [[[0, 1, 1], [0, 3, 3]], [[0, 1, 1], [0, 3, 3]]]
+    R = np.einsum('ijk, ijk->ij', a, b)
+    x = np.array([0, 1, 2, 3, 4, 5, 6])
+    y  = x[2:]
+    g = 2
+    # fig = 0
+    # class geom(): pass
+    # geom.arm_pos = np.array([[-1., 0, 1.5], [-.2, 0., 1.5], [.2, 0., 1.5], [1., 0., 1.5]])
+    # geom.trunk_pos = np.array([[0., 0, 1.2], [0., 0., 1.6], [0., 0., 1.8]])
+    # geom.robot_pos = np.array([[0., 1., 0.], [0., 1., 1.], [1., 1., 1],
+    #                            [1.5, 0.5, 1.]])
+    # geom.arm_cp_idx = 1
+    # geom.u = 0.2
+    # geom.trunk_cp_idx = 0
+    # geom.v = 0.7
+    # geom.robot_cp_arm_idx = 2
+    # geom.s = 0.5
+    # geom.robot_cp_trunk_idx = 1
+    # geom.t = 0.9
     
-    fig = 0
-    class geom(): pass
-    geom.arm_pos = np.array([[-1., 0, 1.5], [-.2, 0., 1.5], [.2, 0., 1.5], [1., 0., 1.5]])
-    geom.trunk_pos = np.array([[0., 0, 1.2], [0., 0., 1.6], [0., 0., 1.8]])
-    geom.robot_pos = np.array([[0., 1., 0.], [0., 1., 1.], [1., 1., 1],
-                               [1.5, 0.5, 1.]])
-    geom.arm_cp_idx = 1
-    geom.u = 0.2
-    geom.trunk_cp_idx = 0
-    geom.v = 0.7
-    geom.robot_cp_arm_idx = 2
-    geom.s = 0.5
-    geom.robot_cp_trunk_idx = 1
-    geom.t = 0.9
-    
-    for i in range(2000):
-        fig = plot_skeletons(fig, geom)
-        geom.robot_pos = geom.robot_pos + np.array([[0., 0., 0.], [0., -.001, 0.],
-                                                    [0., -.001, 0.01], [-0.001, -.001, 0.001]])
+    # for i in range(2000):
+    #     fig = plot_skeletons(fig, geom)
+    #     geom.robot_pos = geom.robot_pos + np.array([[0., 0., 0.], [0., -.001, 0.],
+    #                                                 [0., -.001, 0.01], [-0.001, -.001, 0.001]])
  
 
 if __name__ == '__main__':
@@ -407,3 +412,4 @@ if __name__ == '__main__':
     /home/tom/ros2_ws/install/my_cpp_py_pkg/local/lib/python3.10/dist-packages/my_cpp_py_pkg/__pycache__
     """
         
+    
