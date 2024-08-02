@@ -27,6 +27,7 @@ import time
 import numpy as np
 import json
 import copy
+import pathlib
 
 
 
@@ -42,14 +43,15 @@ def init_user_params():
     class user_params(): pass
 
     user_params.from_sl_config_file = False
-    user_params.config_pth = '/home/tom/franka_ros2_ws/src/vision_based_robot_evasion/vision_based_robot_evasion/zed_calib_2.json'
+    user_params.config_name = 'zed_calib_4.json'
+    # '/home/tom/franka_ros2_ws/src/vision_based_robot_evasion/vision_based_robot_evasion/zed_calib_2.json'
     # '/home/tom/ros2_ws/src/vision_based_robot_evasion/vision_based_robot_evasion/zed_calib_2.json'
     # '/home/tom/ros2_ws/src/vision_based_robot_evasion/vision_based_robot_evasion/zed_calib.json'
     # '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
     # '/usr/local/zed/tools/zed_calib.json'
 
     # External params
-    user_params.video_src = 'SVO'                                       # SVO, Live
+    user_params.video_src = 'Live'                                       # SVO, Live
     user_params.svo_pth = '/home/tom/Downloads/'
     # '/usr/local/zed/samples/recording/playback/multi camera/cpp/build/'
     user_params.svo_prefix = 'std_SN'  #clean_SN, std_SN
@@ -83,7 +85,15 @@ def init_zed_params(user_params):
     class zed_params(): pass
     
     zed_params.fusion =  [] # list of both fusionconfigs
-    file = open(user_params.config_pth)
+    current_pth = pathlib.Path(__file__).parent.resolve()
+    a = current_pth.name
+    if a == 'scripts':
+        a = current_pth.parent.name
+        config_pth = current_pth.parent / pathlib.Path(a + '/' + user_params.config_name)
+    else:
+        b = current_pth.parents[3]
+        config_pth = b / pathlib.Path('src/' + a + '/' + a + '/' + user_params.config_name)
+    file = open(config_pth)
     configs = json.load(file)
 
     zed_params.base_transform = np.array(configs['base']['transform'])
@@ -153,7 +163,8 @@ def init_zed_params(user_params):
         logger.error("Invalid config file.")
         exit(1)
 
-    zed_params.R = zed_params.R @ zed_params.cam_transform
+    # zed_params.R = zed_params.R @ zed_params.cam_transform
+    zed_params.R = zed_params.cam_transform @ zed_params.S
 
     
     
@@ -601,8 +612,21 @@ class vision():
             else:
                 self.logger.error('Could not grab zed output during initialization')
                 self.logger.error(status)
-        
+  
         self.bodies = []
+
+        if self.user_params.display_video:
+            self.image = sl.Mat()
+            bridge = CvBridge()
+            # Get ZED camera information
+            zed = self.senders[list(self.senders.keys())[0]]
+            camera_info = zed.get_camera_information()
+
+            # 2D viewer utilities
+            self.display_resolution = sl.Resolution(min(camera_info.camera_configuration.resolution.width, 1280),
+                                            min(camera_info.camera_configuration.resolution.height, 720))
+            self.image_scale = [self.display_resolution.width / camera_info.camera_configuration.resolution.width
+                , self.display_resolution.height / camera_info.camera_configuration.resolution.height]
 
 
     def zed_loop_fused(self):
@@ -698,6 +722,17 @@ class vision():
                 if status != sl.ERROR_CODE.SUCCESS:
                     self.logger.error(status)
                     self.error = 1
+                if self.user_params.display_video and idx == 0:
+                    zed.retrieve_image(self.image, sl.VIEW.LEFT)
+                    if len(self.bodies)>0:
+                        cv_viewer.render_2D(self.image.get_data(), self.image_scale, self.bodies.body_list, \
+                                                        self.zed_params.body_tracking.enable_tracking,
+                                                        self.zed_params.body_tracking.body_format)
+                    # else:
+                    #     cv_viewer.render_2D(self.image.get_data(), self.image_scale, \
+                    #                                     self.zed_params.body_tracking.enable_tracking,
+                    #                                     self.zed_params.body_tracking.body_format)
+                    cv2.imshow("View"+str(idx), self.image.get_data())
 
             for body in bodies.body_list:
                 position = body.position

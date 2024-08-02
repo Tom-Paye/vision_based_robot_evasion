@@ -52,7 +52,7 @@ def generate_launch_description():
             description='Hostname or IP address of the robot.'),
         DeclareLaunchArgument(
             use_rviz_parameter_name,
-            default_value='true',
+            default_value='false',
             description='Visualize the robot in Rviz'),
         DeclareLaunchArgument(
             use_fake_hardware_parameter_name,
@@ -61,7 +61,7 @@ def generate_launch_description():
             description='Use fake hardware'),
         DeclareLaunchArgument(
             fake_sensor_commands_parameter_name,
-            default_value='false',
+            default_value='true',
             description="Fake sensor commands. Only valid when '{}' is true".format(
                 use_fake_hardware_parameter_name)),
         DeclareLaunchArgument(
@@ -69,7 +69,7 @@ def generate_launch_description():
             default_value='true',
             description='Use Franka Gripper as an end-effector, otherwise, the robot is loaded '
                         'without an end-effector.'),
-        TimerAction(period = 3., actions = [
+        TimerAction(period = 6., actions = [
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([PathJoinSubstitution(
                     [FindPackageShare('cartesian_impedance_control'), 'launch', 'cartesian_impedance_controller.launch.py'])]),

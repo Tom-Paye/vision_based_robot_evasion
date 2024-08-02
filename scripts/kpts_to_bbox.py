@@ -286,7 +286,7 @@ def link_dists(pos_body, pos_robot):
     # TODO: make kalman filter real-time
     # TODO: // fix the coordinate system
     
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger('link_dists')
 
     #####################
     # # FOR SIMULATION AND TESTING
@@ -492,7 +492,7 @@ class kpts_to_bbox(Node):
     def __init__(self):
         super().__init__('minimal_subscriber')
         
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('kpts_to_bbox')
         logging.basicConfig(level=logging.DEBUG)
 
         self.initialize_variables()
@@ -575,7 +575,7 @@ class kpts_to_bbox(Node):
         
 
     def dist_callback(self):
-        if self.subject in self.bodies:
+        for self.subject in self.bodies:
             # self.logger.debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
             # self.logger.debug(str(self.reset and np.any(self.bodies[self.subject][0])))
             # Make the body outline fit the head
