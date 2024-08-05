@@ -163,8 +163,8 @@ def init_zed_params(user_params):
         logger.error("Invalid config file.")
         exit(1)
 
-    # zed_params.R = zed_params.R @ zed_params.cam_transform
-    zed_params.R = zed_params.cam_transform @ zed_params.S
+    zed_params.R = zed_params.R @ zed_params.cam_transform
+    # zed_params.R = zed_params.cam_transform @ zed_params.S
 
     
     
