@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import copy
 
 
+plt.set_loglevel('Warning')
+
 def plot_skeletons(fig, geom):
     
     """
@@ -149,6 +151,7 @@ def plot_skeletons(fig, geom):
     
     if type(fig) == int:
         # create figure object
+        
         fig = plt.figure(figsize=(4,4))
         ax = fig.add_subplot(111, projection='3d')
         plt.xlabel("X")

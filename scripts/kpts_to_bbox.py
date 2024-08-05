@@ -628,7 +628,7 @@ class kpts_to_bbox(Node):
                                 'closest_r':c_r_t        , 'closest_b':c_t_r}
                 forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
                 time_sec = time.time()
-                if time_sec>10:
+                if time_sec>5:
                     self.generate_repulsive_force_message(forces)                
                 
     def force_estimator(self, body_geom, robot_pose):
