@@ -387,46 +387,79 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
         #     [5, 5, 5], 
         #     [5, 5, 6]
         # ])
+        if len(positions)>1:
+            distances = np.ones([len(positions), len(positions)-1])*1000
+            closest_h = np.tile(np.arange(len(positions)), (len(positions)-1, 1)).T
+            closest_v = np.tile(np.arange(len(positions)-1), (len(positions), 1))
+            closest = (closest_h+closest_v+1)%len(positions)
+            pair = []
+            for rot in range(len(positions)-1):
+                pos_rot = np.roll(positions, -rot-1, axis=0)
+                distances[:,rot] = np.linalg.norm(positions - pos_rot, axis=1)
+            idx = np.argsort(distances, axis=1)
+            # idx = np.array([idx.flatten(), closest_h.flatten()]).T
+            # closest_ordered = closest[idx] 
+            closest_ordered = np.take_along_axis(closest, idx, axis=1)  
+            if len(positions)>2:
+                a=0
+            for i in range(len(positions)):
+                if closest_ordered[closest_ordered[i, 0], 0] == i:
+                    if not np.any(np.array(pair).flatten()==i):
+                        pair.append([i , closest_ordered[i, 0]])
+            
+            for objects in pair:
+                body_0 = bodies[objects[0]][1]
+                cam_0 = bodies[objects[0]][0]
+                body_1 = bodies[objects[0]][1]
+                cam_1 = bodies[objects[0]][0]
 
-        distances = np.ones([len(positions), len(positions)-1])*1000
-        closest_h = np.tile(np.arange(len(positions)), (len(positions)-1, 1)).T
-        closest_v = np.tile(np.arange(len(positions)-1), (len(positions), 1))
-        closest = (closest_h+closest_v+1)%len(positions)
-        pair = []
-        for rot in range(len(positions)-1):
-            pos_rot = np.roll(positions, -rot-1, axis=0)
-            distances[:,rot] = np.linalg.norm(positions - pos_rot, axis=1)
-        idx = np.argsort(distances, axis=1)
-        # idx = np.array([idx.flatten(), closest_h.flatten()]).T
-        # closest_ordered = closest[idx] 
-        closest_ordered = np.take_along_axis(closest, idx, axis=1)  
-        if len(positions)>2:
-            a=0
-        for i in range(len(positions)):
-            if closest_ordered[closest_ordered[i, 0], 0] == i:
-                if not np.any(np.array(pair).flatten()==i):
-                    pair.append([i , closest_ordered[i, 0]])
-        
-        for objects in pair:
-            body_0 = bodies[objects[0]][1]
-            cam_0 = bodies[objects[0]][0]
-            body_1 = bodies[objects[0]][1]
-            cam_1 = bodies[objects[0]][0]
+                confidence_0 = body_0.confidence
+                confidence_1 = body_1.confidence
 
-            confidence_0 = body_0.confidence
-            confidence_1 = body_1.confidence
+                left_matrix_0 = np.array(body_0.keypoint[left_kpt_idx])
+                right_matrix_0 = np.array(body_0.keypoint[right_kpt_idx])
+                trunk_matrix_0 = np.array(body_0.keypoint[trunk_kpt_idx])
 
-            left_matrix_0 = np.array(body_0.keypoint[left_kpt_idx])
-            right_matrix_0 = np.array(body_0.keypoint[right_kpt_idx])
-            trunk_matrix_0 = np.array(body_0.keypoint[trunk_kpt_idx])
+                left_matrix_1 = np.array(body_1.keypoint[left_kpt_idx])
+                right_matrix_1 = np.array(body_1.keypoint[right_kpt_idx])
+                trunk_matrix_1 = np.array(body_1.keypoint[trunk_kpt_idx])
 
-            left_matrix_1 = np.array(body_1.keypoint[left_kpt_idx])
-            right_matrix_1 = np.array(body_1.keypoint[right_kpt_idx])
-            trunk_matrix_1 = np.array(body_1.keypoint[trunk_kpt_idx])
+                left_matrix = (left_matrix_0 * confidence_0 + left_matrix_1 * confidence_1) / (confidence_0+confidence_1)
+                right_matrix = (right_matrix_0 * confidence_0 + right_matrix_1 * confidence_1) / (confidence_0+confidence_1)
+                trunk_matrix = (trunk_matrix_0 * confidence_0 + trunk_matrix_1 * confidence_1) / (confidence_0+confidence_1)
 
-            left_matrix = (left_matrix_0 * confidence_0 + left_matrix_1 * confidence_1) / (confidence_0+confidence_1)
-            right_matrix = (right_matrix_0 * confidence_0 + right_matrix_1 * confidence_1) / (confidence_0+confidence_1)
-            trunk_matrix = (trunk_matrix_0 * confidence_0 + trunk_matrix_1 * confidence_1) / (confidence_0+confidence_1)
+                "The transform to get from camera POV to world view"
+                R = zed_params.R    
+
+                "Convert to 4D poses"
+                left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
+                right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
+                trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
+
+                left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
+                right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
+                trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
+    
+                known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
+
+                if user_params.display_fused_limbs:
+                        ##################### Visual Check
+
+                        # if body_id == 1:
+                        geom = {'lsl' : left_matrix,
+                                'rsl' : right_matrix,
+                                'lss' : trunk_matrix,
+                                'rss' : trunk_matrix}
+                        
+                        fig[body_id] = visuals.plot_held(fig[body_id], geom)
+                        
+
+                        #####################
+        else:
+            body_0 = bodies[0][1]
+            left_matrix = np.array(body_0.keypoint[left_kpt_idx])
+            right_matrix = np.array(body_0.keypoint[right_kpt_idx])
+            trunk_matrix = np.array(body_0.keypoint[trunk_kpt_idx])
 
             "The transform to get from camera POV to world view"
             R = zed_params.R    
@@ -439,22 +472,9 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
             left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
             right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
             trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
- 
+
             known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix]
 
-            if user_params.display_fused_limbs:
-                    ##################### Visual Check
-
-                    # if body_id == 1:
-                    geom = {'lsl' : left_matrix,
-                            'rsl' : right_matrix,
-                            'lss' : trunk_matrix,
-                            'rss' : trunk_matrix}
-                    
-                    fig[body_id] = visuals.plot_held(fig[body_id], geom)
-                    
-
-                    #####################
 
     if type(known_bodies) != dict:
         known_bodies = {}
@@ -708,7 +728,7 @@ class vision():
     def zed_loop(self):
 
         all_bodies = []
-        cam_check = [0, 0]
+        cam_check = np.zeros(len(self.senders))
         for idx, serial in enumerate(self.senders):
             bodies = sl.Bodies()
             zed = self.senders[serial]
@@ -744,7 +764,7 @@ class vision():
                     cam_check[idx] = 1
 
         # Only keep bodies seen by both cams
-        if cam_check == [1, 1]:
+        if not np.any(cam_check == 0):
             self.bodies = all_bodies
 
                         
@@ -864,7 +884,7 @@ class img_to_kpts(Node):
                 cam.zed_loop()
                 fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
 
-            if np.any(list(known_bodies.keys())):
+            if 0 != np.size(list(known_bodies.keys())):
                 publisher.publish_all_bodies(known_bodies)
             
             key = cv2.pollKey()
