@@ -629,6 +629,10 @@ class kpts_to_bbox(Node):
                 forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
                 time_sec = time.time()
                 if time_sec>5:
+
+                    # forces = np.zeros((7, 6))
+                    # forces[6, 2] = 3
+
                     self.generate_repulsive_force_message(forces)                
                 
     def force_estimator(self, body_geom, robot_pose):
@@ -695,7 +699,7 @@ class kpts_to_bbox(Node):
             # Rescale forces vector to create actual forces, in Newtons
             # To calculate max force, go to https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3
             # take the lowest max moment of 12 Nm, divide by 1m to have the max force exerted onto a link bound under a safe limit
-            force_max = 12 / 1
+            force_max = 10 / 1
             force_scaling = force_max   # this works because the force is already scaled between 0 and 1
             force = force * force_scaling
 
@@ -712,15 +716,16 @@ class kpts_to_bbox(Node):
         ####################ACCOUNT FOR INPUT OF SIZE 13###################
         # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
         # The question is, which links to keep? The ones named 1-7, or the seven with non-zero distance do the preceding?
-        for i in range(len(full_force_vec)-8):
-            l = link_lengths[-i]
+        for i in range(len(full_force_vec)-7):
+            l = link_lengths[-i-1]
             if l == 0:
                 length_multiplier = np.eye(6)
             else:
-                length_multiplier_force = np.concatenate((np.eye(3), np.eye(3)/l), axis=0)
-                length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
+                # length_multiplier_force = np.concatenate((np.eye(3), -np.eye(3)/l), axis=0)
+                length_multiplier_force = np.concatenate((np.eye(3), np.zeros((3, 3))), axis=0)
+                length_multiplier_moment = np.concatenate((np.eye(3)*l, -np.eye(3)), axis=0)
                 length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-            full_force_vec[-i-1] += length_multiplier @ full_force_vec[-i]
+            full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1]
         
         # Remove joint 0, apply only its torque to link 1
         l = link_lengths[0]
@@ -738,7 +743,9 @@ class kpts_to_bbox(Node):
         # account for some joints being merged: 
         # jts 1 and 2 are superimposed
         # all superimposed jts: 1-2, 5-6, 8-hand
-            
+        full_force_vec = np.clip(full_force_vec, 0, force_max)  
+
+
         output = full_force_vec
 
         return output
@@ -746,7 +753,7 @@ class kpts_to_bbox(Node):
         
 
 
-    def generate_repulsive_force_message(self, forces):
+    def generate_repulsive_force_message(self, forces=np.zeros((7,6))):
         
         """
         Given an array of the repulsion forces to impose on the robot, it outputs a vector message to send them to 
@@ -763,8 +770,10 @@ class kpts_to_bbox(Node):
         NOTE: [height, width] should be [6, 7] for 6DOF and 7 joints, but the C++ Eigen library is 
         COLUMN MAJOR order, which may need added translation
         """
-        
-        forces_flattened = forces.flatten(order='F')
+        if np.shape(forces) != (7,6):
+            forces=np.zeros((7,6))
+
+        forces_flattened = forces.flatten(order='C')
 
         force_message = Array2d()
         force_message.array = list(forces_flattened.astype(float))
