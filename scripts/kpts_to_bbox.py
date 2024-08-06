@@ -508,7 +508,7 @@ class kpts_to_bbox(Node):
         self.robot = description_node.robot
         self.logger.info('Robot model loaded!')
         self.subscription_data = self.create_subscription(
-            PoseArray,
+            Array2d,      # PoseArray, Array2d
             'kpt_data',
             self.data_callback,
             10)
@@ -539,7 +539,7 @@ class kpts_to_bbox(Node):
         self.reset = 0.0
         self.x = []
         self.bodies = {}
-        self.subject = '1'
+        self.subject = '0'
         obj = time.gmtime(0) 
         epoch = time.asctime(obj) 
         self.placeholder_Pe = np.array([[0., 0., 0.],
@@ -577,63 +577,94 @@ class kpts_to_bbox(Node):
         
 
     def dist_callback(self):
-        for self.subject in self.bodies:
-            # self.logger.debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
-            # self.logger.debug(str(self.reset and np.any(self.bodies[self.subject][0])))
-            # Make the body outline fit the head
-            if self.reset and np.any(self.bodies[self.subject][0]):
+        
+        
+
+        # self.logger.debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
+        # self.logger.debug(str(self.reset and np.any(self.bodies[self.subject][0])))
+        # Make the body outline fit the head
+        # if self.reset and np.any(self.bodies[self.subject][0]):
+        if bool(self.bodies):
+            # if you move out of frame too long, you will be assigned a new body ID
+            # so we also need to increment it here
+
+
+            # Scan to find currently active bodies:
+            deceased = []
+            for subject in self.bodies:
+                ct = time.time()
+                if ct - self.bodies[subject][3][0]>2 or not np.any(self.bodies[subject][0]):
+                    deceased.append(subject)
+            for body in deceased: del self.bodies[body] 
+
+        if bool(self.bodies):
+            # Switch to using oldest known body
+            subjects = list(self.bodies.keys())
+            subject = np.min(np.array(subjects).astype(int))
+            self.subject = str(subject)
+
+
+        if bool(self.bodies):
+            # if not np.any(self.bodies[self.subject][0]) or self.bodies[self.subject][3][0]>5 :
+            #     # sometimes the first subject sent is 1, idk why
+            #     for i in range(3):
+            #         new_subject = str(int(self.subject)+i)
+            #         if new_subject in self.bodies:
+            #             self.subject = new_subject
+            #             break
+            
                 # make one line from the left hand to the right
-                arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
+            arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
 
                 # robot_pos = joint_to_cartesian(self.joint_pos)
-                robot_pos = self.robot_cartesian_positions
+            robot_pos = self.robot_cartesian_positions
 
-                arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
-                trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][2], robot_pos)
-                # self.placeholder_Pe, robot_pos
+            arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
+            trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][2], robot_pos)
+            # self.placeholder_Pe, robot_pos
 
 
 
-                ###############
-                # Plotting the distances
-                class geom(): pass
-                geom.arm_pos = arms
-                geom.trunk_pos = self.bodies[self.subject][2]
-                geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-                geom.arm_cp_idx = c_a_r
-                geom.u = arms_u
-                geom.trunk_cp_idx = c_t_r
-                geom.v = trunk_u
-                geom.robot_cp_arm_idx = c_r_a
-                geom.s = arms_t
-                geom.robot_cp_trunk_idx = c_r_t
-                geom.t = trunk_t
+            ###############
+            # Plotting the distances
+            class geom(): pass
+            geom.arm_pos = arms
+            geom.trunk_pos = self.bodies[self.subject][2]
+            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            geom.arm_cp_idx = c_a_r
+            geom.u = arms_u
+            geom.trunk_cp_idx = c_t_r
+            geom.v = trunk_u
+            geom.robot_cp_arm_idx = c_r_a
+            geom.s = arms_t
+            geom.robot_cp_trunk_idx = c_r_t
+            geom.t = trunk_t
 
-                self.fig = visuals.plot_skeletons(self.fig, geom)
+            self.fig = visuals.plot_skeletons(self.fig, geom)
 
-                ###############
+            ###############
 
-                min_dist_arms = np.min(arms_dist)
-                min_dist_trunk = np.min(trunk_dist)
-                # min_dist = min(min_dist_arms, min_dist_trunk)
-                # self.get_logger().info('Minimum distance:')
-                # self.get_logger().info(str(min_dist))
-                if min_dist_arms < min_dist_trunk:
-                    body_geom = {'dist':arms_dist, 'direc':arms_direc,
-                                't':arms_t      , 'u':arms_u,
-                                'closest_r':c_r_a        , 'closest_b':c_a_r}
-                else:
-                    body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
-                                't':trunk_t      , 'u':trunk_u,
-                                'closest_r':c_r_t        , 'closest_b':c_t_r}
-                forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
-                time_sec = time.time()
-                if time_sec>5:
+            min_dist_arms = np.min(arms_dist)
+            min_dist_trunk = np.min(trunk_dist)
+            # min_dist = min(min_dist_arms, min_dist_trunk)
+            # self.get_logger().info('Minimum distance:')
+            # self.get_logger().info(str(min_dist))
+            if min_dist_arms < min_dist_trunk:
+                body_geom = {'dist':arms_dist, 'direc':arms_direc,
+                            't':arms_t      , 'u':arms_u,
+                            'closest_r':c_r_a        , 'closest_b':c_a_r}
+            else:
+                body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
+                            't':trunk_t      , 'u':trunk_u,
+                            'closest_r':c_r_t        , 'closest_b':c_t_r}
+            forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
+            time_sec = time.time()
+            if time_sec>5:
 
-                    # forces = np.zeros((7, 6))
-                    # forces[6, 2] = 3
+                # forces = np.zeros((7, 6))
+                # forces[6, 2] = 3
 
-                    self.generate_repulsive_force_message(forces)                
+                self.generate_repulsive_force_message(forces)                
                 
     def force_estimator(self, body_geom, robot_pose):
         
@@ -867,39 +898,62 @@ class kpts_to_bbox(Node):
     #     self.data = []
         
     def data_callback(self, msg):
-        # self.get_logger().info(str(msg))
-        # region = math.trunc(msg.w)
-        limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
-        region = msg.header.frame_id[2:]
-        self.reset = ('stop' in msg.header.frame_id)
 
 
-        if self.reset:
-            if self.subject in self.bodies:
-                for id in self.bodies.keys():
-                    body = self.bodies[id]
-                    # self.get_logger().info('Body' + id + ' Left side')
-                    # self.get_logger().info(str(body[0]))
-            else:
-                pass
-        else:
-            body_id =msg.header.frame_id[0]
-            if body_id == '-':
-                body_id = int(msg.header.frame_id[0:2])
-            else:
-                body_id = int(msg.header.frame_id[0])
+        ################
+        # limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
+        # Reshape message into array
+        n_rows = msg.height
+        n_cols = msg.width
+        msg_array = np.array(msg.array)
+        kpt_array = np.reshape(msg_array,(n_rows,n_cols))
+        for body in np.unique(kpt_array[:,0]):
+            body_kpts = kpt_array[kpt_array[:,0]==body,1:]
+            if not str(int(body)) in self.bodies:
+                self.bodies[str(int(body))] = [[], [], [], [time.time()]]
+            for limb in np.unique(body_kpts[:,0]):
+                limb_kpts = body_kpts[body_kpts[:,0]==limb,1:]
+                self.bodies[str(int(body))][int(limb)] = limb_kpts
+                self.bodies[str(int(body))][3][0] = time.time()
 
-            poses_ros = msg.poses
-            poses = []
-            for i, pose in enumerate(poses_ros):
-                poses.append([pose.position.x, pose.position.y, pose.position.z])
-            poses = np.array(poses)
 
-            threshold = 0.002
-            if str(body_id) in self.bodies:
-                self.bodies[str(body_id)][limb_dict[region]] = poses
-            else:
-                    self.bodies[str(body_id)] = [poses[0:3,:], poses[0:3,:], poses]
+
+        ################
+
+
+        # # self.get_logger().info(str(msg))
+        # # region = math.trunc(msg.w)
+        # limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
+        # region = msg.header.frame_id[2:]
+        # self.reset = ('stop' in msg.header.frame_id)
+
+
+        # if self.reset:
+        #     if self.subject in self.bodies:
+        #         for id in self.bodies.keys():
+        #             body = self.bodies[id]
+        #             # self.get_logger().info('Body' + id + ' Left side')
+        #             # self.get_logger().info(str(body[0]))
+        #     else:
+        #         pass
+        # else:
+        #     body_id =msg.header.frame_id[0]
+        #     if body_id == '-':
+        #         body_id = int(msg.header.frame_id[0:2])
+        #     else:
+        #         body_id = int(msg.header.frame_id[0])
+
+        #     poses_ros = msg.poses
+        #     poses = []
+        #     for i, pose in enumerate(poses_ros):
+        #         poses.append([pose.position.x, pose.position.y, pose.position.z])
+        #     poses = np.array(poses)
+
+        #     threshold = 0.002
+        #     if str(body_id) in self.bodies:
+        #         self.bodies[str(body_id)][limb_dict[region]] = poses
+        #     else:
+        #             self.bodies[str(body_id)] = [poses[0:3,:], poses[0:3,:], poses]
 
     def get_robot_joints(self, msg):
         """
