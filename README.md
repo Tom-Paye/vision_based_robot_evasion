@@ -35,6 +35,7 @@ TODO:
   - (make code easier to port: put all files in the same folder as the code)
   - Perform 3rd party sensor fusion and qualified position detection
   - improve location accuracy
+  - get an adapter so that all devices can be connected at once
 
 3rd goal: create bubble
   - /  calculate the distances and directions between he robot and human
@@ -53,8 +54,11 @@ TODO:
   - / how to create new jacobian along a link
   - implement in python or C++?
   - / hijack Curdin's code to generate the torques straight from the forces
-  - match forces to joint torques more correctly: test individual directions by sending fake forces
-  - reduce impedance parameters to more easily see results
+  - / match forces to joint torques more correctly: test individual directions by sending fake forces
+  - / reduce impedance parameters to more easily see results
+  - There is more to this task than simply throwing a force at the controller to untangle. The controller only applies the component of the force which actually aligns with the joint. So you need great forces in order to rotate a joint the right way for it to permit another joint to do the movement you want, but these great forces also instantly cause the enabled joint to violate velocity conditions
+  - Recalculate joint forces intelligently to prioritize movement in the joints that enable the motion you want
+  ==> create secondary task of orienting joints the right way
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2

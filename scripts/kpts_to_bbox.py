@@ -662,7 +662,7 @@ class kpts_to_bbox(Node):
             if time_sec>5:
 
                 # forces = np.zeros((7, 6))
-                # forces[6, 2] = 3
+                # forces[3, 2] = 20
 
                 self.generate_repulsive_force_message(forces)                
                 
@@ -720,6 +720,8 @@ class kpts_to_bbox(Node):
 
         full_force_vec = np.zeros([len(robot_pose), 6])
 
+
+
         for i, force in enumerate(dists):
             vec = direc[i,:]
             seg = application_segments[i]
@@ -727,12 +729,15 @@ class kpts_to_bbox(Node):
 
             force = 1 - np.abs(force-self.min_dist)/(self.max_dist - self.min_dist)
 
+
             # Rescale forces vector to create actual forces, in Newtons
             # To calculate max force, go to https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3
             # take the lowest max moment of 12 Nm, divide by 1m to have the max force exerted onto a link bound under a safe limit
-            force_max = 10 / 1
+            force_max = 50 / 1
             force_scaling = force_max   # this works because the force is already scaled between 0 and 1
             force = force * force_scaling
+
+
 
 
             force_vec = force * vec
@@ -743,6 +748,13 @@ class kpts_to_bbox(Node):
                 moment = np.cross(lever*dist, force_vec)
             
             full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
+
+            #######################################################
+            # for testing custom forces
+            # first row corresponds to base frame, so here arrays start at 1
+            full_force_vec = np.zeros(np.shape(full_force_vec))
+            full_force_vec[4, 1] = 30
+            #######################################################
 
         ####################ACCOUNT FOR INPUT OF SIZE 13###################
         # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
