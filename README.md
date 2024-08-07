@@ -59,6 +59,7 @@ TODO:
   - There is more to this task than simply throwing a force at the controller to untangle. The controller only applies the component of the force which actually aligns with the joint. So you need great forces in order to rotate a joint the right way for it to permit another joint to do the movement you want, but these great forces also instantly cause the enabled joint to violate velocity conditions
   - Recalculate joint forces intelligently to prioritize movement in the joints that enable the motion you want
   ==> create secondary task of orienting joints the right way
+  - add scaling so forces get smaller towards the EE
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2
