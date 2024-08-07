@@ -593,7 +593,7 @@ class kpts_to_bbox(Node):
             deceased = []
             for subject in self.bodies:
                 ct = time.time()
-                if ct - self.bodies[subject][3][0]>2 or not np.any(self.bodies[subject][0]):
+                if ct - self.bodies[subject][3][0]>0.5 or not np.any(self.bodies[subject][0]):
                     deceased.append(subject)
             for body in deceased: del self.bodies[body] 
 

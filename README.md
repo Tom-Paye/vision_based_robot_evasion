@@ -34,6 +34,7 @@ TODO:
   - /  (perform better calibration and data recordings)
   - (make code easier to port: put all files in the same folder as the code)
   - Perform 3rd party sensor fusion and qualified position detection
+  - improve location accuracy
 
 3rd goal: create bubble
   - /  calculate the distances and directions between he robot and human
@@ -43,15 +44,17 @@ TODO:
   - Justify the safety of the strategy
 
 4th goal: fetch robot positions
-  - use Curdin's controller to connect to the robot
-  -  / read position values from the franka broadcasters
-  - reconstruct accurate robot geometry and volume
+  - / use Curdin's controller to connect to the robot
+  - / read position values from the franka broadcasters
+  - / reconstruct accurate robot geometry and volume
 
 5th goal: Calculate jacobians to translate to moments of force
-  - check out frankaemika's jakobians
-  - how to create new jacobian along a link
+  - / check out frankaemika's jakobians
+  - / how to create new jacobian along a link
   - implement in python or C++?
-  - hijack Curdin's code to generate the torques straight from the forces
+  - / hijack Curdin's code to generate the torques straight from the forces
+  - match forces to joint torques more correctly: test individual directions by sending fake forces
+  - reduce impedance parameters to more easily see results
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2
@@ -61,4 +64,8 @@ TODO:
 8th goal: incorporate 3D models, or show that it is unnecessary
   - body fitting models which are accurate and SAFE
   - infer body proportions using learned estimators?
+
+9th goal: Make it run smoothly
+  - Look for bottlenecks in CPU, GPU, RAM and disable power saving policy
+  - Check for waiting behavior between the nodes, make sure they are completely independent
 
