@@ -60,6 +60,7 @@ TODO:
   - Recalculate joint forces intelligently to prioritize movement in the joints that enable the motion you want
   ==> create secondary task of orienting joints the right way
   - add scaling so forces get smaller towards the EE
+  - Presence seems to induce rotation of the EE, I think that is due to the accumulated moments created when truncating the forces array // fixed in a messy way, need to revisit
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2

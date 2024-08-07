@@ -65,14 +65,18 @@ def force_motion_planner(forces, positions, axes):
     # 1st perform this on a single joint
     # Force is [3]
     # joint is the index of the joint on which the force is applied
-    # positions are all the joint positions
+    # positions are all the joint positions of the robot
     # axes are the joint axes, [3]
+
+    forces_trans = forces[:,0:3]
+
     joint = 4
     Force = np.array([0, 1, 0])
+    # Force = forces_trans[joint]
     # array with the position of the joint as seen from each ancestor
     dp = np.tile(positions[joint],[joint,1]) - positions[0:joint]
     # array of orthogonal distances from each joint axis
-    orthogonal_dist = dp @ axes[0:joint].T
+    orthogonal_dist = np.sum(dp * axes[0:joint],axis=1)
     dist_scaling = orthogonal_dist / np.max(np.abs(orthogonal_dist))
 
     # moments trying to make ach joint axis orthogonal to the force
@@ -81,9 +85,9 @@ def force_motion_planner(forces, positions, axes):
 
     # how much to scale the moments relative to the force originally imparted on the axis
     # the more colinear the force and the axes of the ancestor joints, the stronger the moments should be 
-    moment_scaling = 0.2 * ( 1 - np.max(np.abs( np.tile(f,(joint,1)) * axes[joint+1].T )) )
+    moment_scaling = 0.5 * ( 1 - np.max(np.abs( np.tile(f,(joint,1)) * axes[joint+1].T )) )
 
-    moments = cross * dist_scaling * moment_scaling
+    moments = cross * np.tile(dist_scaling,(3,1)).T * moment_scaling
 
     return moments
 
@@ -656,12 +660,12 @@ class kpts_to_bbox(Node):
             
                 # make one line from the left hand to the right
             arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
-
+            trunk = self.bodies[self.subject][2]
                 # robot_pos = joint_to_cartesian(self.joint_pos)
             robot_pos = self.robot_cartesian_positions
 
             arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
-            trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(self.bodies[self.subject][2], robot_pos)
+            trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos)
             # self.placeholder_Pe, robot_pos
 
 
@@ -670,7 +674,7 @@ class kpts_to_bbox(Node):
             # Plotting the distances
             class geom(): pass
             geom.arm_pos = arms
-            geom.trunk_pos = self.bodies[self.subject][2]
+            geom.trunk_pos = trunk
             geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
             geom.arm_cp_idx = c_a_r
             geom.u = arms_u
@@ -774,7 +778,7 @@ class kpts_to_bbox(Node):
             # Rescale forces vector to create actual forces, in Newtons
             # To calculate max force, go to https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3
             # take the lowest max moment of 12 Nm, divide by 1m to have the max force exerted onto a link bound under a safe limit
-            force_max = 50 / 1
+            force_max = 30 / 1
             force_scaling = force_max   # this works because the force is already scaled between 0 and 1
             force = force * force_scaling
 
@@ -807,19 +811,24 @@ class kpts_to_bbox(Node):
             else:
                 # length_multiplier_force = np.concatenate((np.eye(3), -np.eye(3)/l), axis=0)
                 length_multiplier_force = np.concatenate((np.eye(3), np.zeros((3, 3))), axis=0)
-                length_multiplier_moment = np.concatenate((np.eye(3)*l, -np.eye(3)), axis=0)
+                # length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
+                # consider that the links towards the EE are short enough to be the same point,
+                # else the fingers will cause moment trouble
+                length_multiplier_moment = np.concatenate((np.zeros((3, 3)), np.zeros((3, 3))), axis=0)
                 length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-            full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1]
+            full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1].T
+
+
         
         # Remove joint 0, apply only its torque to link 1
         l = link_lengths[0]
         if l == 0:
             length_multiplier = np.eye(6)
         else:
-            length_multiplier_force = np.concatenate((np.zeros((3,3)), np.eye(3)/l), axis=0)
+            length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
             length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
             length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-        full_force_vec[-i-1] += length_multiplier @ full_force_vec[-i]   
+        full_force_vec[1] += length_multiplier @ full_force_vec[0]   
 
         full_force_vec = full_force_vec[1:8]
         #################################################################
@@ -829,8 +838,17 @@ class kpts_to_bbox(Node):
         # all superimposed jts: 1-2, 5-6, 8-hand
         full_force_vec = np.clip(full_force_vec, 0, force_max)  
 
+        # alternate_force_vec = force_motion_planner(full_force_vec, robot_pose, self.axis_rot)
 
-        output = full_force_vec
+        # Try to rescale forces so we move the base joints more but don't make the EE break
+        # the sound barrier
+        scaling = np.array([1, .9, .9, .6, .6, .3, .3])
+        forces_rescaled = full_force_vec * np.tile(scaling,(6,1)).T
+
+
+        # output = full_force_vec
+        # output = alternate_force_vec
+        output = forces_rescaled
 
         return output
 
