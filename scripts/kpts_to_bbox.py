@@ -53,7 +53,48 @@ TODO: Create clever law combining effects of distance and relative speed to appl
         B is a term depending on speed : exp(V) => smaller force if we are moving away
 """
 
+def force_motion_planner(forces, positions, axes):
+    """
+    This function takes reads the forces applied onto a robot, then generates torques applied closer to the base
+    of the robot, with the intention of speeding up the response to a force by making the robot quickly adopt a
+    position in which it has a 'direct' degree of freedom along the direction a joint is being pushed
 
+    We can weight the moment on each ancestor joint by how far away the target joint is from their axis
+    """
+
+    # 1st perform this on a single joint
+    # Force is [3]
+    # joint is the index of the joint on which the force is applied
+    # positions are all the joint positions
+    # axes are the joint axes, [3]
+    joint = 4
+    Force = np.array([0, 1, 0])
+    # array with the position of the joint as seen from each ancestor
+    dp = np.tile(positions[joint],[joint,1]) - positions[0:joint]
+    # array of orthogonal distances from each joint axis
+    orthogonal_dist = dp @ axes[0:joint].T
+    dist_scaling = orthogonal_dist / np.max(np.abs(orthogonal_dist))
+
+    # moments trying to make ach joint axis orthogonal to the force
+    f = Force / np.linalg.norm(Force)   # unit vector along force direction
+    cross = -np.cross(np.tile(f,(joint,1)), axes[0:joint])   # vectors by which to cross the axes
+
+    # how much to scale the moments relative to the force originally imparted on the axis
+    # the more colinear the force and the axes of the ancestor joints, the stronger the moments should be 
+    moment_scaling = 0.2 * ( 1 - np.max(np.abs( np.tile(f,(joint,1)) * axes[joint+1].T )) )
+
+    moments = cross * dist_scaling * moment_scaling
+
+    return moments
+
+
+                     
+
+
+
+
+
+    a = 2
 
 class robot_description(Node):
 
@@ -1067,6 +1108,11 @@ class kpts_to_bbox(Node):
 
         # self.robot_cartesian_positions = remove_double_joints(pos_world)
         self.robot_cartesian_positions = pos_world
+
+        # apply robot rotations to each robot axis, assuming that axis is locally [0, 0, 1]
+        joint_axes = np.zeros((7, 3))
+        joint_axes[:,-1] = np.ones(7)
+        self.axis_rot = R.from_quat(robot_rotation[1:-2]).apply(joint_axes)
         return link_poses
         
 
