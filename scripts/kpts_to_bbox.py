@@ -869,8 +869,8 @@ class kpts_to_bbox(Node):
         # torque info at https://frankaemika.github.io/docs/control_parameters.html
         joint_torque_scaling = np.array([87, 87, 87, 87, 12, 12, 12])/87
         forces_rescaled = full_force_vec * np.tile(joint_torque_scaling,(6,1)).T * 0.7
-        # torque_to_force_scaling = np.array([5, 5, 5, 1, 1, 1])
-        # forces_rescaled = forces_rescaled * np.tile(torque_to_force_scaling,(7,1))
+        torque_to_force_scaling = np.array([2, 2, 2, 1, 1, 1])
+        forces_rescaled = forces_rescaled * np.tile(torque_to_force_scaling,(7,1))
         
 
 

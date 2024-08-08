@@ -16,7 +16,12 @@ class motion_client(Node):
         self.cli = self.create_client(SetPose, 'set_pose')
         while not self.cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service not available, waiting again...')
-        # self.req = SetPose.Request()
+        self.req = SetPose.Request()
+        initial_pos = [0.5, 0.3, 0.2, 3.14, 0., 0.]
+        future = self.send_request(initial_pos)
+        # while not self.cli.(timeout_sec=1.0):
+        #     self.get_logger().info('service not available, waiting again...')
+
         self.timer = self.create_timer(0.01, self.draw_circle)
 
 
@@ -31,17 +36,17 @@ class motion_client(Node):
         return self.cli.call_async(self.req)
     
     def draw_circle(self):
-        time = self.get_clock().now()
+        time = self.get_clock().now().nanoseconds/(10**9)
         time_from_start = time % 10
         travel = time_from_start * 2
 
         x = 0.5
         y = 0.3 * np.cos(travel)
-        z = 0.3 * np.sin(travel)
-        roll = 0
-        pitch = 0
-        yaw = 0
-        self.send_request(float([x, y, z, roll, pitch, yaw]))
+        z = 0.3 * np.sin(travel) + 0.2
+        roll = 3.14
+        pitch = 0.
+        yaw = 0.
+        self.send_request([x, y, z, roll, pitch, yaw])
 
 
     
@@ -56,7 +61,7 @@ def main():
     # client.get_logger().info(
     #     'Result of add_two_ints: for %d + %d = %d' %
     #     (int(sys.argv[1]), int(sys.argv[2]), response.sum))
-    client.spin()
+    rclpy.spin(client)
 
     client.destroy_node()
     rclpy.shutdown()
