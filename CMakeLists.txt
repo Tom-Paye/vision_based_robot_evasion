@@ -43,7 +43,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/img_to_kpts.py
   scripts/kpts_to_bbox.py
-  scripts_motion_generator.py
+  scripts/motion_generator.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
