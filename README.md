@@ -33,9 +33,9 @@ TODO:
   - (create config file to load ROS and local options)
   - /  (perform better calibration and data recordings)
   - (make code easier to port: put all files in the same folder as the code)
-  - Perform 3rd party sensor fusion and qualified position detection
-  - improve location accuracy
-  - get an adapter so that all devices can be connected at once
+  - Perform 3rd party sensor fusion and qualified position detection, that still runs even if only one cam sees me
+  - / improve location accuracy
+  - / get an adapter so that all devices can be connected at once
 
 3rd goal: create bubble
   - /  calculate the distances and directions between he robot and human
@@ -59,7 +59,8 @@ TODO:
   - There is more to this task than simply throwing a force at the controller to untangle. The controller only applies the component of the force which actually aligns with the joint. So you need great forces in order to rotate a joint the right way for it to permit another joint to do the movement you want, but these great forces also instantly cause the enabled joint to violate velocity conditions
   - Recalculate joint forces intelligently to prioritize movement in the joints that enable the motion you want
   ==> create secondary task of orienting joints the right way
-  - add scaling so forces get smaller towards the EE
+  - add scaling so forces get smaller towards the EE, use the official franka scaling
+  - add damping term to the force generator
   - Presence seems to induce rotation of the EE, I think that is due to the accumulated moments created when truncating the forces array // fixed in a messy way, need to revisit
 
 6th goal: Perform robot control to apply the calculated force
@@ -75,3 +76,6 @@ TODO:
   - Look for bottlenecks in CPU, GPU, RAM and disable power saving policy
   - Check for waiting behavior between the nodes, make sure they are completely independent
 
+For optimal performance:
+Cameras high up
+Not a black t-shirt!

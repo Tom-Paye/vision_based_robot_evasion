@@ -778,7 +778,7 @@ class kpts_to_bbox(Node):
             # Rescale forces vector to create actual forces, in Newtons
             # To calculate max force, go to https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3
             # take the lowest max moment of 12 Nm, divide by 1m to have the max force exerted onto a link bound under a safe limit
-            force_max = 30 / 1
+            force_max = 87 / 1  #Nm
             force_scaling = force_max   # this works because the force is already scaled between 0 and 1
             force = force * force_scaling
 
@@ -797,8 +797,9 @@ class kpts_to_bbox(Node):
             #######################################################
             # for testing custom forces
             # first row corresponds to base frame, so here arrays start at 1
-            full_force_vec = np.zeros(np.shape(full_force_vec))
-            full_force_vec[4, 1] = 30
+            # full_force_vec = np.zeros(np.shape(full_force_vec))
+            # full_force_vec[4, 1] = 30
+
             #######################################################
 
         ####################ACCOUNT FOR INPUT OF SIZE 13###################
@@ -842,8 +843,12 @@ class kpts_to_bbox(Node):
 
         # Try to rescale forces so we move the base joints more but don't make the EE break
         # the sound barrier
-        scaling = np.array([1, .9, .9, .6, .6, .3, .3])
-        forces_rescaled = full_force_vec * np.tile(scaling,(6,1)).T
+        # torque info at https://frankaemika.github.io/docs/control_parameters.html
+        joint_torque_scaling = np.array([87, 87, 87, 87, 12, 12, 12])/87
+        forces_rescaled = full_force_vec * np.tile(joint_torque_scaling,(6,1)).T * 0.8
+        torque_to_force_scaling = np.array([3, 3, 3, 1, 1, 1])
+        forces_rescaled = forces_rescaled * np.tile(torque_to_force_scaling,(7,1))
+        
 
 
         # output = full_force_vec

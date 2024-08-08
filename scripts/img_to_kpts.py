@@ -388,6 +388,29 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
         #     [5, 5, 5], 
         #     [5, 5, 6]
         # ])
+        
+        # # only keep bodies seen by both cameras with similar positions
+        # if len(positions)>1:
+        #     positions_cam0 = positions[cam_idx == 0]
+        #     positions_cam1 = positions[cam_idx == 1]
+        #     # positions_0_tiled = np.tile(positions_cam0, (len(positions_cam1,1)))
+        #     # positions_1_tiled = np.tile(positions_cam1, (len(positions_cam0,1)))
+        #     distances = np.zeros((len(positions_cam0), len(positions_cam1)))
+        #     for i, elem_0 in enumerate(positions_cam0):
+        #         for j, elem_1 in enumerate(positions_cam1):
+        #             distances[i, j] = np.linalg.norm(elem_0 - elem_1)
+        #     # # only keep points less than 10 cm apart
+        #     # acceptable_positions_0, acceptable_positions_1 = np.argwhere(distances < .1)
+        #     # only keep the positions which are closest together
+        #     acceptable_positions_0, acceptable_positions_1 = np.argwhere( not (distances - np.min(distances)))
+        #     for i in range(len(acceptable_positions_0)):
+        #         pair.append([i , closest_ordered[i, 0]])
+
+        # # distances_btw_cams = np.linalg.norm(positions_0_tiled-positions_1_tiled, axis=1)
+        # # sure_positions = distances_btw_cams < 0.1   # keep bodies seen as less than 10 cm appart by both cams
+
+
+
         if len(positions)>1:
             distances = np.ones([len(positions), len(positions)-1])*1000
             closest_h = np.tile(np.arange(len(positions)), (len(positions)-1, 1)).T
@@ -729,7 +752,7 @@ class vision():
     def zed_loop(self):
 
         all_bodies = []
-        cam_check = np.zeros(len(self.senders))
+        # cam_check = np.zeros(len(self.senders))     # a verification that the camera has returned output
         for idx, serial in enumerate(self.senders):
             bodies = sl.Bodies()
             zed = self.senders[serial]
@@ -757,16 +780,20 @@ class vision():
 
             for body in bodies.body_list:
                 position = body.position
+                # only keep bodies with high confidence
+                confidence = body.confidence
+
+
 
                 # Only keep bodies close to the origin
                 dist = np.linalg.norm(position)
-                if dist < 1.5:
+                if dist < 2 and confidence > 70:
                     all_bodies.append([serial, body])
-                    cam_check[idx] = 1
+                    # cam_check[idx] = 1
 
         # Only keep bodies seen by both cams
-        if not np.any(cam_check == 0):
-            self.bodies = all_bodies
+        # if not np.any(cam_check == 0):
+        self.bodies = all_bodies
 
                         
                     
@@ -931,14 +958,14 @@ class img_to_kpts(Node):
         end_flag = 0
         key = ''
         while not end_flag:
-        
+            T0 = time.time()
             if user_params.fusion == True:
                 cam.zed_loop_fused()
                 [known_bodies, fig] = fetch_skeleton_fused(cam.bodies, user_params, zed_params, known_bodies, fig)
             else:
                 cam.zed_loop()
                 fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
-
+            T1 = time.time() - T0
             # Remove old bodies which are no longer tracked
             deceased = []
             for body in known_bodies:
@@ -949,10 +976,14 @@ class img_to_kpts(Node):
 
             if 0 != np.size(list(known_bodies.keys())):
                 publisher.publish_all_bodies(known_bodies)
-            
+            T2 = time.time() -T0 - T1
             key = cv2.pollKey()
             if key == ord("q") or cam.error == 1:
                 end_flag = 1
+            # self.get_logger().info("T1:")
+            # self.get_logger().info(str(T1))
+            # self.get_logger().info("T2:")
+            # self.get_logger().info(str(T2))
 
         cam.close()
 
