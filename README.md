@@ -62,6 +62,11 @@ TODO:
   - add scaling so forces get smaller towards the EE, use the official franka scaling
   - add damping term to the force generator
   - Presence seems to induce rotation of the EE, I think that is due to the accumulated moments created when truncating the forces array // fixed in a messy way, need to revisit
+  Problem : forces calculated here only affect a single joint, typically the EE. But, inverse kinematics disproportionately affect joints closer to the EE, while those near the base barely move at all.
+  This means some directions of movement will have much higher gain compared to others.
+  Solution: Perform pseudo-inverse kinematics preprocessing to feed forces onto all joints of the robot
+  - disable broadcasting old forces
+  - the base position the robot wants to be in is not defined in the cartesian way, but in joint space. this means that the robot tries to keep every angle the same indepentently. So if my controller happens to point in the right direction on the right joint, it can interfere constructively with the base command and cause a velocity violation despite the robot not really adopting a good pose
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2

@@ -55,13 +55,18 @@ TODO: Create clever law combining effects of distance and relative speed to appl
 
 def force_motion_planner(forces, positions, axes):
     """
+    Experiment 1 : 
     This function takes reads the forces applied onto a robot, then generates torques applied closer to the base
     of the robot, with the intention of speeding up the response to a force by making the robot quickly adopt a
     position in which it has a 'direct' degree of freedom along the direction a joint is being pushed
 
     We can weight the moment on each ancestor joint by how far away the target joint is from their axis
-    """
 
+    Experiment 2 : 
+    Distribute a force on a joint so it affects all parent joints, to try to force the controller
+    to move the base joints
+    """
+    #####################Experiment 1#########################
     # 1st perform this on a single joint
     # Force is [3]
     # joint is the index of the joint on which the force is applied
@@ -69,27 +74,42 @@ def force_motion_planner(forces, positions, axes):
     # axes are the joint axes, [3]
 
     forces_trans = forces[:,0:3]
-
-    joint = 4
-    Force = np.array([0, 1, 0])
+    for i, Force in enumerate(forces_trans[1:]):
+        if np.linalg.norm(Force)>0:
+            joint = i+1
+    # joint = 4
+    # Force = np.array([0, 1, 0])
     # Force = forces_trans[joint]
     # array with the position of the joint as seen from each ancestor
-    dp = np.tile(positions[joint],[joint,1]) - positions[0:joint]
-    # array of orthogonal distances from each joint axis
-    orthogonal_dist = np.sum(dp * axes[0:joint],axis=1)
-    dist_scaling = orthogonal_dist / np.max(np.abs(orthogonal_dist))
+            dp = np.tile(positions[joint],[joint,1]) - positions[0:joint]
+            # array of orthogonal distances from each joint axis
+            orthogonal_dist = np.sum(dp * axes[0:joint],axis=1)
+            dist_scaling = orthogonal_dist / np.max(np.abs(orthogonal_dist))
 
-    # moments trying to make ach joint axis orthogonal to the force
-    f = Force / np.linalg.norm(Force)   # unit vector along force direction
-    cross = -np.cross(np.tile(f,(joint,1)), axes[0:joint])   # vectors by which to cross the axes
+            # moments trying to make ach joint axis orthogonal to the force
+            f = Force / np.linalg.norm(Force)   # unit vector along force direction
+            cross = -np.cross(np.tile(f,(joint,1)), axes[0:joint])   # vectors by which to cross the axes
 
-    # how much to scale the moments relative to the force originally imparted on the axis
-    # the more colinear the force and the axes of the ancestor joints, the stronger the moments should be 
-    moment_scaling = 0.5 * ( 1 - np.max(np.abs( np.tile(f,(joint,1)) * axes[joint+1].T )) )
+            # how much to scale the moments relative to the force originally imparted on the axis
+            # the more colinear the force and the axes of the ancestor joints, the stronger the moments should be 
+            moment_scaling = 20. * ( 1 - \
+                                np.min(np.linalg.norm(np.cross( np.tile(f,(joint,1)) , axes[:joint] ),axis=1)) )
 
-    moments = cross * np.tile(dist_scaling,(3,1)).T * moment_scaling
+            moments = cross * np.tile(dist_scaling,(3,1)).T * moment_scaling
+            forces[0:joint,3:] += moments
 
-    return moments
+    # # return moments
+
+
+    #####################Experiment 2#########################
+    
+    inverse_torque_scaling = np.array([12, 12, 12, 87, 87, 87, 87])/87
+    for i, force in enumerate(forces[1:]):
+        force_add = copy.copy(force[0:3])
+        forces[i+1, 0:3] = force[0:3] / 2
+        forces[0:i+2, 0:3] += np.tile(force_add,(i+2,1)) * np.tile(inverse_torque_scaling[0:i+2],(3,1)).T / 2   # /(i+2)
+        
+    return forces
 
 
                      
@@ -98,7 +118,6 @@ def force_motion_planner(forces, positions, axes):
 
 
 
-    a = 2
 
 class robot_description(Node):
 
@@ -773,6 +792,7 @@ class kpts_to_bbox(Node):
             dist = application_dist[i]
 
             force = 1 - np.abs(force-self.min_dist)/(self.max_dist - self.min_dist)
+            # force = np.clip(force, 0, 1)
 
 
             # Rescale forces vector to create actual forces, in Newtons
@@ -839,15 +859,18 @@ class kpts_to_bbox(Node):
         # all superimposed jts: 1-2, 5-6, 8-hand
         full_force_vec = np.clip(full_force_vec, 0, force_max)  
 
+        ## Testing ##
         # alternate_force_vec = force_motion_planner(full_force_vec, robot_pose, self.axis_rot)
+        # full_force_vec = alternate_force_vec
 
+        full_force_vec = np.clip(full_force_vec, 0, force_max) 
         # Try to rescale forces so we move the base joints more but don't make the EE break
         # the sound barrier
         # torque info at https://frankaemika.github.io/docs/control_parameters.html
         joint_torque_scaling = np.array([87, 87, 87, 87, 12, 12, 12])/87
-        forces_rescaled = full_force_vec * np.tile(joint_torque_scaling,(6,1)).T * 0.8
-        torque_to_force_scaling = np.array([3, 3, 3, 1, 1, 1])
-        forces_rescaled = forces_rescaled * np.tile(torque_to_force_scaling,(7,1))
+        forces_rescaled = full_force_vec * np.tile(joint_torque_scaling,(6,1)).T * 0.7
+        # torque_to_force_scaling = np.array([5, 5, 5, 1, 1, 1])
+        # forces_rescaled = forces_rescaled * np.tile(torque_to_force_scaling,(7,1))
         
 
 
