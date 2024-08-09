@@ -31,6 +31,9 @@ import tempfile
 from urdfpy import URDF
 import trimesh
 
+import tf2_ros
+import tf_transformations
+
 
 
 """
@@ -129,6 +132,7 @@ class robot_description(Node):
             'robot_description',
             self.description_callback,
             10)
+        # while not rlcpy.test
 
 
     def description_callback(self, des_message):
@@ -578,11 +582,11 @@ class kpts_to_bbox(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
-        # self.robot_joint_state = self.create_subscription(
-        #     JointState,
-        #     'robot_data',
-        #     self.get_robot_joints,
-        #     10)
+        self.robot_joint_state = self.create_subscription(
+            JointState,
+            'franka/joint_states',
+            self.get_joint_velocities(),
+            10)
         
         self.robot_joint_state = self.create_subscription(
             TFMessage,
@@ -657,7 +661,7 @@ class kpts_to_bbox(Node):
             deceased = []
             for subject in self.bodies:
                 ct = time.time()
-                if ct - self.bodies[subject][3][0]>0.5 or not np.any(self.bodies[subject][0]):
+                if ct - self.bodies[subject][3][0]>0.05 or not np.any(self.bodies[subject][0]):
                     deceased.append(subject)
             for body in deceased: del self.bodies[body] 
 
@@ -1160,7 +1164,22 @@ class kpts_to_bbox(Node):
         joint_axes[:,-1] = np.ones(7)
         self.axis_rot = R.from_quat(robot_rotation[1:-2]).apply(joint_axes)
         return link_poses
-        
+    
+
+    def get_joint_velocities(self,msg):
+
+        tree = treeFromUrdfModel(self.robot)[1]
+        joint_positions = dict(zip(msg.name, msg.position))
+        joint_velocities = dict(zip(msg.name, msg.velocity))
+
+        if not joint_positions or not joint_velocities:
+            return
+
+        for joint_name, position in joint_positions.items():
+            joint = self.robot.joint_map[joint_name]
+            chain = tree.getChain(self.base_link, joint.child)
+            velocity = self.compute_cartesian_velocity(chain)
+            print(f'Link: {joint.child}, Cartesian Velocity: {velocity}')      
 
     
 

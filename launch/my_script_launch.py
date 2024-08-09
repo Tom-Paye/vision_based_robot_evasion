@@ -79,7 +79,11 @@ def generate_launch_description():
                                 fake_sensor_commands_parameter_name: fake_sensor_commands,
                                 use_rviz_parameter_name: use_rviz
                                 }.items(),
-            )
+            ),
+            # IncludeLaunchDescription(
+            #     PythonLaunchDescriptionSource([PathJoinSubstitution(
+            #         [FindPackageShare('cartesian_impedance_control'), 'run', 'user_input_server'])]),
+            # )
         ])
         ######################################
         
