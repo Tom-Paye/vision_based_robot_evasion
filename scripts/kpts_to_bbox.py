@@ -775,6 +775,35 @@ class kpts_to_bbox(Node):
             
             full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
 
+        ####################ACCOUNT FOR INPUT OF SIZE 13###################
+        # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
+        for i in range(len(full_force_vec)-7):
+            l = link_lengths[-i-1]
+            if l == 0:
+                length_multiplier = np.eye(6)
+            else:
+                # length_multiplier_force = np.concatenate((np.eye(3), -np.eye(3)/l), axis=0)
+                length_multiplier_force = np.concatenate((np.eye(3), np.zeros((3, 3))), axis=0)
+                # length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
+                # consider that the links towards the EE are short enough to be the same point,
+                # else the fingers will cause moment trouble
+                length_multiplier_moment = np.concatenate((np.zeros((3, 3)), np.zeros((3, 3))), axis=0)
+                length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
+            full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1].T
+        
+        # Remove joint 0, apply only its torque to link 1
+        l = link_lengths[0]
+        if l == 0:
+            length_multiplier = np.eye(6)
+        else:
+            length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
+            length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
+            length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
+        full_force_vec[1] += length_multiplier @ full_force_vec[0]   
+
+        full_force_vec = full_force_vec[1:8]
+
+        # transform to message
         forces = full_force_vec
 
         forces_flattened = forces.flatten(order='C')
