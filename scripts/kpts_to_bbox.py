@@ -31,8 +31,8 @@ import tempfile
 from urdfpy import URDF
 import trimesh
 
-import tf2_ros
-import tf_transformations
+# import tf2_ros
+# import tf_transformations
 
 
 
@@ -582,11 +582,11 @@ class kpts_to_bbox(Node):
             10)
         self.subscription_data  # prevent unused variable warning
 
-        self.robot_joint_state = self.create_subscription(
-            JointState,
-            'franka/joint_states',
-            self.get_joint_velocities(),
-            10)
+        # self.robot_joint_state = self.create_subscription(
+        #     JointState,
+        #     'franka/joint_states',
+        #     self.get_joint_velocities(),
+        #     10)
         
         self.robot_joint_state = self.create_subscription(
             TFMessage,
@@ -1166,20 +1166,20 @@ class kpts_to_bbox(Node):
         return link_poses
     
 
-    def get_joint_velocities(self,msg):
+    # def get_joint_velocities(self,msg):
 
-        tree = treeFromUrdfModel(self.robot)[1]
-        joint_positions = dict(zip(msg.name, msg.position))
-        joint_velocities = dict(zip(msg.name, msg.velocity))
+    #     tree = treeFromUrdfModel(self.robot)[1]
+    #     joint_positions = dict(zip(msg.name, msg.position))
+    #     joint_velocities = dict(zip(msg.name, msg.velocity))
 
-        if not joint_positions or not joint_velocities:
-            return
+    #     if not joint_positions or not joint_velocities:
+    #         return
 
-        for joint_name, position in joint_positions.items():
-            joint = self.robot.joint_map[joint_name]
-            chain = tree.getChain(self.base_link, joint.child)
-            velocity = self.compute_cartesian_velocity(chain)
-            print(f'Link: {joint.child}, Cartesian Velocity: {velocity}')      
+    #     for joint_name, position in joint_positions.items():
+    #         joint = self.robot.joint_map[joint_name]
+    #         chain = tree.getChain(self.base_link, joint.child)
+    #         velocity = self.compute_cartesian_velocity(chain)
+    #         print(f'Link: {joint.child}, Cartesian Velocity: {velocity}')      
 
     
 
