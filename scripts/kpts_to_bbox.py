@@ -623,8 +623,8 @@ class kpts_to_bbox(Node):
                                         [1., -.1, .6],
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
-        self.max_dist = 3      # distance at which the robot feels a force exerted by proximity to a human
-        self.min_dist = 0     # distance at which the robot is most strongly pushed back by a human
+        self.max_dist = 0.4      # distance at which the robot feels a force exerted by proximity to a human
+        self.min_dist = 0.05     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
@@ -725,15 +725,66 @@ class kpts_to_bbox(Node):
                 body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
                             't':trunk_t      , 'u':trunk_u,
                             'closest_r':c_r_t        , 'closest_b':c_t_r}
-            forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
-            time_sec = time.time()
-            if time_sec>5:
+            # forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
+            # time_sec = time.time()
+            # if time_sec>5:
 
-                # forces = np.zeros((7, 6))
-                # forces[3, 2] = 20
+            #     # forces = np.zeros((7, 6))
+            #     # forces[3, 2] = 20
 
-                self.generate_repulsive_force_message(forces)                
-                
+            #     self.generate_repulsive_force_message(forces)                
+                self.generate_distance_message(body_geom, robot_pos) 
+
+
+    def generate_distance_message(self, body_geom, robot_pose):
+        """
+        -   Takes in the geometry of the robot as well as link distances
+        -   Translates link distances to "normalized effects" (forces of norm between 0 and 1
+            and their resulting torques)
+        -   publishes the result out as a 1D vector
+        """
+
+
+        direc = body_geom['direc']                      # unit vectors associated with each force
+        application_segments = body_geom['closest_r']   # segment on which the force is applied
+        application_dist = body_geom['t']               # fraction of each segment at which each force is applied
+
+        levers = np.diff(robot_pose, axis = 0)          # vectors pointing along the robot links
+        link_lengths = np.linalg.norm(levers, axis=1)
+        
+
+        dists = copy.copy(body_geom['dist'])
+
+        full_force_vec = np.zeros([len(robot_pose), 6])
+
+
+
+        for i, force in enumerate(dists):
+            vec = direc[i,:]
+            seg = application_segments[i]
+            dist = application_dist[i]
+
+            force = 1 - np.abs(force-self.min_dist)/(self.max_dist - self.min_dist)
+
+            force_vec = force * vec
+            moment = np.zeros(3)
+
+            if dist > 0:
+                lever = levers[seg,:]
+                moment = np.cross(lever*dist, force_vec)
+            
+            full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
+
+        forces = full_force_vec
+
+        forces_flattened = forces.flatten(order='C')
+
+        force_message = Array2d()
+        force_message.array = list(forces_flattened.astype(float))
+        [force_message.height, force_message.width]  = np.shape(forces.T)
+        self.force_publisher_.publish(force_message)
+
+
     def force_estimator(self, body_geom, robot_pose):
         
         """
@@ -914,7 +965,6 @@ class kpts_to_bbox(Node):
         [force_message.height, force_message.width]  = np.shape(forces.T)
         self.force_publisher_.publish(force_message)
 
-        a = 2
         
     
     def force_translator(self, robot_pose, force_vec, application_segments, application_dist):
