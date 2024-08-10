@@ -41,7 +41,7 @@ class motion_client(Node):
     
     def draw_circle(self):
         time = self.get_clock().now().nanoseconds/(10**9)
-        time_from_start = (time-self.time_0) % 20
+        time_from_start = (time-self.time_0) % 40
         travel = time_from_start * 2
         radius = 0.4
 

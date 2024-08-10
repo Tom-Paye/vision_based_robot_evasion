@@ -132,6 +132,9 @@ class robot_description(Node):
             'robot_description',
             self.description_callback,
             10)
+        # while(rclpy.wait_for_message(1)):
+        #     time.sleep(0.01)
+        # rclpy.rclpy.rclpy.wait_for_message(1)
         # while not rlcpy.test
 
 
@@ -573,6 +576,7 @@ class kpts_to_bbox(Node):
         while not caught:
             rclpy.spin_once(description_node)
             caught = description_node.caught
+            time.sleep(0.01)
         self.robot = description_node.robot
         self.logger.info('Robot model loaded!')
         self.subscription_data = self.create_subscription(
@@ -623,7 +627,7 @@ class kpts_to_bbox(Node):
                                         [1., -.1, .6],
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
-        self.max_dist = 0.4      # distance at which the robot feels a force exerted by proximity to a human
+        self.max_dist = 0.5      # distance at which the robot feels a force exerted by proximity to a human
         self.min_dist = 0.05     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
@@ -726,8 +730,8 @@ class kpts_to_bbox(Node):
                             't':trunk_t      , 'u':trunk_u,
                             'closest_r':c_r_t        , 'closest_b':c_t_r}
             # forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
-            # time_sec = time.time()
-            # if time_sec>5:
+            time_sec = time.time()
+            if time_sec>5:
 
             #     # forces = np.zeros((7, 6))
             #     # forces[3, 2] = 20
@@ -743,7 +747,7 @@ class kpts_to_bbox(Node):
             and their resulting torques)
         -   publishes the result out as a 1D vector
         """
-
+        # Input : clip(max_dist-min_dist - abs(x-min_dist))     * application_dist if torque
 
         direc = body_geom['direc']                      # unit vectors associated with each force
         application_segments = body_geom['closest_r']   # segment on which the force is applied
@@ -764,7 +768,8 @@ class kpts_to_bbox(Node):
             seg = application_segments[i]
             dist = application_dist[i]
 
-            force = 1 - np.abs(force-self.min_dist)/(self.max_dist - self.min_dist)
+            force = 1 - np.abs(force-self.min_dist) #/(self.max_dist - self.min_dist)
+            force = np.clip(force,0,self.max_dist - self.min_dist)
 
             force_vec = force * vec
             moment = np.zeros(3)
@@ -806,12 +811,14 @@ class kpts_to_bbox(Node):
         # transform to message
         forces = full_force_vec
 
-        forces_flattened = forces.flatten(order='C')
+        if np.any(forces):
 
-        force_message = Array2d()
-        force_message.array = list(forces_flattened.astype(float))
-        [force_message.height, force_message.width]  = np.shape(forces.T)
-        self.force_publisher_.publish(force_message)
+            forces_flattened = forces.flatten(order='C')
+
+            force_message = Array2d()
+            force_message.array = list(forces_flattened.astype(float))
+            [force_message.height, force_message.width]  = np.shape(forces.T)
+            self.force_publisher_.publish(force_message)
 
 
     def force_estimator(self, body_geom, robot_pose):
