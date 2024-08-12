@@ -6,6 +6,7 @@ from rclpy.node import Node
 from messages_fr3.srv import SetPose
 
 import numpy as np
+import time
 
 
 
@@ -19,6 +20,7 @@ class motion_client(Node):
         self.req = SetPose.Request()
         initial_pos = [0.5, 0.3, 0.3, 3.14, 0., 0.]
         future = self.send_request(initial_pos)
+        time.sleep(2)
         self.time_0  = self.get_clock().now().nanoseconds/(10**9)
         # while not self.cli.(timeout_sec=1.0):
         #     self.get_logger().info('service not available, waiting again...')
@@ -41,9 +43,10 @@ class motion_client(Node):
     
     def draw_circle(self):
         time = self.get_clock().now().nanoseconds/(10**9)
-        time_from_start = (time-self.time_0) % 40
-        travel = time_from_start * 2
-        radius = 0.4
+        time_from_start = (time-self.time_0) % 10
+        travel = time_from_start * 2*np.pi / 10
+        # print(travel)
+        radius = 0.3
 
         x = 0.5
         y = radius * np.cos(travel)

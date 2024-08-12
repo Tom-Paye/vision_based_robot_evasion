@@ -768,8 +768,9 @@ class kpts_to_bbox(Node):
             seg = application_segments[i]
             dist = application_dist[i]
 
-            force = 1 - np.abs(force-self.min_dist) #/(self.max_dist - self.min_dist)
+            force = self.max_dist - self.min_dist - np.abs(force-self.min_dist) #/(self.max_dist - self.min_dist)
             force = np.clip(force,0,self.max_dist - self.min_dist)
+            
 
             force_vec = force * vec
             moment = np.zeros(3)
@@ -807,6 +808,7 @@ class kpts_to_bbox(Node):
         full_force_vec[1] += length_multiplier @ full_force_vec[0]   
 
         full_force_vec = full_force_vec[1:8]
+        full_force_vec = np.nan_to_num(full_force_vec)
 
         # transform to message
         forces = full_force_vec
