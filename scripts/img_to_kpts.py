@@ -45,11 +45,6 @@ def init_user_params():
 
     user_params.from_sl_config_file = False
     user_params.config_name = 'zed_calib_4.json'
-    # '/home/tom/franka_ros2_ws/src/vision_based_robot_evasion/vision_based_robot_evasion/zed_calib_2.json'
-    # '/home/tom/ros2_ws/src/vision_based_robot_evasion/vision_based_robot_evasion/zed_calib_2.json'
-    # '/home/tom/ros2_ws/src/vision_based_robot_evasion/vision_based_robot_evasion/zed_calib.json'
-    # '/home/tom/Downloads/Rec_1/calib/info/extrinsics.txt'
-    # '/usr/local/zed/tools/zed_calib.json'
 
     # External params
     user_params.video_src = 'Live'                                       # SVO, Live
@@ -65,7 +60,7 @@ def init_user_params():
     user_params.time_loop = False
 
     # Script params
-    user_params.body_type = 'BODY_34' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
+    user_params.body_type = 'BODY_18' # BODY_18, BODY_34, BODY_38, for some reason we are stuck with 34
     user_params.real_time = True
     user_params.fusion = False
 
@@ -202,7 +197,7 @@ def init_zed_params(user_params):
     zed_params.body_tracking.enable_tracking = True
 
     zed_params.body_tracking_runtime = sl.BodyTrackingRuntimeParameters()
-    zed_params.body_tracking_runtime.detection_confidence_threshold = 90 #confidence threshold actually works?
+    zed_params.body_tracking_runtime.detection_confidence_threshold = 70 #confidence threshold actually works?
     # zed_params.body_tracking_runtime.detection_confidence_threshold = 100 # default value = 50
     # zed_params.body_tracking_runtime.minimum_keypoints_threshold = 12 # default value = 0
 
@@ -243,109 +238,6 @@ def inverse_transform(R, t):
     T_inv[:3, 3] = -1 * np.matmul(np.transpose(R), (t))# + np.array([1, 1, 0]).T
     return T_inv
 
-
-def fetch_skeleton_fused(bodies, user_params, zed_params, known_bodies, fig):
-    
-    """
-    For each detected body, save arm and trunk keypoint locations in a separate numpy array,
-    all packaged as a dictionary value
-    """
-    
-    if len(bodies.body_list) > 0:
-        # TODO: Check that the keypoints collected are the right ones
-        # TODO: Check that the keypoints are taken along the right axis
-        # TODO: Check that the transforéation matrix is applied right
-        
-        left_kpt_idx = zed_params.left_arm_keypoints
-        right_kpt_idx = zed_params.right_arm_keypoints
-        trunk_kpt_idx = zed_params.trunk_keypoints
-        
-        for body in bodies.body_list:
-
-            "https://www.stereolabs.com/docs/api/python/classpyzed_1_1sl_1_1BodyData.html#acd55fe117eb554b1eddae3d5c23481f5"
-            body_id = body.id
-            body_unique_id = body.unique_object_id
-            body_tracking_state = body.tracking_state # if the current body is being tracked
-            body_action_state = body.action_state # idle or moving
-            body_kpt = body.keypoint
-            body_kpt_confidence = body.keypoint_confidence
-            position = body.position
-
-            # Only keep bodies close to the origin
-            dist = np.linalg.norm(position)
-            if dist < 1.5:
-
-                if user_params.display_fused_limbs:
-                    ##################### Visual Check
-                    
-                    lsl = body.keypoint[[29, 28, 27, 26, 3, 2, 1, 0, 18, 19, 20, 21],:]
-                    rsl = body.keypoint[[31, 30, 27, 26, 3, 2, 1, 0, 22, 23, 24, 25],:]
-                    lss = body.keypoint[[2, 4, 5, 6, 7, 8, 9],:]
-                    rss = body.keypoint[[2, 11, 12, 13, 14, 15, 16],:]
-
-
-                    lsl = np.hstack((lsl, np.ones((len(lsl), 1))))
-                    rsl = np.hstack((rsl, np.ones((len(rsl), 1))))
-                    lss = np.hstack((lss, np.ones((len(lss), 1))))
-                    rss = np.hstack((rss, np.ones((len(rss), 1))))
-
-                    R = zed_params.R
-                    # zed_params.cam_transform @ zed_params.R
-                    # S = zed_params.S
-                    # R = np.matmul(self.zed_params.cam_transform, self.user_params.pos_transform)
-                    # R = self.zed_params.cam_transform
-                    # Rp = inverse_transform(R[0:3, 0:3], R[0:3, 3])
-                    # R = Rp
-                    
-                    lsl = (R @ lsl.T).T[:, 0:3]
-                    rsl = (R @ rsl.T).T[:, 0:3]
-                    lss = (R @ lss.T).T[:, 0:3]
-                    rss = (R @ rss.T).T[:, 0:3]
-
-                    # lsl = np.matmul(R, lsl.T).T[:, 0:3]
-                    # rsl = np.matmul(R, rsl.T).T[:, 0:3]
-                    # lss = np.matmul(R, lss.T).T[:, 0:3]
-                    # rss = np.matmul(R, rss.T).T[:, 0:3]
-
-
-                    # # visuals.quick_plot(lsl, rsl, lss, rss)
-
-                    # if body_id == 1:
-                    geom = {'lsl' : lsl,
-                            'rsl' : rsl,
-                            'lss' : lss,
-                            'rss' : rss}
-                    
-                    fig[body_id] = visuals.plot_held(fig[body_id], geom)
-                    
-
-                    #####################
-                
-                "select the keypoints we are interested in"
-                left_matrix = np.array(body.keypoint[left_kpt_idx])
-                right_matrix = np.array(body.keypoint[right_kpt_idx])
-                trunk_matrix = np.array(body.keypoint[trunk_kpt_idx])
-                
-                    
-                "The transform to get from camera POV to world view"
-                R = zed_params.R    
-
-                "Convert to 4D poses"
-                left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
-                right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
-                trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
-
-                left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
-                right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
-                trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
-
-                
-
-                
-                known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix, time.time()]
-    if type(known_bodies) != dict:
-        known_bodies = {}
-    return known_bodies, fig
 
 
 def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
@@ -571,80 +463,6 @@ class vision():
             self.logger.error("Not enough cameras")
             exit(1)
 
-    def init_fusion(self):
-        
-        self.logger.info("self.senders started, running the fusion...")
-        fusion = sl.Fusion()
-        
-        status = fusion.init(self.zed_params.fusion_init)
-
-        if status != sl.ERROR_CODE.SUCCESS:
-            self.logger.error(status)
-        else:    
-            self.logger.info("Cameras in this configuration : ", len(self.zed_params.fusion))
-        self.fusion = fusion
-        
-    
-    def subscribe_to_cam_outputs_fused(self):
-                
-        bodies = sl.Bodies()        
-        for serial in self.senders:
-            zed = self.senders[serial]
-            status = zed.grab()
-            if status == sl.ERROR_CODE.SUCCESS:
-                zed.retrieve_bodies(bodies, self.zed_params.body_tracking_runtime)
-            else:
-                self.logger.error('Could not grab zed output during initialization')
-                self.logger.error(status)
-                
-        camera_identifiers = []
-        svo_image = [None] * len(self.zed_params.fusion)
-        for i in range(0, len(self.zed_params.fusion)):
-            conf = self.zed_params.fusion[i]
-            uuid = sl.CameraIdentifier()
-            uuid.serial_number = conf.serial_number
-            self.logger.info("Subscribing to" + str(conf.serial_number) + str(conf.communication_parameters.comm_type))
-    
-            status = self.fusion.subscribe(uuid, conf.communication_parameters, conf.pose)
-            if status != sl.FUSION_ERROR_CODE.SUCCESS:
-                self.logger.error("Unable to subscribe to", str(uuid.serial_number), status)
-            else:
-                camera_identifiers.append(uuid)
-                svo_image[i] = sl.Mat()
-                self.logger.info("Subscribed.")
-    
-        if len(camera_identifiers) <= 0:
-            self.logger.error("No camera connected.")
-            exit(1)
-        
-        self.bodies = bodies
-        self.svo_image = svo_image
-        self.camera_identifiers = camera_identifiers
-
-
-    def init_body_tracking_and_viewer_fused(self):
-        
-        self.fusion.enable_body_tracking(self.zed_params.body_tracking_fusion)
-    
-        if self.user_params.display_skeleton == True:
-            self.viewer = gl.GLViewer()
-            self.viewer.init()
-
-        if self.user_params.display_video:
-            bridge = CvBridge()
-            # Get ZED camera information
-            zed = self.senders[list(self.senders.keys())[0]]
-            camera_info = zed.get_camera_information()
-
-            # 2D viewer utilities
-            self.display_resolution = sl.Resolution(min(camera_info.camera_configuration.resolution.width, 1280),
-                                            min(camera_info.camera_configuration.resolution.height, 720))
-            self.image_scale = [self.display_resolution.width / camera_info.camera_configuration.resolution.width
-                , self.display_resolution.height / camera_info.camera_configuration.resolution.height]
-    
-        # Create ZED objects filled in the main loop
-        single_bodies = [sl.Bodies]
-        self.single_bodies = single_bodies
 
     def startup_split(self):
         bodies = sl.Bodies()        
@@ -673,82 +491,6 @@ class vision():
                 , self.display_resolution.height / camera_info.camera_configuration.resolution.height]
 
 
-    def zed_loop_fused(self):
-
-        for idx, serial in enumerate(self.senders):
-            zed = self.senders[serial]
-            status = zed.grab()
-            if status != sl.ERROR_CODE.SUCCESS:
-                self.logger.error(status)
-                if status == sl.ERROR_CODE.END_OF_SVOFILE_REACHED:
-                    self.error = 1
-            else:
-                status = zed.retrieve_bodies(self.bodies)
-                if status != sl.ERROR_CODE.SUCCESS:
-                    self.logger.error(status)
-                    self.error = 1
-                else:                         
-
-                    # If we want to display a video
-                    if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
-                        self.chk[idx] = self.fusion.retrieve_image(\
-                            self.svo_image[idx], self.camera_identifiers[idx])\
-                                  == sl.FUSION_ERROR_CODE.SUCCESS
-                        if self.chk == [True, True]:
-                            
-                            if self.svo_image[idx] != 0:
-                                cv_viewer.render_2D(self.svo_image[idx].get_data(), self.image_scale, self.bodies.body_list, \
-                                                    self.zed_params.body_tracking.enable_tracking,
-                                                    self.zed_params.body_tracking.body_format)
-                                cv2.imshow("View"+str(idx), self.svo_image[idx].get_data())
-                                #print("confidence is ", detected_body_list[0].confidence)
-                                # print("lenght of detecetd bodies is ", len(detected_body_list))
-
-
-
-                    status = self.fusion.process()
-                    if status != sl.FUSION_ERROR_CODE.SUCCESS:
-                        self.logger.error(status)
-                        # self.error = 1
-                    else:
-                        
-                        
-                        
-                        
-                        
-                        # TODO: Likely error in fusion initialisation that screws with the camera fusion
-                        # Retrieve detected objects
-                        status = self.fusion.retrieve_bodies(self.bodies, self.zed_params.body_tracking_fusion_runtime)
-                        if status != sl.FUSION_ERROR_CODE.SUCCESS:
-                            self.logger.error(status)
-                            self.error = 1
-                        
-                        if (self.user_params.display_skeleton == True):
-                            if (self.viewer.is_available()):
-                                self.viewer.update_bodies(self.bodies)
-                            else:
-                                self.logger.error('viewer unavailable')
-                                self.error = 1
-
-                        # # If we want to display a video
-                        # if (idx+1 == self.user_params.display_video) or (self.user_params.display_video == 3):
-                        #     self.chk[idx] = self.fusion.retrieve_image(\
-                        #         self.svo_image[idx], self.camera_identifiers[idx])\
-                        #             == sl.FUSION_ERROR_CODE.SUCCESS
-                        #     if self.chk == [True, True]:
-                                
-                        #         if self.svo_image[idx] != 0:
-                        #             # cv_viewer.render_2D(self.svo_image[idx].get_data(), self.image_scale, self.bodies.body_list, \
-                        #             #                     self.zed_params.body_tracking.enable_tracking,
-                        #             #                     self.zed_params.body_tracking.body_format)
-                        #             img = cv2.imshow("View"+str(idx), self.svo_image[idx].get_data())
-                        #             # for body in self.bodies:
-                        #             #     for ctpt = np.mean(body.keypoint_2d, axis=0)
-                        #             # cv2.drawMarker(img, ctpt, (0, 0, 255), markerType=cv2.MARKER_CROSS, markerSize=30)
-                        #             #print("confidence is ", detected_body_list[0].confidence)
-                        #             # print("lenght of detecetd bodies is ", len(detected_body_list))
-
-    
     def zed_loop(self):
 
         all_bodies = []
@@ -875,40 +617,7 @@ class geometry_publisher(Node):
         
         
         
-        # """"
-        # label:      [str]
-        # data:       2D array of dim [x, 3] of doubles
-        # body_id :   int
-        # """
-        
-        # [i, j] = np.shape(data)
-        # if j!=3:
-        #     self.get_logger().Warning('position vectors are not the right dimension! \n'
-        #                               + 'expected 3 dimensions, got' + str(j) )
-        #     exit()
-        
-        # # initialize message
-        # msg_header = Header()
-        # msg_vec = PoseArray()
 
-
-        # msg_header.frame_id = str(body_id) + '_' + label
-        # msg_header.stamp = self.get_clock().now().to_msg()
-        
-        # msg_vec.header = msg_header
-        # # poses = set(i)
-        # for k in range(i):
-        #     pose = Pose()
-        #     point = Point()
-        #     [point.x, point.y, point.z] = data[k].astype(float)
-        #     pose.position = point
-        #     msg_vec.poses.append(pose)
- 
-        # # self.get_logger().info(label)
-        # # self.get_logger().info(str(data))
-        # self.publisher_vec.publish(msg_vec)
-        # self.key = cv2.pollKey()
-        # self.i += 1
 
 
     def publish_all_bodies(self, bodies):
@@ -918,17 +627,13 @@ class geometry_publisher(Node):
             self.assemble_mesage('left', body_id, body[0])
             self.assemble_mesage('right', body_id, body[1])
             self.assemble_mesage('trunk', body_id, body[2])
-            # self.assemble_mesage('stop', '-1', np.array([[-1, -1, -1]]))
             self.callback()
             self.message_array = []
 
-            # self.callback('left', body_id, body[0])
-            # self.callback('right', body_id, body[1])
-            # self.callback('trunk', body_id, body[2])
-            # self.callback('stop', '-1', np.array([[-1, -1, -1]]))
 
-    # TODO: fix no new data available
-    # TODO: Fix publisher
+
+    # /TODO: fix no new data available
+    # /TODO: Fix publisher
 
 
 #############################################MAIN###########################################################
@@ -948,24 +653,17 @@ class img_to_kpts(Node):
         cam = vision(user_params, zed_params)
 
         cam.connect_cams()
-        if user_params.fusion == True:
-            cam.init_fusion()
-            cam.subscribe_to_cam_outputs_fused()
-            cam.init_body_tracking_and_viewer_fused()
-        else:
-            cam.startup_split()
+        
+        cam.startup_split()
         
         end_flag = 0
         key = ''
         while not end_flag:
-            T0 = time.time()
-            if user_params.fusion == True:
-                cam.zed_loop_fused()
-                [known_bodies, fig] = fetch_skeleton_fused(cam.bodies, user_params, zed_params, known_bodies, fig)
-            else:
-                cam.zed_loop()
-                fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
-            T1 = time.time() - T0
+            # T0 = time.time()
+            
+            cam.zed_loop()
+            fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
+            # T1 = time.time() - T0
             # Remove old bodies which are no longer tracked
             deceased = []
             for body in known_bodies:
@@ -976,7 +674,7 @@ class img_to_kpts(Node):
 
             if 0 != np.size(list(known_bodies.keys())):
                 publisher.publish_all_bodies(known_bodies)
-            T2 = time.time() -T0 - T1
+            # T2 = time.time() -T0 - T1
             key = cv2.pollKey()
             if key == ord("q") or cam.error == 1:
                 end_flag = 1
@@ -998,42 +696,6 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
     
-    # known_bodies = {}
-    # fig = [0, 0, 0, 0, 0]
-    # user_params = init_user_params()
-    # zed_params = init_zed_params(user_params)
-
-    # publisher = geometry_publisher()
-
-    # cam = vision(user_params, zed_params)
-
-    # cam.connect_cams()
-    # if user_params.fusion == True:
-    #     cam.init_fusion()
-    #     cam.subscribe_to_cam_outputs_fused()
-    #     cam.init_body_tracking_and_viewer_fused()
-    # else:
-    #     cam.startup_split()
-    
-    # end_flag = 0
-    # key = ''
-    # while not end_flag:
-        
-    #     if user_params.fusion == True:
-    #         cam.zed_loop_fused()
-    #         [known_bodies, fig] = fetch_skeleton_fused(cam.bodies, user_params, zed_params, known_bodies, fig)
-    #     else:
-    #         cam.zed_loop()
-    #         fetch_skeleton(cam.bodies, user_params, zed_params, known_bodies, fig)
-
-    #     if np.any(list(known_bodies.keys())):
-    #         publisher.publish_all_bodies(known_bodies)
-        
-    #     key = cv2.pollKey()
-    #     if key == ord("q") or cam.error == 1:
-    #         end_flag = 1
-
-    # cam.close()
 
 
 
