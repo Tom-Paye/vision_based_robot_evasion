@@ -632,6 +632,7 @@ class kpts_to_bbox(Node):
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
+        self.offset = np.array([-0.05, 0., 0.]) # position offset to correct zed bullshit
 
         # urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
         # urdf = open(urdf_path).read()
@@ -1104,6 +1105,10 @@ class kpts_to_bbox(Node):
                 self.bodies[str(int(body))] = [[], [], [], [time.time()]]
             for limb in np.unique(body_kpts[:,0]):
                 limb_kpts = body_kpts[body_kpts[:,0]==limb,1:]
+                # print(limb_kpts)
+                offset_mat = np.tile(self.offset, (len(limb_kpts),1))
+                limb_kpts = limb_kpts + offset_mat
+                # print(limb_kpts)
                 self.bodies[str(int(body))][int(limb)] = limb_kpts
                 self.bodies[str(int(body))][3][0] = time.time()
 
