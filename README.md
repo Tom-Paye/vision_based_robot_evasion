@@ -45,6 +45,7 @@ TODO:
   - determine force application policy (repulsion, dodging)
   - Justify the safety of the strategy
   - debug kpts to bbox to find out why it's so inefficient
+  - output forces for every distance smaller than the bubble radius, to prevent bang bang oscillation
 
 4th goal: fetch robot positions
   - / use Curdin's controller to connect to the robot

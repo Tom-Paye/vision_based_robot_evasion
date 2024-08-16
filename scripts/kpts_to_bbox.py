@@ -301,7 +301,7 @@ def remove_double_joints(pos):
 
 
     
-def link_dists(pos_body, pos_robot):
+def link_dists(pos_body, pos_robot, max_dist):
     """
     Given the positions of two bodies, this function returns:
         - the minimum distance between them
@@ -491,7 +491,7 @@ def link_dists(pos_body, pos_robot):
     distp = copy.copy(dist)
     dist = np.around(dist, decimals=6)
     distp[dist == 0] = 1000
-    direc = np.multiply(diffs_3d, 1 / distp[:, :,  np.newaxis])
+    direc = np.multiply(diffs_3d, 1 / distp[:, :,  np.newaxis])     # [n_jts x n_jnts_2-1 x 3 dims]
   
     
     [intersec_b_link, intersec_r_link] = np.nonzero(distp == 1000)
@@ -502,17 +502,21 @@ def link_dists(pos_body, pos_robot):
     u = np.around(u, decimals=6)
 
     # Fetch only the information related to the closest links
-    [i, j] = np.where(dist == np.min(dist))
-    t = t[i, j]
-    u = u[i, j]
-    dist = dist[i, j]
-    direc = direc[i, j,:]
+    # [i, j] = np.where(dist == np.min(dist))
+     # Fetch only the information related to links closer than self.max_dist
+    [i, j] = np.where(dist < max_dist)
+    # if len(i)>1:
+    #     a = 2
+    t = t[i, j]                         # [N]
+    u = u[i, j]                         # [N]
+    dist = dist[i, j]                   # [N]
+    direc = direc[i, j,:]               # [N x 3 dims]
     if n_joints_b > n_joints_r:     
-        closest_r = j
-        closest_b = (j+i)%n_joints_b      # I think the -1 is superfluous
+        closest_r = j                   # [N]
+        closest_b = (j+i)%n_joints_b -1     # I think the -1 is superfluous
     else:
         closest_b = j
-        closest_r = (j+i)%n_joints_r
+        closest_r = (j+i)%n_joints_r -1 # [N]
 
     # #######################
     # # Plots for testing purposes
@@ -554,6 +558,8 @@ def link_dists(pos_body, pos_robot):
     closest_r = closest_r.astype(int)
     closest_b = closest_b.astype(int)
 
+    # if len(closest_r) >1:
+    #     a=2
 
     return dist, direc, t, u, closest_r, closest_b
 
@@ -702,8 +708,8 @@ class kpts_to_bbox(Node):
                 # robot_pos = joint_to_cartesian(self.joint_pos)
             robot_pos = self.robot_cartesian_positions
 
-            arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos) # self.placeholder_Pe, robot_pos
-            trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos)
+            arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos, self.max_dist) # self.placeholder_Pe, robot_pos
+            trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
             # self.placeholder_Pe, robot_pos
 
             # t2 = time.time()
@@ -729,42 +735,63 @@ class kpts_to_bbox(Node):
 
             # ###############
 
-            min_dist_arms = np.min(arms_dist)
-            min_dist_trunk = np.min(trunk_dist)
-            # min_dist = min(min_dist_arms, min_dist_trunk)
-            # self.get_logger().info('Minimum distance:')
-            # self.get_logger().info(str(min_dist))
-            if min_dist_arms < min_dist_trunk:
+            # only continue if the safety bubbles have been breached
+            if not np.any(arms_dist):
+                body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
+                            't':trunk_t      , 'u':trunk_u,
+                            'closest_r':c_r_t        , 'closest_b':c_t_r}
+            elif not np.any(trunk_dist):
                 body_geom = {'dist':arms_dist, 'direc':arms_direc,
                             't':arms_t      , 'u':arms_u,
                             'closest_r':c_r_a        , 'closest_b':c_a_r}
             else:
-                body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
-                            't':trunk_t      , 'u':trunk_u,
-                            'closest_r':c_r_t        , 'closest_b':c_t_r}
-            # forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
-            time_sec = time.time()
+                # min_dist_arms = np.min(arms_dist)
+                # min_dist_trunk = np.min(trunk_dist)
+                # min_dist = min(min_dist_arms, min_dist_trunk)
+                # self.get_logger().info('Minimum distance:')
+                # self.get_logger().info(str(min_dist))
 
-            # t3 = time.time()
-            # dt = t3 - t2
-            # self.logger.info("dist_callback takes " + str(np.round(dt, 4)) + " seconds")
+                # # if only using the minimum distance
+                # if min_dist_arms < min_dist_trunk:
+                #     body_geom = {'dist':arms_dist, 'direc':arms_direc,
+                #                 't':arms_t      , 'u':arms_u,
+                #                 'closest_r':c_r_a        , 'closest_b':c_a_r}
+                # else:
+                #     body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
+                #                 't':trunk_t      , 'u':trunk_u,
+                #                 'closest_r':c_r_t        , 'closest_b':c_t_r}
+                    
+                # if using every distance under max_dist
+                dist = np.hstack((arms_dist, trunk_dist))
+                direc = np.concatenate((arms_direc, trunk_direc), axis = 0)
+                t = np.hstack((arms_t, trunk_t))
+                u = np.hstack((arms_u, trunk_u))
+                closest_r = np.hstack((c_r_a, c_r_t))
+                closest_b = np.hstack((c_a_r, c_t_r+len(c_a_r)))
+                body_geom = {'dist':dist, 'direc':direc,
+                                't':t      , 'u':u,
+                                'closest_r':closest_r        , 'closest_b':closest_b}
+                # forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
 
-            if time_sec>5:
+                # t3 = time.time()
+                # dt = t3 - t2
+                # self.logger.info("dist_callback takes " + str(np.round(dt, 4)) + " seconds")
 
-            #     # forces = np.zeros((7, 6))
-            #     # forces[3, 2] = 20
+                if time.time()>5:
 
-            #     self.generate_repulsive_force_message(forces)       
-            # 
+                #     # forces = np.zeros((7, 6))
+                #     # forces[3, 2] = 20
 
-                self.generate_distance_message(body_geom, robot_pos) 
+                #     self.generate_repulsive_force_message(forces)       
+                # 
+
+                    self.generate_distance_message(body_geom, robot_pos) 
 
 
     def generate_distance_message(self, body_geom, robot_pose):
         """
         -   Takes in the geometry of the robot as well as link distances
-        -   Translates link distances to "normalized effects" (forces of norm between 0 and 1
-            and their resulting torques)
+        -   Translates link distances to force precursors
         -   publishes the result out as a 1D vector
         """
         # Input : clip(max_dist-min_dist - abs(x-min_dist))     * application_dist if torque
@@ -781,27 +808,42 @@ class kpts_to_bbox(Node):
 
         dists = copy.copy(body_geom['dist'])
 
-        full_force_vec = np.zeros([len(robot_pose), 6])
+        full_force_vec = np.zeros([len(robot_pose)-1, 6])
+
+
+        #####################
+        spring_dists = np.clip(self.max_dist - self.min_dist - np.abs(dists-self.min_dist), 0, self.max_dist - self.min_dist)
+        spring_vecs = spring_dists[:, np.newaxis] * direc
+
+        # add and group spring vectors by joint
+        joint_springs = []
+        for i in range(len(robot_pose)):
+            joint_springs.append( np.sum(spring_vecs[application_segments == i], axis=0) )
+
+        # remove the 1st joint, which is the ground
+        full_force_vec[:, 0:3] = np.array(joint_springs)[1:]
 
 
 
-        for i, force in enumerate(dists):
-            vec = direc[i,:]
-            seg = application_segments[i]
-            dist = application_dist[i]
+        # #####################
 
-            force = self.max_dist - self.min_dist - np.abs(force-self.min_dist) #/(self.max_dist - self.min_dist)
-            force = np.clip(force,0,self.max_dist - self.min_dist)
+        # for i, force in enumerate(dists):
+        #     vec = direc[i,:]
+        #     seg = application_segments[i]
+        #     dist = application_dist[i]
+
+        #     force = self.max_dist - self.min_dist - np.abs(force-self.min_dist) #/(self.max_dist - self.min_dist)
+        #     force = np.clip(force,0,self.max_dist - self.min_dist)
             
 
-            force_vec = force * vec
-            moment = np.zeros(3)
+        #     force_vec = force * vec
+        #     moment = np.zeros(3)
 
-            if dist > 0:
-                lever = levers[seg,:]
-                moment = np.cross(lever*dist, force_vec)
+        #     if dist > 0:
+        #         lever = levers[seg,:]
+        #         moment = np.cross(lever*dist, force_vec)
             
-            full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
+        #     full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
 
         ####################ACCOUNT FOR INPUT OF SIZE 13###################
         # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
@@ -819,21 +861,29 @@ class kpts_to_bbox(Node):
                 length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
             full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1].T
         
-        # Remove joint 0, apply only its torque to link 1
-        l = link_lengths[0]
-        if l == 0:
-            length_multiplier = np.eye(6)
-        else:
-            length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
-            length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
-            length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-        full_force_vec[1] += length_multiplier @ full_force_vec[0]   
+        # # Remove joint 0, apply only its torque to link 1
+        # l = link_lengths[0]
+        # if l == 0:
+        #     length_multiplier = np.eye(6)
+        # else:
+        #     length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
+        #     length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
+        #     length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
+        # full_force_vec[1] += length_multiplier @ full_force_vec[0]   
 
-        full_force_vec = full_force_vec[1:8]
+        full_force_vec = full_force_vec[0:7] / 4
+
         full_force_vec = np.nan_to_num(full_force_vec)
+
+        
+
 
         # transform to message
         forces = full_force_vec
+
+        force_scaling = np.array([87., 87., 87., 87., 12., 12., 12.]) / (self.max_dist - self.min_dist)
+        total_force = force_scaling[:, np.newaxis] * full_force_vec
+        self.logger.info("Total force requested: " + str(total_force) + " N / Nm")
 
         if np.any(forces):
 
@@ -844,7 +894,7 @@ class kpts_to_bbox(Node):
             [force_message.height, force_message.width]  = np.shape(forces.T)
             self.force_publisher_.publish(force_message)
 
-            # self.publishing_stats()
+            self.publishing_stats()
 
         # t1 = time.time()
         # dt = t1 - t0
@@ -1267,11 +1317,11 @@ class kpts_to_bbox(Node):
         self.pub_counter = self.pub_counter +1
 
         if dt>0.5:
-            self.get_logger().info("kpts published after "+str(np.round(dt, 3))+" seconds")
+            self.get_logger().info("Distances published after "+str(np.round(dt, 3))+" seconds")
 
         if self.Dt > 10:
             pub_freq = np.round(self.pub_counter / self.Dt, 3)
-            self.get_logger().info("kpts published at "+str(pub_freq)+" Hz")
+            self.get_logger().info("Distances published at "+str(pub_freq)+" Hz")
             self.Dt = 0
             self.pub_counter = 0
 
