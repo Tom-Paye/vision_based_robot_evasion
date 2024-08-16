@@ -654,7 +654,6 @@ class kpts_to_bbox(Node):
 
     def dist_callback(self):
         
-        
 
         # self.logger.debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
         # self.logger.debug(str(self.reset and np.any(self.bodies[self.subject][0])))
@@ -669,7 +668,8 @@ class kpts_to_bbox(Node):
             deceased = []
             for subject in self.bodies:
                 ct = time.time()
-                if ct - self.bodies[subject][3][0]>0.05 or not np.any(self.bodies[subject][0]):
+                # expect bodies to be updated at 50 Hz
+                if ct - self.bodies[subject][3][0]>0.02 or not np.any(self.bodies[subject][0]):
                     deceased.append(subject)
             for body in deceased: del self.bodies[body] 
 
@@ -679,8 +679,15 @@ class kpts_to_bbox(Node):
             subject = np.min(np.array(subjects).astype(int))
             self.subject = str(subject)
 
+        
 
         if bool(self.bodies):
+
+            # t1 = time.time()
+            # dt = t1 - self.t0
+            # self.logger.info("dist_callback pre-check takes " + str(np.round(dt, 4)) + " seconds")
+            # self.t0 = t1
+
             # if not np.any(self.bodies[self.subject][0]) or self.bodies[self.subject][3][0]>5 :
             #     # sometimes the first subject sent is 1, idk why
             #     for i in range(3):
@@ -699,7 +706,9 @@ class kpts_to_bbox(Node):
             trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos)
             # self.placeholder_Pe, robot_pos
 
-
+            # t2 = time.time()
+            # dt = t2 - t1
+            # self.logger.info("dist_callback link_dists calls take " + str(np.round(dt, 4)) + " seconds")
 
             # ###############
             # # Plotting the distances
@@ -735,12 +744,19 @@ class kpts_to_bbox(Node):
                             'closest_r':c_r_t        , 'closest_b':c_t_r}
             # forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
             time_sec = time.time()
+
+            # t3 = time.time()
+            # dt = t3 - t2
+            # self.logger.info("dist_callback takes " + str(np.round(dt, 4)) + " seconds")
+
             if time_sec>5:
 
             #     # forces = np.zeros((7, 6))
             #     # forces[3, 2] = 20
 
-            #     self.generate_repulsive_force_message(forces)                
+            #     self.generate_repulsive_force_message(forces)       
+            # 
+
                 self.generate_distance_message(body_geom, robot_pos) 
 
 
@@ -752,6 +768,8 @@ class kpts_to_bbox(Node):
         -   publishes the result out as a 1D vector
         """
         # Input : clip(max_dist-min_dist - abs(x-min_dist))     * application_dist if torque
+
+        t0 = time.time()
 
         direc = body_geom['direc']                      # unit vectors associated with each force
         application_segments = body_geom['closest_r']   # segment on which the force is applied
@@ -826,7 +844,11 @@ class kpts_to_bbox(Node):
             [force_message.height, force_message.width]  = np.shape(forces.T)
             self.force_publisher_.publish(force_message)
 
-            self.publishing_stats()
+            # self.publishing_stats()
+
+        # t1 = time.time()
+        # dt = t1 - t0
+        # self.logger.info("generate_distance_message takes " + str(np.round(dt, 4)) + " seconds")
 
 
     def force_estimator(self, body_geom, robot_pose):
@@ -1100,6 +1122,7 @@ class kpts_to_bbox(Node):
         ################
         # limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
         # Reshape message into array
+        t0 = time.time()
         n_rows = msg.height
         n_cols = msg.width
         msg_array = np.array(msg.array)
@@ -1119,6 +1142,9 @@ class kpts_to_bbox(Node):
                 self.bodies[str(int(body))][int(limb)] = limb_kpts
                 self.bodies[str(int(body))][3][0] = time.time()
 
+        # t1 = time.time()
+        # dt = t1 - t0
+        # self.logger.info("data_callback takes " + str(np.round(dt, 4)) + " seconds")
         self.dist_callback()
 
 
