@@ -394,6 +394,10 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
 
     if type(known_bodies) != dict:
         known_bodies = {}
+
+    # for key in list(known_bodies.keys()):
+    #     if np.any(np.isnan(known_bodies[key][0])):
+    #         a=2
     return known_bodies, fig
     
 
@@ -570,9 +574,12 @@ class geometry_publisher(Node):
         }
         self.i = 0
         self.key = ''
+        self.t0 = time.time()
+        self.pub_counter = 0
+        self.Dt = 0
         
 
-    def assemble_mesage(self, label, body_id, data):
+    def assemble_message(self, label, body_id, data):
         """"
         label:      [str]
         data:       2D array of dim [x, 3] of doubles
@@ -611,8 +618,30 @@ class geometry_publisher(Node):
         kpt_message.array = list(kpts_flattened.astype(float))
         [kpt_message.height, kpt_message.width]  = np.shape(self.message_array)
         self.publisher_vec.publish(kpt_message)
+
+
+        
         
         # self.get_logger().info(str(self.message_array))
+
+    def publishing_stats(self):
+
+        t = time.time()
+        dt = t - self.t0
+        self.Dt = self.Dt + dt
+        self.t0 = t
+        self.pub_counter = self.pub_counter +1
+
+        if dt>0.5:
+            self.get_logger().info("kpts published after "+str(np.round(dt, 3))+" seconds")
+
+        if self.Dt > 10:
+            pub_freq = np.round(self.pub_counter / self.Dt, 3)
+            self.get_logger().info("kpts published at "+str(pub_freq)+" Hz")
+            self.Dt = 0
+            self.pub_counter = 0
+
+
         
         
         
@@ -624,13 +653,13 @@ class geometry_publisher(Node):
         for body_id in list(bodies.keys()):
             body = bodies[body_id]
 
-            self.assemble_mesage('left', body_id, body[0])
-            self.assemble_mesage('right', body_id, body[1])
-            self.assemble_mesage('trunk', body_id, body[2])
+            self.assemble_message('left', body_id, body[0])
+            self.assemble_message('right', body_id, body[1])
+            self.assemble_message('trunk', body_id, body[2])
             self.callback()
             self.message_array = []
 
-
+            self.publishing_stats()
 
     # /TODO: fix no new data available
     # /TODO: Fix publisher
@@ -658,6 +687,7 @@ class img_to_kpts(Node):
         
         end_flag = 0
         key = ''
+        
         while not end_flag:
             # T0 = time.time()
             
@@ -667,7 +697,7 @@ class img_to_kpts(Node):
             # Remove old bodies which are no longer tracked
             deceased = []
             for body in known_bodies:
-                if time.time() - known_bodies[body][3] >5:
+                if time.time() - known_bodies[body][3] >2:
                     deceased.append(body)
             for body in deceased:
                 del known_bodies[body]
@@ -678,6 +708,7 @@ class img_to_kpts(Node):
             key = cv2.pollKey()
             if key == ord("q") or cam.error == 1:
                 end_flag = 1
+
             # self.get_logger().info("T1:")
             # self.get_logger().info(str(T1))
             # self.get_logger().info("T2:")

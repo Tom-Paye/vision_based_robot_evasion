@@ -36,6 +36,7 @@ TODO:
   - Perform 3rd party sensor fusion and qualified position detection, that still runs even if only one cam sees me
   - / improve location accuracy
   - / get an adapter so that all devices can be connected at once
+  - debug img_to_kpts to figure out why the basis suddenly seems to change from time to time
 
 3rd goal: create bubble
   - /  calculate the distances and directions between he robot and human
@@ -43,6 +44,7 @@ TODO:
   - /  determine where on the robot to exert pseudo-force
   - determine force application policy (repulsion, dodging)
   - Justify the safety of the strategy
+  - debug kpts to bbox to find out why it's so inefficient
 
 4th goal: fetch robot positions
   - / use Curdin's controller to connect to the robot
@@ -68,7 +70,8 @@ TODO:
   - disable broadcasting old forces TODO:
   - the base position the robot wants to be in is not defined in the cartesian way, but in joint space. this means that the robot tries to keep every angle the same indepentently. So if my controller happens to point in the right direction on the right joint, it can interfere constructively with the base command and cause a velocity violation despite the robot not really adopting a good pose
   - reduce distance at which the force starts being applied
-  - add damping term to the force generator
+  - /add damping term to the force generator
+  - add better prioritization between goals and repulsion. Null space?
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2

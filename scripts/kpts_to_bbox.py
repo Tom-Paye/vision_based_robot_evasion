@@ -572,13 +572,13 @@ class kpts_to_bbox(Node):
         caught = 0
         description_node = robot_description()
         self.logger.info('Waiting for robot_description message...')
-        # rclpy.spin(description_node)
         while not caught:
             rclpy.spin_once(description_node)
             caught = description_node.caught
             time.sleep(0.01)
         self.robot = description_node.robot
         self.logger.info('Robot model loaded!')
+
         self.subscription_data = self.create_subscription(
             Array2d,      # PoseArray, Array2d
             'kpt_data',
@@ -603,7 +603,7 @@ class kpts_to_bbox(Node):
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
-        self.timer = self.create_timer(0.01, self.dist_callback)
+        # self.timer = self.create_timer(0.01, self.dist_callback)
         # self.timer = self.create_timer(0.01, self.kalman_callback)
         
     
@@ -633,6 +633,9 @@ class kpts_to_bbox(Node):
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
         self.offset = np.array([-0.05, 0., 0.]) # position offset to correct zed bullshit
+        self.pub_counter = 0
+        self.Dt = 0
+        self.t0 = time.time()
 
         # urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
         # urdf = open(urdf_path).read()
@@ -698,24 +701,24 @@ class kpts_to_bbox(Node):
 
 
 
-            ###############
-            # Plotting the distances
-            class geom(): pass
-            geom.arm_pos = arms
-            geom.trunk_pos = trunk
-            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-            geom.arm_cp_idx = c_a_r
-            geom.u = arms_u
-            geom.trunk_cp_idx = c_t_r
-            geom.v = trunk_u
-            geom.robot_cp_arm_idx = c_r_a
-            geom.s = arms_t
-            geom.robot_cp_trunk_idx = c_r_t
-            geom.t = trunk_t
+            # ###############
+            # # Plotting the distances
+            # class geom(): pass
+            # geom.arm_pos = arms
+            # geom.trunk_pos = trunk
+            # geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            # geom.arm_cp_idx = c_a_r
+            # geom.u = arms_u
+            # geom.trunk_cp_idx = c_t_r
+            # geom.v = trunk_u
+            # geom.robot_cp_arm_idx = c_r_a
+            # geom.s = arms_t
+            # geom.robot_cp_trunk_idx = c_r_t
+            # geom.t = trunk_t
 
-            self.fig = visuals.plot_skeletons(self.fig, geom)
+            # self.fig = visuals.plot_skeletons(self.fig, geom)
 
-            ###############
+            # ###############
 
             min_dist_arms = np.min(arms_dist)
             min_dist_trunk = np.min(trunk_dist)
@@ -822,6 +825,8 @@ class kpts_to_bbox(Node):
             force_message.array = list(forces_flattened.astype(float))
             [force_message.height, force_message.width]  = np.shape(forces.T)
             self.force_publisher_.publish(force_message)
+
+            self.publishing_stats()
 
 
     def force_estimator(self, body_geom, robot_pose):
@@ -1108,48 +1113,17 @@ class kpts_to_bbox(Node):
                 # print(limb_kpts)
                 offset_mat = np.tile(self.offset, (len(limb_kpts),1))
                 limb_kpts = limb_kpts + offset_mat
+                # remove rows with nan
+                limb_kpts = limb_kpts[~np.isnan(limb_kpts).any(axis=1), :]
                 # print(limb_kpts)
                 self.bodies[str(int(body))][int(limb)] = limb_kpts
                 self.bodies[str(int(body))][3][0] = time.time()
 
+        self.dist_callback()
 
 
-        ################
 
-
-        # # self.get_logger().info(str(msg))
-        # # region = math.trunc(msg.w)
-        # limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
-        # region = msg.header.frame_id[2:]
-        # self.reset = ('stop' in msg.header.frame_id)
-
-
-        # if self.reset:
-        #     if self.subject in self.bodies:
-        #         for id in self.bodies.keys():
-        #             body = self.bodies[id]
-        #             # self.get_logger().info('Body' + id + ' Left side')
-        #             # self.get_logger().info(str(body[0]))
-        #     else:
-        #         pass
-        # else:
-        #     body_id =msg.header.frame_id[0]
-        #     if body_id == '-':
-        #         body_id = int(msg.header.frame_id[0:2])
-        #     else:
-        #         body_id = int(msg.header.frame_id[0])
-
-        #     poses_ros = msg.poses
-        #     poses = []
-        #     for i, pose in enumerate(poses_ros):
-        #         poses.append([pose.position.x, pose.position.y, pose.position.z])
-        #     poses = np.array(poses)
-
-        #     threshold = 0.002
-        #     if str(body_id) in self.bodies:
-        #         self.bodies[str(body_id)][limb_dict[region]] = poses
-        #     else:
-        #             self.bodies[str(body_id)] = [poses[0:3,:], poses[0:3,:], poses]
+        
 
     def get_robot_joints(self, msg):
         """
@@ -1258,21 +1232,22 @@ class kpts_to_bbox(Node):
         self.axis_rot = R.from_quat(robot_rotation[1:-2]).apply(joint_axes)
         return link_poses
     
+    def publishing_stats(self):
 
-    # def get_joint_velocities(self,msg):
+        t = time.time()
+        dt = t - self.t0
+        self.Dt = self.Dt + dt
+        self.t0 = t
+        self.pub_counter = self.pub_counter +1
 
-    #     tree = treeFromUrdfModel(self.robot)[1]
-    #     joint_positions = dict(zip(msg.name, msg.position))
-    #     joint_velocities = dict(zip(msg.name, msg.velocity))
+        if dt>0.5:
+            self.get_logger().info("kpts published after "+str(np.round(dt, 3))+" seconds")
 
-    #     if not joint_positions or not joint_velocities:
-    #         return
-
-    #     for joint_name, position in joint_positions.items():
-    #         joint = self.robot.joint_map[joint_name]
-    #         chain = tree.getChain(self.base_link, joint.child)
-    #         velocity = self.compute_cartesian_velocity(chain)
-    #         print(f'Link: {joint.child}, Cartesian Velocity: {velocity}')      
+        if self.Dt > 10:
+            pub_freq = np.round(self.pub_counter / self.Dt, 3)
+            self.get_logger().info("kpts published at "+str(pub_freq)+" Hz")
+            self.Dt = 0
+            self.pub_counter = 0
 
     
 

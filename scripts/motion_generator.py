@@ -18,7 +18,7 @@ class motion_client(Node):
         while not self.cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service not available, waiting again...')
         self.req = SetPose.Request()
-        initial_pos = [0.5, 0.3, 0.3, 3.14, 0., 0.]
+        initial_pos = [0.5, 0.3, 0.4, 3.14, 0., 0.]
         future = self.send_request(initial_pos)
         time.sleep(2)
         self.time_0  = self.get_clock().now().nanoseconds/(10**9)
@@ -50,7 +50,7 @@ class motion_client(Node):
 
         x = 0.5
         y = radius * np.cos(travel)
-        z = radius * np.sin(travel) + 0.3
+        z = radius * np.sin(travel) + 0.4
         roll = 3.14
         pitch = 0.
         yaw = 0.
