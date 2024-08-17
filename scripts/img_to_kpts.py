@@ -93,8 +93,9 @@ def init_zed_params(user_params):
     configs = json.load(file)
 
     zed_params.base_transform = np.array(configs['base']['transform'])
-    zed_params.R = zed_params.base_transform
-    zed_params.S = inverse_transform(zed_params.R[0:3, 0:3], zed_params.R[0:3, 3])
+    R = zed_params.base_transform
+    zed_params.R = {}
+    # zed_params.S = inverse_transform(zed_params.R[0:3, 0:3], zed_params.R[0:3, 3])
     for config in configs:
         M = np.array(configs[config]['transform'])
         if config != 'base':
@@ -137,17 +138,34 @@ def init_zed_params(user_params):
             -- update_pose
             """
 
-            if not np.any(zed_params.fusion):   # Cam 1
-                N = copy.copy(M)    # table coords --> Cam 1 coords (Cam 1 as seen from table)
-                # [obj]world frame = N * [obj]cam frame
-                P = inverse_transform(N[0:3, 0:3], N[0:3, 3])
-                M = np.eye(4)
-                zed_params.cam_transform = N
-            else:
-                Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
-                # M = P @ M @ N
-                # M = N @ M @ P 
-                M = M @ P
+            # if not np.any(zed_params.fusion):   # Cam 1
+            #     N = copy.copy(M)    # table coords --> Cam 1 coords (Cam 1 as seen from table)
+            #     # [obj]world frame = N * [obj]cam frame
+            #     P = inverse_transform(N[0:3, 0:3], N[0:3, 3])
+            #     M = np.eye(4)
+            #     zed_params.cam_transform = N
+            # else:
+            #     Q = inverse_transform(M[0:3, 0:3], M[0:3, 3])
+            #     # M = P @ M @ N
+            #     # M = N @ M @ P 
+            #     # M = M @ P
+            #     # M = P @ M
+            #     M = N @ Q
+
+            # flip fwd-right-down coord system to the right-down-dwd one used by zed
+            # coord_flip = np.array([ [0, 0, 1, 0],\
+            #                         [1, 0, 0, 0],\
+            #                         [0, 1, 0, 0],\
+            #                         [0, 0, 0, 1] ])
+            # coord_flip = np.array([ [0, 1, 0, 0],\
+            #                         [0, 0, 1, 0],\
+            #                         [1, 0, 0, 0],\
+            #                         [0, 0, 0, 1] ])
+            # M = M @ coord_flip
+            # M = inverse_transform(M[0:3, 0:3], M[0:3, 3])
+            zed_params.R[fus.serial_number] = R @ M
+            M = np.eye(4)
+
             T = sl.Transform()
             for j in range(4):
                 for k in range(4):
@@ -159,7 +177,13 @@ def init_zed_params(user_params):
         logger.error("Invalid config file.")
         exit(1)
 
-    zed_params.R = zed_params.R @ zed_params.cam_transform
+    # coord_flip = np.array([ [0, 1, 0, 0],\
+    #                         [0, 0, -1, 0],\
+    #                         [-1, 0, 0, 0],\
+    #                         [0, 0, 0, 1] ])
+    # zed_params.R = zed_params.R @ zed_params.cam_transform
+    # zed_params.R = coord_flip @ zed_params.R
+    # zed_params.R = np.eye(4)
     # zed_params.R = zed_params.cam_transform @ zed_params.S
 
     
@@ -170,6 +194,7 @@ def init_zed_params(user_params):
     zed_params.init.coordinate_units = sl.UNIT.METER
     zed_params.init.depth_mode = sl.DEPTH_MODE.PERFORMANCE  # PERFORMANCE, NEURAL, ULTRA
     zed_params.init.camera_resolution = sl.RESOLUTION.HD720
+
     # zed_params.init.camera_fps = 30
     if user_params.video_src == 'SVO' and user_params.real_time == True:
         zed_params.init.svo_real_time_mode = True
@@ -181,6 +206,7 @@ def init_zed_params(user_params):
     "Positional tracking parameters (Camera)"
     zed_params.positional_tracking = sl.PositionalTrackingParameters()
     zed_params.positional_tracking.set_as_static = True
+    zed_params.positional_tracking.set_gravity_as_origin = False
 
     "Body tracking parameters"
     zed_params.body_tracking = sl.BodyTrackingParameters()
@@ -196,26 +222,15 @@ def init_zed_params(user_params):
     zed_params.body_tracking.enable_body_fitting = True
     zed_params.body_tracking.enable_tracking = True
 
+    # zed_params.runtime = sl.RuntimeParameters()
+    # zed_params.runtime.measure3D_reference_frame = sl.REFERENCE_FRAME.WORLD
+
     zed_params.body_tracking_runtime = sl.BodyTrackingRuntimeParameters()
     zed_params.body_tracking_runtime.detection_confidence_threshold = 70 #confidence threshold actually works?
     # zed_params.body_tracking_runtime.detection_confidence_threshold = 100 # default value = 50
     # zed_params.body_tracking_runtime.minimum_keypoints_threshold = 12 # default value = 0
-
-    "Fusion parameters"
-    zed_params.fusion_init = sl.InitFusionParameters()
-    zed_params.fusion_init.coordinate_system = sl.COORDINATE_SYSTEM.IMAGE # RIGHT_HANDED_Y_UP, IMAGE
-    zed_params.fusion_init.coordinate_units = sl.UNIT.METER
-    zed_params.fusion_init.output_performance_metrics = False
-    zed_params.fusion_init.verbose = True
     
-    zed_params.body_tracking_fusion = sl.BodyTrackingFusionParameters()
-    zed_params.body_tracking_fusion.enable_tracking = True
-    zed_params.body_tracking_fusion.enable_body_fitting = True
 
-    zed_params.body_tracking_fusion_runtime = sl.BodyTrackingFusionRuntimeParameters()
-    zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_keypoints = 5
-    zed_params.body_tracking_fusion_runtime.skeleton_minimum_allowed_camera = 2
-    # zed_params.body_tracking_fusion_runtime.skeleton_smoothing = 0.5
 
     if user_params.body_type == 'BODY_18':
         zed_params.left_arm_keypoints = [5, 6, 7]
@@ -258,7 +273,7 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
         
         positions = []
         cam_idx = []
-        for object in bodies:
+        for idx, object in enumerate(bodies):
             cam_idx.append(object[0])
             body = object[1]
 
@@ -271,7 +286,15 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
             body_kpt_confidence = body.keypoint_confidence
             position = body.position
 
+            R = zed_params.R[object[0]]
+            position = (R @ np.append(position, 1))[0:3]
+
             positions.append(position)
+
+            ###### Testing by never using cam 24
+            # if object[0] == 30635524:
+            #     body.confidence = 0
+            ####################################
 
         positions = np.array(positions)
         # positions = np.array([
@@ -316,8 +339,6 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
             # idx = np.array([idx.flatten(), closest_h.flatten()]).T
             # closest_ordered = closest[idx] 
             closest_ordered = np.take_along_axis(closest, idx, axis=1)  
-            if len(positions)>2:
-                a=0
             for i in range(len(positions)):
                 if closest_ordered[closest_ordered[i, 0], 0] == i:
                     if not np.any(np.array(pair).flatten()==i):
@@ -326,35 +347,61 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
             for objects in pair:
                 body_0 = bodies[objects[0]][1]
                 cam_0 = bodies[objects[0]][0]
-                body_1 = bodies[objects[0]][1]
-                cam_1 = bodies[objects[0]][0]
+                body_1 = bodies[objects[1]][1]
+                cam_1 = bodies[objects[1]][0]
 
-                confidence_0 = body_0.confidence
-                confidence_1 = body_1.confidence
+                
 
-                left_matrix_0 = np.array(body_0.keypoint[left_kpt_idx])
-                right_matrix_0 = np.array(body_0.keypoint[right_kpt_idx])
-                trunk_matrix_0 = np.array(body_0.keypoint[trunk_kpt_idx])
+                ########################################
+                # Move keypoints to the correct coordinate system
 
-                left_matrix_1 = np.array(body_1.keypoint[left_kpt_idx])
-                right_matrix_1 = np.array(body_1.keypoint[right_kpt_idx])
-                trunk_matrix_1 = np.array(body_1.keypoint[trunk_kpt_idx])
+                bodies_list = []
 
-                left_matrix = (left_matrix_0 * confidence_0 + left_matrix_1 * confidence_1) / (confidence_0+confidence_1)
-                right_matrix = (right_matrix_0 * confidence_0 + right_matrix_1 * confidence_1) / (confidence_0+confidence_1)
-                trunk_matrix = (trunk_matrix_0 * confidence_0 + trunk_matrix_1 * confidence_1) / (confidence_0+confidence_1)
+                for idx, body in enumerate([body_0, body_1]):
+                    left_matrix = np.array(body.keypoint[left_kpt_idx])
+                    right_matrix = np.array(body.keypoint[right_kpt_idx])
+                    trunk_matrix = np.array(body.keypoint[trunk_kpt_idx])
 
-                "The transform to get from camera POV to world view"
-                R = zed_params.R    
+                    "The transform to get from camera POV to world view"
+                    R = zed_params.R[bodies[objects[idx]][0]]  
 
-                "Convert to 4D poses"
-                left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
-                right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
-                trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
+                    "Convert to 4D poses"
+                    left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
+                    right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
+                    trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
 
-                left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
-                right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
-                trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
+                    left_matrix = np.nan_to_num((R @ left_matrix.T).T[:, 0:3])
+                    right_matrix = np.nan_to_num((R @ right_matrix.T).T[:, 0:3])
+                    trunk_matrix = np.nan_to_num((R @ trunk_matrix.T).T[:, 0:3])
+
+                    confidence = np.nan_to_num(body.keypoint_confidence)
+
+                    conf_l = np.tile(confidence[left_kpt_idx], (3, 1)).T
+                    conf_r = np.tile(confidence[right_kpt_idx], (3, 1)).T
+                    conf_t = np.tile(confidence[trunk_kpt_idx], (3, 1)).T
+
+                    bodies_list.append([left_matrix, conf_l, right_matrix, conf_r, trunk_matrix, conf_t])
+
+                l0, cl0, r0, cr0, t0, ct0 = bodies_list[0]
+                l1, cl1, r1, cr1, t1, ct1 = bodies_list[1]
+                ########################################
+
+
+                left_matrix = np.nan_to_num((l0*cl0 + l1*cl1) / (cl0+cl1))
+                right_matrix = np.nan_to_num((r0*cr0 + r1*cr1) / (cr0+cr1))
+                trunk_matrix = np.nan_to_num((t0*ct0 + t1*ct1) / (ct0+ct1))
+
+                # "The transform to get from camera 0 POV to world view"
+                # R = zed_params.R    
+
+                # "Convert to 4D poses"
+                # left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
+                # right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
+                # trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
+
+                # left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
+                # right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
+                # trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
     
                 known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix, time.time()]
 
@@ -371,25 +418,37 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
                         
 
                         #####################
+
+                # if confidence_0>confidence_1:
+                #     cam_id = cam_0
+                # else:
+                #     cam_id = cam_1
+                # logging.getLogger().info("Dominant cam is "+ str(cam_id))
+                # logging.getLogger().info("2 cams used")
         else:
-            body_0 = bodies[0][1]
-            left_matrix = np.array(body_0.keypoint[left_kpt_idx])
-            right_matrix = np.array(body_0.keypoint[right_kpt_idx])
-            trunk_matrix = np.array(body_0.keypoint[trunk_kpt_idx])
+            body = bodies[0][1]
+
+            left_matrix = np.nan_to_num(np.array(body.keypoint[left_kpt_idx]))
+            right_matrix = np.nan_to_num(np.array(body.keypoint[right_kpt_idx]))
+            trunk_matrix = np.nan_to_num(np.array(body.keypoint[trunk_kpt_idx]))
 
             "The transform to get from camera POV to world view"
-            R = zed_params.R    
+            R = zed_params.R[bodies[0][0]]  
 
             "Convert to 4D poses"
             left_matrix = np.hstack((left_matrix, np.ones((len(left_matrix), 1))))
             right_matrix = np.hstack((right_matrix, np.ones((len(right_matrix), 1))))
             trunk_matrix = np.hstack((trunk_matrix, np.ones((len(trunk_matrix), 1))))
 
-            left_matrix = np.matmul(R, left_matrix.T).T[:, 0:3]
-            right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
-            trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
+            left_matrix = (R @ left_matrix.T).T[:, 0:3]
+            right_matrix = (R @ right_matrix.T).T[:, 0:3]
+            trunk_matrix = (R @ trunk_matrix.T).T[:, 0:3]
 
             known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix, time.time()]
+
+            # cam_id = bodies[0][0]
+            # logging.getLogger().info("Dominant cam is "+ str(cam_id))
+            # logging.getLogger().info("1 cam used")
 
 
     if type(known_bodies) != dict:
@@ -425,7 +484,7 @@ class vision():
             if conf.communication_parameters.comm_type == sl.COMM_TYPE.LOCAL_NETWORK:
                 self.network_senders[conf.serial_number] = conf.serial_number
         
-            # local camera needs to be run form here, in the same process than the fusion
+            # local camera needs to be run form here, in the same process as the fusion
             else:
                 self.zed_params.init.input = conf.input_type
                 
@@ -440,18 +499,22 @@ class vision():
                     self.zed_params.init.set_from_serial_number(conf.serial_number)
                     
                 status = self.senders[conf.serial_number].open(self.zed_params.init)
+
                 
                 if status != sl.ERROR_CODE.SUCCESS:
                     self.logger.error("Error opening the camera", conf.serial_number, status)
                     del self.senders[conf.serial_number]
                     continue
+
                 
-        
+                # self.zed_params.positional_tracking.set_initial_world_transform(conf.pose)
                 status = self.senders[conf.serial_number].enable_positional_tracking(self.zed_params.positional_tracking)
                 if status != sl.ERROR_CODE.SUCCESS:
                     self.logger.error("Error enabling the positional tracking of camera", conf.serial_number)
                     del self.senders[conf.serial_number]
                     continue
+
+
         
                 status = self.senders[conf.serial_number].enable_body_tracking(self.zed_params.body_tracking)
                 if status != sl.ERROR_CODE.SUCCESS:
@@ -632,7 +695,7 @@ class geometry_publisher(Node):
         self.t0 = t
         self.pub_counter = self.pub_counter +1
 
-        if dt>0.5:
+        if dt>0.05:
             self.get_logger().info("kpts published after "+str(np.round(dt, 3))+" seconds")
 
         if self.Dt > 10:

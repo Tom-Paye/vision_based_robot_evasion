@@ -716,24 +716,24 @@ class kpts_to_bbox(Node):
             # dt = t2 - t1
             # self.logger.info("dist_callback link_dists calls take " + str(np.round(dt, 4)) + " seconds")
 
-            # ###############
-            # # Plotting the distances
-            # class geom(): pass
-            # geom.arm_pos = arms
-            # geom.trunk_pos = trunk
-            # geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-            # geom.arm_cp_idx = c_a_r
-            # geom.u = arms_u
-            # geom.trunk_cp_idx = c_t_r
-            # geom.v = trunk_u
-            # geom.robot_cp_arm_idx = c_r_a
-            # geom.s = arms_t
-            # geom.robot_cp_trunk_idx = c_r_t
-            # geom.t = trunk_t
+            ###############
+            # Plotting the distances
+            class geom(): pass
+            geom.arm_pos = arms
+            geom.trunk_pos = trunk
+            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            geom.arm_cp_idx = c_a_r
+            geom.u = arms_u
+            geom.trunk_cp_idx = c_t_r
+            geom.v = trunk_u
+            geom.robot_cp_arm_idx = c_r_a
+            geom.s = arms_t
+            geom.robot_cp_trunk_idx = c_r_t
+            geom.t = trunk_t
 
-            # self.fig = visuals.plot_skeletons(self.fig, geom)
+            self.fig = visuals.plot_skeletons(self.fig, geom)
 
-            # ###############
+            ###############
 
             # only continue if the safety bubbles have been breached
             if not np.any(arms_dist):
@@ -871,7 +871,7 @@ class kpts_to_bbox(Node):
         #     length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
         # full_force_vec[1] += length_multiplier @ full_force_vec[0]   
 
-        full_force_vec = full_force_vec[0:7] / 4
+        full_force_vec = full_force_vec[0:7] / 4    # TODO: Transfer this dactor to the controller instead
 
         full_force_vec = np.nan_to_num(full_force_vec)
 
@@ -881,9 +881,9 @@ class kpts_to_bbox(Node):
         # transform to message
         forces = full_force_vec
 
-        force_scaling = np.array([87., 87., 87., 87., 12., 12., 12.]) / (self.max_dist - self.min_dist)
-        total_force = force_scaling[:, np.newaxis] * full_force_vec
-        self.logger.info("Total force requested: " + str(total_force) + " N / Nm")
+        # force_scaling = np.array([87., 87., 87., 87., 12., 12., 12.]) / (self.max_dist - self.min_dist)
+        # total_force = force_scaling[:, np.newaxis] * full_force_vec
+        # self.logger.info("Total force requested: " + str(total_force) + " N / Nm")
 
         if np.any(forces):
 
