@@ -25,6 +25,7 @@ import time
 import copy
 import logging
 from pathlib import Path
+from skimage.util.shape import view_as_windows
 
 import subprocess
 import tempfile
@@ -419,12 +420,20 @@ def link_dists(pos_body, pos_robot, max_dist):
     mat_static = copy.copy(mat_roll)
     bad_segments = []
 
-    for i in range(n_rolls):
-        new_layer = np.roll(arr_to_roll, -i, axis=0)
-        new_layer = new_layer[0:n_compared_rows,:]
-        mat_roll[i,:] = new_layer
-        bad_segments.append([i, n_rolls-1 - i])
-    bad_segments = np.array(bad_segments[n_rolls-n_compared_rows+1:]) # +1 because there is 1 less links than segments
+
+    ######## Speed up with fancy indexing: https://stackoverflow.com/questions/57272516/numpy-multiple-numpy-roll-of-1d-input-array
+    window_shape = (n_rolls,3)
+    mat_to_roll = np.concatenate((arr_to_roll,arr_to_roll[:-1]))
+    mat_roll = view_as_windows(mat_to_roll, window_shape)[:,0,0:n_compared_rows,:]
+    
+    bad_segments = np.vstack((np.arange(n_rolls-n_compared_rows+1,n_rolls), np.arange(n_compared_rows-2,-1, -1))).T
+    ############################
+    # for i in range(n_rolls):
+    #     new_layer = np.roll(arr_to_roll, -i, axis=0)
+    #     new_layer = new_layer[0:n_compared_rows,:]
+    #     mat_roll[i,:] = new_layer
+    #     bad_segments.append([i, n_rolls-1 - i])
+    # bad_segments = np.array(bad_segments[n_rolls-n_compared_rows+1:]) # +1 because there is 1 less links than segments
 
     if n_joints_b > n_joints_r:
         joints_b = mat_roll         # [n_jts x n_jnts_2 x 3 coordinates]
