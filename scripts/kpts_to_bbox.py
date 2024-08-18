@@ -416,8 +416,8 @@ def link_dists(pos_body, pos_robot, max_dist):
     # For every new rotation of the rolled array, one of the links actually doesn't exists, and should be disregarded
     n_rolls = max(n_joints_b, n_joints_r)
     n_compared_rows = min(n_joints_b, n_joints_r)
-    mat_roll = np.array([array_not_rolled]*n_rolls) 
-    mat_static = copy.copy(mat_roll)
+    # mat_roll = np.array([array_not_rolled]*n_rolls) 
+    mat_static = np.array([array_not_rolled]*n_rolls)
     bad_segments = []
 
 
