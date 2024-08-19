@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import rclpy
+import rclpy.callback_groups
 from rclpy.node import Node
 from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import Pose
@@ -56,70 +57,6 @@ TODO: Create clever law combining effects of distance and relative speed to appl
         A is a term depending on distance: Fmax * [!- max(D - Dmin, 0)]
         B is a term depending on speed : exp(V) => smaller force if we are moving away
 """
-
-def force_motion_planner(forces, positions, axes):
-    """
-    Experiment 1 : 
-    This function takes reads the forces applied onto a robot, then generates torques applied closer to the base
-    of the robot, with the intention of speeding up the response to a force by making the robot quickly adopt a
-    position in which it has a 'direct' degree of freedom along the direction a joint is being pushed
-
-    We can weight the moment on each ancestor joint by how far away the target joint is from their axis
-
-    Experiment 2 : 
-    Distribute a force on a joint so it affects all parent joints, to try to force the controller
-    to move the base joints
-    """
-    #####################Experiment 1#########################
-    # 1st perform this on a single joint
-    # Force is [3]
-    # joint is the index of the joint on which the force is applied
-    # positions are all the joint positions of the robot
-    # axes are the joint axes, [3]
-
-    forces_trans = forces[:,0:3]
-    for i, Force in enumerate(forces_trans[1:]):
-        if np.linalg.norm(Force)>0:
-            joint = i+1
-    # joint = 4
-    # Force = np.array([0, 1, 0])
-    # Force = forces_trans[joint]
-    # array with the position of the joint as seen from each ancestor
-            dp = np.tile(positions[joint],[joint,1]) - positions[0:joint]
-            # array of orthogonal distances from each joint axis
-            orthogonal_dist = np.sum(dp * axes[0:joint],axis=1)
-            dist_scaling = orthogonal_dist / np.max(np.abs(orthogonal_dist))
-
-            # moments trying to make ach joint axis orthogonal to the force
-            f = Force / np.linalg.norm(Force)   # unit vector along force direction
-            cross = -np.cross(np.tile(f,(joint,1)), axes[0:joint])   # vectors by which to cross the axes
-
-            # how much to scale the moments relative to the force originally imparted on the axis
-            # the more colinear the force and the axes of the ancestor joints, the stronger the moments should be 
-            moment_scaling = 20. * ( 1 - \
-                                np.min(np.linalg.norm(np.cross( np.tile(f,(joint,1)) , axes[:joint] ),axis=1)) )
-
-            moments = cross * np.tile(dist_scaling,(3,1)).T * moment_scaling
-            forces[0:joint,3:] += moments
-
-    # # return moments
-
-
-    #####################Experiment 2#########################
-    
-    inverse_torque_scaling = np.array([12, 12, 12, 87, 87, 87, 87])/87
-    for i, force in enumerate(forces[1:]):
-        force_add = copy.copy(force[0:3])
-        forces[i+1, 0:3] = force[0:3] / 2
-        forces[0:i+2, 0:3] += np.tile(force_add,(i+2,1)) * np.tile(inverse_torque_scaling[0:i+2],(3,1)).T / 2   # /(i+2)
-        
-    return forces
-
-
-                     
-
-
-
 
 
 
@@ -499,14 +436,15 @@ class kpts_to_bbox(Node):
             TFMessage,
             'tf',
             self.transform_callback,
-            10)
+            10,)
         
         
         # link_poses = self.compute_robot_pose(robot, node)
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
-        self.timer = self.create_timer(0.005, self.dist_callback)
+        # a = rclpy.callback_groups.ReentrantCallbackGroup()
+        self.timer = self.create_timer(0.001, self.dist_callback)
         # self.timer = self.create_timer(0.01, self.kalman_callback)
         
     
@@ -779,7 +717,7 @@ class kpts_to_bbox(Node):
         #     length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
         # full_force_vec[1] += length_multiplier @ full_force_vec[0]   
 
-        full_force_vec = full_force_vec[0:7] / 4    # TODO: Transfer this dactor to the controller instead
+        full_force_vec = full_force_vec[0:7]
 
         full_force_vec = np.nan_to_num(full_force_vec)
 
@@ -809,158 +747,6 @@ class kpts_to_bbox(Node):
         # if dt>0.05:
         #     self.logger.info("generate_distance_message takes " + str(np.round(dt, 4)) + " seconds") 
 
-
-    def force_estimator(self, body_geom, robot_pose):
-        
-        """
-        Calculates the force imparted on the robot by the bounding box of another body
-        This can be conceptualized as pushing on a part of the robot
-        (as opposed to forces on the joint motors, which are determined in another function)
-
-        For easier calculation, transform each force on a part of a link into:
-        (a force at the end of that link closest to the base) + (a moment on that end)
-
-        NOTE: This function assumes all joints are capable of the same torque.
-        Another function should be implemented to give physical meanings to the output of this one,
-        which merely gives forces/moments relative to the strongest force
-
-        NOTE: The output of this function has one less row than the input, because we take 8 points
-        (1 for each joint including the base) + 1 point for the EE, but we only output to the joints
-
-        
-        INPUT---------------------------
-        body_geom: dict whose elements are the output of the "link_dists"
-        
-        robot_pose: [8, 3] vector corresponding to robot joint positions (locations in cartesian space)
-        
-        OUTPUT---------------------------
-        forces: [7,3] vector of magnitudes of forces to be applied to the robot in 3D space
-            force is given as a float between 0 and 1, 1 being the strongest
-        
-        // direc: [N, 3] array containing the direction along which the force is applied (with norm of 1)
-        
-        // application_segments: [N = 8] vector of robot segments on which to apply each force (segment 0 has an
-                                                                                         extremity at the base)
-        // application_dist: [N] vector of the distance along a segment at which a force is applied
-        
-        // force_vec: [N, 3] array containing the direction along which the force is applied scaled by the force (0 to 1)
-
-        // moment:    [N, 3] array containing the direction along which the moment is applied scaled by the moment (0 to 1)
-
-        TODO: Implement the rescaling, current forces / moments are left unscaled
-        
-        """
-        
-
-        direc = body_geom['direc']                      # unit vectors associated with each force
-        application_segments = body_geom['closest_r']   # segment on which the force is applied
-        application_dist = body_geom['t']               # fraction of each segment at which each force is applied
-
-        levers = np.diff(robot_pose, axis = 0)          # vectors pointing along the robot links
-        link_lengths = np.linalg.norm(levers, axis=1)
-        
-
-        dists = copy.copy(body_geom['dist'])
-
-        full_force_vec = np.zeros([len(robot_pose), 6])
-
-
-
-        for i, force in enumerate(dists):
-            vec = direc[i,:]
-            seg = application_segments[i]
-            dist = application_dist[i]
-
-            force = 1 - np.abs(force-self.min_dist)/(self.max_dist - self.min_dist)
-            # force = np.clip(force, 0, 1)
-
-
-            # Rescale forces vector to create actual forces, in Newtons
-            # To calculate max force, go to https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3
-            # take the lowest max moment of 12 Nm, divide by 1m to have the max force exerted onto a link bound under a safe limit
-            force_max = 87 / 1  #Nm
-            force_scaling = force_max   # this works because the force is already scaled between 0 and 1
-            force = force * force_scaling
-
-
-
-
-            force_vec = force * vec
-            moment = np.zeros(3)
-
-            if dist > 0:
-                lever = levers[seg,:]
-                moment = np.cross(lever*dist, force_vec)
-            
-            full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
-
-            #######################################################
-            # for testing custom forces
-            # first row corresponds to base frame, so here arrays start at 1
-            # full_force_vec = np.zeros(np.shape(full_force_vec))
-            # full_force_vec[4, 1] = 30
-
-            #######################################################
-
-        ####################ACCOUNT FOR INPUT OF SIZE 13###################
-        # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
-        # The question is, which links to keep? The ones named 1-7, or the seven with non-zero distance do the preceding?
-        for i in range(len(full_force_vec)-7):
-            l = link_lengths[-i-1]
-            if l == 0:
-                length_multiplier = np.eye(6)
-            else:
-                # length_multiplier_force = np.concatenate((np.eye(3), -np.eye(3)/l), axis=0)
-                length_multiplier_force = np.concatenate((np.eye(3), np.zeros((3, 3))), axis=0)
-                # length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
-                # consider that the links towards the EE are short enough to be the same point,
-                # else the fingers will cause moment trouble
-                length_multiplier_moment = np.concatenate((np.zeros((3, 3)), np.zeros((3, 3))), axis=0)
-                length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-            full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1].T
-
-
-        
-        # Remove joint 0, apply only its torque to link 1
-        l = link_lengths[0]
-        if l == 0:
-            length_multiplier = np.eye(6)
-        else:
-            length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
-            length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
-            length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-        full_force_vec[1] += length_multiplier @ full_force_vec[0]   
-
-        full_force_vec = full_force_vec[1:8]
-        #################################################################
-
-        # account for some joints being merged: 
-        # jts 1 and 2 are superimposed
-        # all superimposed jts: 1-2, 5-6, 8-hand
-        full_force_vec = np.clip(full_force_vec, 0, force_max)  
-
-        ## Testing ##
-        # alternate_force_vec = force_motion_planner(full_force_vec, robot_pose, self.axis_rot)
-        # full_force_vec = alternate_force_vec
-
-        full_force_vec = np.clip(full_force_vec, 0, force_max) 
-        # Try to rescale forces so we move the base joints more but don't make the EE break
-        # the sound barrier
-        # torque info at https://frankaemika.github.io/docs/control_parameters.html
-        joint_torque_scaling = np.array([87, 87, 87, 87, 12, 12, 12])/87
-        forces_rescaled = full_force_vec * np.tile(joint_torque_scaling,(6,1)).T * 0.7
-        torque_to_force_scaling = np.array([2, 2, 2, 1, 1, 1])
-        forces_rescaled = forces_rescaled * np.tile(torque_to_force_scaling,(7,1))
-        
-
-
-        # output = full_force_vec
-        # output = alternate_force_vec
-        output = forces_rescaled
-
-        return output
-
-        
 
     def data_callback(self, msg):
 
