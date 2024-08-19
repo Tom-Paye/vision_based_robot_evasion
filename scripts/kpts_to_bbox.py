@@ -473,7 +473,7 @@ class kpts_to_bbox(Node):
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
-        self.offset = np.array([0., 0., 0.]) # position offset to correct zed bullshit
+        self.offset = np.array([-0.1, 0., 0.2]) # position offset to correct zed bullshit
 
         # publishing stats
         self.pub_counter = 0
@@ -560,24 +560,24 @@ class kpts_to_bbox(Node):
             trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
             # self.placeholder_Pe, robot_pos
 
-            ###############
-            # Plotting the distances
-            class geom(): pass
-            geom.arm_pos = arms
-            geom.trunk_pos = trunk
-            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-            geom.arm_cp_idx = c_a_r
-            geom.u = arms_u
-            geom.trunk_cp_idx = c_t_r
-            geom.v = trunk_u
-            geom.robot_cp_arm_idx = c_r_a
-            geom.s = arms_t
-            geom.robot_cp_trunk_idx = c_r_t
-            geom.t = trunk_t
+            # ###############
+            # # Plotting the distances
+            # class geom(): pass
+            # geom.arm_pos = arms
+            # geom.trunk_pos = trunk
+            # geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            # geom.arm_cp_idx = c_a_r
+            # geom.u = arms_u
+            # geom.trunk_cp_idx = c_t_r
+            # geom.v = trunk_u
+            # geom.robot_cp_arm_idx = c_r_a
+            # geom.s = arms_t
+            # geom.robot_cp_trunk_idx = c_r_t
+            # geom.t = trunk_t
 
-            self.fig = visuals.plot_skeletons(self.fig, geom)
+            # self.fig = visuals.plot_skeletons(self.fig, geom)
 
-            ###############
+            # ###############
 
             # only continue if the safety bubbles have been breached
             if not np.any(arms_dist):
@@ -786,86 +786,68 @@ class kpts_to_bbox(Node):
         
         t0 = time.time()
 
-        t_raw = np.zeros((10,3))
-        r_raw = np.zeros((10,4))
-        r_raw[:,-1] = np.ones(10)
+        robot_translation = np.zeros((10,3))
+        robot_rotation = np.zeros((10,4))
+        robot_rotation[:,-1] = np.ones(10)
         joint_name = [None] * 10
+
+        total_trans = np.zeros(3)
+        total_rot = np.array([0, 0, 0, 1])
+        trm = R.from_quat(total_rot)
+        idx = 0
+        finger_rot_quat = np.zeros((2, 4))
+        finger_rot_quat[:,-1] = np.ones(2)
+        finger_trans = np.zeros((2, 3))
 
         for transform in tf_message.transforms:
             rot_ros = transform.transform.rotation
             trans_ros = transform.transform.translation
             id = transform.child_frame_id
+
+            vec_t = np.array([trans_ros.x, trans_ros.y, trans_ros.z])
+            vec_r = np.array([rot_ros.x, rot_ros.y, rot_ros.z, rot_ros.w])
+            
+
             if id[-1].isnumeric():
                 i = int(id[-1])-1
+
+                quat_rot = trm.apply(vec_t)               # current translation, reoriented into world frame
+                total_trans = total_trans + quat_rot        # total translation in WF
+            
+                srm = R.from_quat(vec_r)                    # rotation quat of current index in Current Frame
+                trm = trm * srm                             # rotation quat of current index in WF               
+                total_rot_quat = trm.as_quat()
+
+                robot_rotation[idx+1] = total_rot_quat        # total rot and trans are applied to the next joint
+                robot_translation[idx+1] = total_trans
+                idx = idx + 1
             else:
                 if id == 'panda_leftfinger':
                     i = -3
+
+                    finger_rot_quat[0] = vec_r
+                    finger_trans[0] = vec_t
+
                 else:
                     i = -2
 
-            
-            vec_t = np.array([trans_ros.x, trans_ros.y, trans_ros.z])
-            vec_r = np.array([rot_ros.x, rot_ros.y, rot_ros.z, rot_ros.w])
+                finger_trans[1] = vec_t
+                finger_rot_quat[1] = vec_r
 
-            t_raw[i+1] = vec_t
-            r_raw[i+1] = vec_r
             joint_name[i+1] = id
 
-
-        
-        robot_translation = copy.copy(t_raw)
-        robot_rotation = copy.copy(r_raw)
-
-        total_trans = copy.copy(robot_translation[0])
-        total_rot = copy.copy(robot_rotation[0])
-
-
-        for i in range(len(t_raw)-2):
-
-            t_r = t_raw[i+1]
-            r_r = r_raw[i+1]
-
-            #######################
-            trm = R.from_quat(total_rot)
-            srm = R.from_quat(r_r)
-            watch_trm = trm.as_matrix()
-            watch_srm = srm.as_matrix()
-
-
-            ntrm = trm * srm
-            watch_ntrm = np.around(ntrm.as_matrix(),3)
-            watch_quat = ntrm.as_quat()
-            total_rot = watch_quat
-            a = 2
-            #######################
-
-
-            quat_rot = R.from_quat(robot_rotation[i]).apply(t_r)
-            # inv_rot = [-total_rot[0], total_rot[1], total_rot[2], total_rot[3]]
-            total_trans = total_trans + quat_rot
-
-            
-            
-            robot_rotation[i+1] = total_rot
-            robot_translation[i+1] = total_trans
-
-        # repeat the last step manually for the left finger, which is based on the hand and not the right finger
-        robot_rotation[-1] = robot_rotation[-2]
-        quat_rot = R.from_quat(robot_rotation[-3]).apply(t_raw[-1])
+        # Deal with the fingers separately to not have to screw with the for loop
+        robot_rotation[-2] = robot_rotation[-3]
+        quat_rot = R.from_quat(robot_rotation[-3]).apply(finger_trans[0])
         robot_translation[-1] =  robot_translation[-3] + quat_rot
 
-        # # add a line between the fingers so links will always go through the hand
-        # robot_rotation = np.insert(robot_rotation, -1, robot_rotation[-3], axis=0)
-        # robot_translation = np.insert(robot_translation, -1, robot_translation[-3], axis=0)
-
-        # self.logger.info('body: \n', str(robot_translation))
-
-        # self.robot_cartesian_positions = robot_translation
+        robot_rotation[-1] = robot_rotation[-3]
+        quat_rot = R.from_quat(robot_rotation[-3]).apply(finger_trans[1])
+        robot_translation[-1] =  robot_translation[-3] + quat_rot
 
         tf_world = {}
         for i, joint in enumerate(joint_name[1:]):
             tf_world[joint] = [robot_translation[i+1], robot_rotation[i+1]]
-        # tf_world = dict.fromkeys(joint_name, [robot_translation, robot_rotation])
         
         link_poses = calculate_transforms(self.robot, tf_world)
         pos_world = np.array(list(link_poses.values()))[:, 0:3, -1]
