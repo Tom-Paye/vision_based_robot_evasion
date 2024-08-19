@@ -165,105 +165,6 @@ class robot_description(Node):
     #     a=2
 
 
-class geom_transformations:
-
-
-    def Rz(a=0):
-        c, s = np.cos(a), np.sin(a)
-        T = np.array([ [c, -s, 0, 0],
-                    [s, c , 0, 0],
-                    [0 , 0, 1, 0],
-                    [0 , 0, 0, 1]])
-        return T
-
-    def Ry(a=0):
-        c, s = np.cos(a), np.sin(a)
-        T = np.array([ [c , 0, s, 0],
-                    [0 , 1, 0, 0],
-                    [-s, 0, c, 0],
-                    [0 , 0, 0, 1]])
-        return T
-
-    def Rx(a=0):
-        c, s = np.cos(a), np.sin(a)
-        T = np.array([ [1, 0, 0 , 0],
-                    [0, c, -s, 0],
-                    [0, s, c , 0],
-                    [0, 0, 0 , 1]])
-        return T
-
-    def translation(a=[0, 0, 0]):
-        x, y, z = a[0], a[1], a[2]
-        T = np.array([ [1, 0, 0, x],
-                    [0, 1, 0, y],
-                    [0, 0, 1, z],
-                    [0, 0, 0, 1]])
-        return T
-
-def joint_to_cartesian(joint_states= [0., -0.8, 0., -2.36, 0., 1.57, 0.79]):
-    """
-    Transform joint states into joint poisitions in cartesian space
-    TODO: More accurate volumetric description of the robot
-    CURRENT GOAL:
-
-    INPUT---------------------------
-
-    joint_states: [7] vector of joint angles in radians TODO: figure out what position corresponds to 0 rads for each joint
-
-    OUTPUT--------------------------
-
-    joint_positions: [7, 3] array of cartesian positions of every joint
-
-    joint_rotations: [7, 3, 3] array of cartesian rotations of every joint axis
-
-    """
-
-    """
-    Geometry is taken from https://www.generationrobots.com/media/franka-emika-research-3-robot-datasheet.pdf
-    or here https://frankaemika.github.io/docs/control_parameters.html 
-    https://www.researchgate.net/figure/The-Elementary-Transform-Sequence-of-the-7-degree-offreedom-Franka-Emika-Panda_fig1_361785335 
-    Because those specifications do not allow us to easily describe the robot as a set of cylinders,
-    I made some modifications:
-    - define the position of A3 as 316-82 = 234 mm away from A2
-    - define A5 as 384-82 = 302mm away from A6
-    - define A7 as 88 mm away from A6
-    - add an 'A8' to represent the gripper, at distance 107mm from A7
-    """
-
-    link_lengths = [    [0, 0, 0.333],\
-                        np.zeros(3),\
-                        [0, 0, 0.316],\
-                        [0.0825, 0, 0],\
-                        [-0.0825, 0, 0.384],\
-                        np.zeros(3),\
-                        [0, 0, 0.107],\
-                        [-0.088, 0, 0] ]
-    
-    # joint_states= np.zeros(8)
-    
-    T00 = np.zeros([4,4])
-    T00[3, 3] = 1
-    
-    T01 = geom_transformations.Rz(joint_states[0]) @ geom_transformations.translation(link_lengths[0])
-
-    T02 = T01 @ geom_transformations.Ry(joint_states[1])
-
-    T03 = T02 @ geom_transformations.Rz(joint_states[2]) @ geom_transformations.translation(link_lengths[2])
-
-    T04 = T03 @ geom_transformations.Ry(-joint_states[3]) @ geom_transformations.translation(link_lengths[3])
-    
-    T05 = T04 @ geom_transformations.Rz(joint_states[4]) @ geom_transformations.translation(link_lengths[4])
-
-    T06 = T05 @ geom_transformations.Ry(-joint_states[5])
-
-    T07 = T06 @ geom_transformations.Ry(joint_states[6]) @ geom_transformations.translation(link_lengths[7])\
-              @ geom_transformations.Rx(np.pi) @ geom_transformations.translation(link_lengths[6])
-
-    Transforms = np.array([T00, T01, T02, T03, T04, T05, T06, T07])
-
-    joint_positions = Transforms[:, 0:3, 3].reshape(8, 3)
-
-    return joint_positions
     
 def calculate_transforms(robot, tf_world):
     link_poses = {}
@@ -285,19 +186,6 @@ def create_transform_matrix(translation, rotation):
 
     return trans_matrix
 
-def remove_double_joints(pos):
-    # to determine which joints are actually in the same place:
-    idx = np.sum(np.abs(np.diff(pos, axis=0)),axis=1) < 0.0005
-    mask = np.invert(idx)
-    
-
-    # I magically know which joints are in the same place:
-    # mask = np.array([True, False, True, True, True, False, True, False, False,\
-    #         False, True, True])
-
-    pos_new = pos[np.where(mask)]
-        
-    return pos_new
 
 
 
@@ -618,7 +506,7 @@ class kpts_to_bbox(Node):
         
         self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
 
-        # self.timer = self.create_timer(0.01, self.dist_callback)
+        self.timer = self.create_timer(0.005, self.dist_callback)
         # self.timer = self.create_timer(0.01, self.kalman_callback)
         
     
@@ -647,33 +535,25 @@ class kpts_to_bbox(Node):
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
-        self.offset = np.array([-0.05, 0., 0.]) # position offset to correct zed bullshit
+        self.offset = np.array([0., 0., 0.]) # position offset to correct zed bullshit
+
+        # publishing stats
         self.pub_counter = 0
         self.Dt = 0
         self.t0 = time.time()
 
-        # urdf_path = '/home/tom/franka_ros2_ws/src/franka_ros2/franka_description/panda_arm.xacro'
-        # urdf = open(urdf_path).read()
-        self.xacro_path = '/home/tom/franka_ros2_ws/install/franka_description/share/franka_description/robots/panda_arm.urdf.xacro'
-
-    def kalman_callback(self):
-
-        if np.any(self.bodies) and self.subject in self.bodies:
-            if not np.any(self.x):
-                self.x = [self.bodies[self.subject][0][0][0]]
-            else:
-                self.x.append(self.bodies[self.subject][0][0][0])
-        if len(self.x)>1000:
-            kalman.kaltest(self.x)
+        # debugging
+        self.debug_t = time.time()
+        self.debug_dt = 0.
+        self.debug_dist_loops = 0
         
 
     def dist_callback(self):
         
+        t0 = time.time()
+        
 
-        # self.logger.debug('self.reset, np.any(self.bodies[self.subject][self.subject]):')
-        # self.logger.debug(str(self.reset and np.any(self.bodies[self.subject][0])))
-        # Make the body outline fit the head
-        # if self.reset and np.any(self.bodies[self.subject][0]):
+
         if bool(self.bodies):
             # if you move out of frame too long, you will be assigned a new body ID
             # so we also need to increment it here
@@ -688,20 +568,42 @@ class kpts_to_bbox(Node):
                     deceased.append(subject)
             for body in deceased: del self.bodies[body] 
 
+        # t1 = time.time()
+        # dt = t1 - t0
+        # if dt>0.05:
+        #     self.logger.info("dist_callback 1 takes " + str(np.round(dt, 4)) + " seconds")   
+
+
         if bool(self.bodies):
             # Switch to using oldest known body
             subjects = list(self.bodies.keys())
             subject = np.min(np.array(subjects).astype(int))
             self.subject = str(subject)
 
+        if not bool(self.bodies):
+            t0 = time.time()
+            dt = t0 - self.debug_t
+            # self.debug_dt = self.debug_dt + dt
+            self.debug_dist_loops = self.debug_dist_loops + 1
+            self.debug_t = t0
+            self.debug_dt = 0.
+
+            # if self.debug_dt>0.05:
+            #     self.logger.info("dist_callback took " + str(np.round(self.debug_dt, 4)) + " seconds total")
+            #     self.logger.info("It ran "+str(self.debug_dist_loops)+" times without getting a good body") 
+            #     self.debug_dt = 0.
+            #     self.debug_dist_loops = 0
+
+        # t2 = time.time()
+        # dt = t2 - t1
+        # if dt>0.05:
+        #     self.logger.info("dist_callback 2 takes " + str(np.round(dt, 4)) + " seconds") 
         
 
         if bool(self.bodies):
 
-            # t1 = time.time()
-            # dt = t1 - self.t0
-            # self.logger.info("dist_callback pre-check takes " + str(np.round(dt, 4)) + " seconds")
-            # self.t0 = t1
+            self.debug_dt = t0 - self.debug_t
+            self.debug_t = t0
 
             # if not np.any(self.bodies[self.subject][0]) or self.bodies[self.subject][3][0]>5 :
             #     # sometimes the first subject sent is 1, idk why
@@ -714,16 +616,11 @@ class kpts_to_bbox(Node):
                 # make one line from the left hand to the right
             arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
             trunk = self.bodies[self.subject][2]
-                # robot_pos = joint_to_cartesian(self.joint_pos)
             robot_pos = self.robot_cartesian_positions
 
             arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos, self.max_dist) # self.placeholder_Pe, robot_pos
             trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
             # self.placeholder_Pe, robot_pos
-
-            # t2 = time.time()
-            # dt = t2 - t1
-            # self.logger.info("dist_callback link_dists calls take " + str(np.round(dt, 4)) + " seconds")
 
             ###############
             # Plotting the distances
@@ -784,7 +681,8 @@ class kpts_to_bbox(Node):
 
                 # t3 = time.time()
                 # dt = t3 - t2
-                # self.logger.info("dist_callback takes " + str(np.round(dt, 4)) + " seconds")
+                # if dt>0.05:
+                #     self.logger.info("dist_callback 3 takes " + str(np.round(dt, 4)) + " seconds") 
 
                 if time.time()>5:
 
@@ -795,6 +693,7 @@ class kpts_to_bbox(Node):
                 # 
 
                     self.generate_distance_message(body_geom, robot_pos) 
+
 
 
     def generate_distance_message(self, body_geom, robot_pose):
@@ -907,7 +806,8 @@ class kpts_to_bbox(Node):
 
         # t1 = time.time()
         # dt = t1 - t0
-        # self.logger.info("generate_distance_message takes " + str(np.round(dt, 4)) + " seconds")
+        # if dt>0.05:
+        #     self.logger.info("generate_distance_message takes " + str(np.round(dt, 4)) + " seconds") 
 
 
     def force_estimator(self, body_geom, robot_pose):
@@ -1062,119 +962,6 @@ class kpts_to_bbox(Node):
 
         
 
-
-    def generate_repulsive_force_message(self, forces=np.zeros((7,6))):
-        
-        """
-        Given an array of the repulsion forces to impose on the robot, it outputs a vector message to send them to 
-        Curdin's code
-
-        INPUT---------------------------
-        forces : [7, 6] array of forces and moments applied to every joint of the robot
-        
-        OUTPUT---------------------------
-        rep_msg: Custom ROS2 message of type Array2d containing:
-            - array  : [n] vector (flattened array) encoding each component of each force on each joint
-            - height : int number of rows of the unflattened array
-            - width  : int number of cols of the unflattened array
-        NOTE: [height, width] should be [6, 7] for 6DOF and 7 joints, but the C++ Eigen library is 
-        COLUMN MAJOR order, which may need added translation
-        """
-        if np.shape(forces) != (7,6):
-            forces=np.zeros((7,6))
-
-        forces_flattened = forces.flatten(order='C')
-
-        force_message = Array2d()
-        force_message.array = list(forces_flattened.astype(float))
-        [force_message.height, force_message.width]  = np.shape(forces.T)
-        self.force_publisher_.publish(force_message)
-
-        
-    
-    def force_translator(self, robot_pose, force_vec, application_segments, application_dist):
-        
-        """
-        Translates body forces on the robot to moments on its joints
-        --> assumes infinitely rigid links and 1 DOF joints
-        --> for each joint, assumes all other joints are rigid
-        NOTE: This is now done within Curdin's controller, this function is unnecessary
-        
-        INPUT---------------------------
-        
-        robot_pose: [M, 3] vector corresponding to robot joint positions (locations in cartesian space)
-            NOTE: joints must be given in physically consecutive order (ie consecutive joints are physically connected
-                                                                        by a single segment of the robot)
-        
-        force_vec: [N, 3] array containing the direction along which the force is applied scaled by the force (0 to 1)
-            --> 1 line for each separate BODY force, NOT joint torque
-        
-        application_segments: [N] vector of robot segments on which to apply each force (segment 0 has an
-                                                                                         extremity at the base)
-        application_dist: [N] vector of the distance along a segment at which a force is applied
-
-        jacobians: [N, 6, N] array containing the jacobians of each joint
-            1st dim: Which joint is this jacobian for
-            2nd dim: Which translation / rotation
-            3rd dim: onto which joint does this map (joint torque = jacobian * Force on end effector)
-            NOTE: the joints are the ones at the 'END' of the corresponding links
-        
-        OUTPUT---------------------------
-        
-        torques: [M] vector of torques on the robot's joints
-            --> 1 row per joint
-            TODO: define robot position by joint positions to disambiguate torque direction
-            TODO: Rescale torques to account for the compliance of other joints and redistribute to prevent stall
-            # TODO: add a function to calculate robot cartesian positions from angles
-            
-        
-        """
-        '''
-                Substituting the joint torque with the end-effector force pre-multiplied with the Jaco-
-                bian transposed
-                τ = JTe Fe (3.85)
-                yields the end-effector dynamics
-                - Robot Dynamics
-
-                https://frankaemika.github.io/libfranka/structfranka_1_1RobotState.html
-
-                https://frankaemika.github.io/docs/franka_ros2.html#setup
-                --> /home/tom/franka_ros2_ws/src/franka_ros2/franka_example_controllers/src
-                    --> model_example_controller.cpp
-
-                /home/tom/franka_ros2_ws/install/franka_semantic_components/include/franka_semantic_components
-                franka_robot_model.hpp 
-                --> describes the calculation of a jacobian
-                    NOTE: Column major format?
-
-                '''
-        torques = np.zeros(len(robot_pose))
-        
-        for i, force in enumerate(force_vec):
-            for j, joint in enumerate(robot_pose):
-                
-                # Determine the axis of the joint
-                joint_axis = [1, 1, 1]
-                
-                # Determine moment of force on the joint
-                force_pos = (robot_pose[application_segments[i],:]*(1-application_dist[i]))+\
-                            (robot_pose[application_segments[i+1],:]*application_dist[i])
-                force_relative_pos = force_pos - joint
-                moment_raw = np.cross(force, force_relative_pos)
-                
-                # scale by the colinearity between moment and joint axis
-                moment_scaled = np.dot(moment_raw, joint_axis)
-                
-                torques[j] += moment_scaled
-        
-        
-
-
-    # def label_callback(self, msg):
-    #     self.get_logger().info(msg.data)
-    #     self.label = msg.data
-    #     self.data = []
-        
     def data_callback(self, msg):
 
 
@@ -1203,26 +990,15 @@ class kpts_to_bbox(Node):
 
         # t1 = time.time()
         # dt = t1 - t0
-        # self.logger.info("data_callback takes " + str(np.round(dt, 4)) + " seconds")
-        self.dist_callback()
+        # if dt>0.05:
+        #     self.logger.info("data_callback takes " + str(np.round(dt, 4)) + " seconds")   
 
-
-
-        
-
-    def get_robot_joints(self, msg):
-        """
-        For now, it looks like the best we can do is get joint angles and transform that into a position manually
-        so we just apply a matrix transformation to the list of joint angles to get the joint positions
-        """
-
-        self.joint_pos = msg.position
-        self.joint_vel = msg.velocity
-        
+        # self.dist_callback()
 
 
     def transform_callback(self, tf_message):
         
+        t0 = time.time()
 
         t_raw = np.zeros((10,3))
         r_raw = np.zeros((10,4))
@@ -1308,14 +1084,18 @@ class kpts_to_bbox(Node):
         link_poses = calculate_transforms(self.robot, tf_world)
         pos_world = np.array(list(link_poses.values()))[:, 0:3, -1]
 
-        # self.robot_cartesian_positions = remove_double_joints(pos_world)
         self.robot_cartesian_positions = pos_world
 
         # apply robot rotations to each robot axis, assuming that axis is locally [0, 0, 1]
         joint_axes = np.zeros((7, 3))
         joint_axes[:,-1] = np.ones(7)
         self.axis_rot = R.from_quat(robot_rotation[1:-2]).apply(joint_axes)
-        return link_poses
+
+        # t1 = time.time()
+        # dt = t1 - t0
+        # if dt>0.05:
+        #     self.logger.info("transform_callback takes " + str(np.round(dt, 4)) + " seconds")
+        # return link_poses
     
     def publishing_stats(self):
 
@@ -1327,6 +1107,14 @@ class kpts_to_bbox(Node):
 
         if dt>0.5:
             self.get_logger().info("Distances published after "+str(np.round(dt, 3))+" seconds")
+            self.get_logger().info("It took "+str(t-self.debug_t)+" seconds to run dist_callback")
+            self.get_logger().info("Dist had been spinning on empty for "+str(self.debug_dist_loops)+" cycles")
+            self.get_logger().info("Dist was first called "+str(self.debug_dt)+" seconds after it last ended")
+            
+        self.debug_dist_loops = 0
+
+        self.debug_t = time.time()
+        self.debug_dt = 0.
 
         if self.Dt > 10:
             pub_freq = np.round(self.pub_counter / self.Dt, 3)

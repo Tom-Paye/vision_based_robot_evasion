@@ -254,6 +254,24 @@ def inverse_transform(R, t):
     return T_inv
 
 
+def fill_in(pos, conf):
+    """
+    replaces positions with confidence 0 by the closest position with nonzero confidence
+    """
+
+    cx = np.where(conf==0)[0]
+    cx_ = np.where(conf!=0)[0]
+
+    dcx = np.subtract.outer(cx_, cx)
+
+    id0 = np.argmin(np.abs(dcx), axis=0)
+    id1 = np.arange(len(cx))
+    id_c = dcx[id0, id1]
+
+    pos[cx,:] = pos[cx+id_c,:]
+    
+    return pos
+
 
 def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
     
@@ -387,9 +405,16 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
                 ########################################
 
 
-                left_matrix = np.nan_to_num((l0*cl0 + l1*cl1) / (cl0+cl1))
-                right_matrix = np.nan_to_num((r0*cr0 + r1*cr1) / (cr0+cr1))
-                trunk_matrix = np.nan_to_num((t0*ct0 + t1*ct1) / (ct0+ct1))
+                left_matrix = np.nan_to_num((l0*cl0 + l1*cl1) / (cl0+cl1 + 0.000000001))
+                right_matrix = np.nan_to_num((r0*cr0 + r1*cr1) / (cr0+cr1 + 0.000000001))
+                trunk_matrix = np.nan_to_num((t0*ct0 + t1*ct1) / (ct0+ct1 + 0.000000001))
+
+                cl = (cl0+cl1)[:,0]
+                cr = (cr0+cr1)[:,0]
+                ct = (ct0+ct1)[:,0]
+
+
+                
 
                 # "The transform to get from camera 0 POV to world view"
                 # R = zed_params.R    
@@ -403,8 +428,6 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
                 # right_matrix = np.matmul(R, right_matrix.T).T[:, 0:3]
                 # trunk_matrix = np.matmul(R, trunk_matrix.T).T[:, 0:3]
     
-                known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix, time.time()]
-
                 if user_params.display_fused_limbs:
                         ##################### Visual Check
 
@@ -444,7 +467,25 @@ def fetch_skeleton(bodies, user_params, zed_params, known_bodies, fig):
             right_matrix = (R @ right_matrix.T).T[:, 0:3]
             trunk_matrix = (R @ trunk_matrix.T).T[:, 0:3]
 
-            known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix, time.time()]
+            confidence = np.nan_to_num(body.keypoint_confidence)
+            cl = confidence[left_kpt_idx]
+            cr = confidence[right_kpt_idx]
+            ct = confidence[trunk_kpt_idx]
+
+        
+
+        # if any limb on the body has no keypoints, do not add the body
+        if not np.any(cl) or not np.any(cr) or not np.any(ct):
+            return known_bodies, fig
+        # if a joint is has zero confidence on both cams, place it on the nearest joint
+        if np.any(0 == cl):
+            left_matrix = fill_in(left_matrix, cl)
+        if np.any(0 == cr):
+            right_matrix = fill_in(right_matrix, cr)
+        if np.any(0 == ct):
+            trunk_matrix = fill_in(trunk_matrix, ct)
+
+        known_bodies[body_id] = [left_matrix, right_matrix, trunk_matrix, time.time()]
 
             # cam_id = bodies[0][0]
             # logging.getLogger().info("Dominant cam is "+ str(cam_id))
@@ -760,7 +801,7 @@ class img_to_kpts(Node):
             # Remove old bodies which are no longer tracked
             deceased = []
             for body in known_bodies:
-                if time.time() - known_bodies[body][3] >2:
+                if time.time() - known_bodies[body][3] >0.2:
                     deceased.append(body)
             for body in deceased:
                 del known_bodies[body]
