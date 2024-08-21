@@ -25,8 +25,8 @@ class motion_client(Node):
         # while not self.cli.(timeout_sec=1.0):
         #     self.get_logger().info('service not available, waiting again...')
 
-        # self.timer = self.create_timer(0.01, self.draw_circle)
-        self.custom_ee_pos()
+        self.timer = self.create_timer(0.01, self.draw_circle)
+        # self.custom_ee_pos()
         
 
 
@@ -47,11 +47,11 @@ class motion_client(Node):
         time_from_start = (time-self.time_0) % 10
         travel = time_from_start * 2*np.pi / 10
         # print(travel)
-        radius = 0.3
+        radius = 0.4
 
         x = 0.5
         y = radius * np.cos(travel)
-        z = radius * np.sin(travel) + 0.4
+        z = 0.4 # radius * np.sin(travel) + 0.4
         roll = 3.14
         pitch = 0.
         yaw = 0.

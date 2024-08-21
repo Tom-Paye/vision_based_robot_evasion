@@ -469,15 +469,15 @@ class kpts_to_bbox(Node):
             # geom.robot_cp_trunk_idx = c_r_t
             # geom.t = trunk_t
 
-            class geom(): pass
-            geom.body_pos = body_pos
-            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-            geom.body_cp_idx = c_b_r
-            geom.u = u
-            geom.robot_cp_body_idx = c_r_b
-            geom.s = t
+            # class geom(): pass
+            # geom.body_pos = body_pos
+            # geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            # geom.body_cp_idx = c_b_r
+            # geom.u = u
+            # geom.robot_cp_body_idx = c_r_b
+            # geom.s = t
 
-            self.fig = visuals.plot_skeletons(self.fig, geom)
+            # self.fig = visuals.plot_skeletons(self.fig, geom)
 
             ###############
 
