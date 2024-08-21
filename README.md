@@ -76,6 +76,7 @@ TODO:
   - reduce distance at which the force starts being applied
   - /add damping term to the force generator
   - add better prioritization between goals and repulsion. Null space?
+  - instead of cartesian repulsion forces, it may be more intelligent to apply rotational impedance forces on every joint instead
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2

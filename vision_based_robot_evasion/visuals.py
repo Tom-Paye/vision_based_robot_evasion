@@ -181,14 +181,15 @@ def plot_skeletons(fig, geom):
 
     ################################/
     
-    if type(u) == float:
-        ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
-        ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
-    else:
-        for i in range(np.shape(ra_pos)[1]):
-            ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
-        for i in range(np.shape(rt_pos)[1]):
-            ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
+    # Plot the lines connecting body and robot
+    # if type(u) == float:
+    #     ax.plot(ra_pos[:, 0], ra_pos[:, 1], ra_pos[:, 2], '-k')
+    #     ax.plot(rt_pos[:, 0], rt_pos[:, 1], rt_pos[:, 2], '-k')
+    # else:
+    #     for i in range(np.shape(ra_pos)[1]):
+    #         ax.plot(ra_pos[:, i, 0], ra_pos[:, i, 1], ra_pos[:, i, 2], '-k')
+    #     for i in range(np.shape(rt_pos)[1]):
+    #         ax.plot(rt_pos[:, i, 0], rt_pos[:, i, 1], rt_pos[:, i, 2], '-k')
     
     ################################\
     

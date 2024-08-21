@@ -60,7 +60,7 @@ TODO: Create clever law combining effects of distance and relative speed to appl
 """
 
 
-def link_dists(pos_body, pos_robot, max_dist):
+def link_dists(pos_body, pos_robot, max_dist, false_link=-1):
     """
     Given the positions of two bodies, this function returns:
         - the minimum distance between them
@@ -185,6 +185,12 @@ def link_dists(pos_body, pos_robot, max_dist):
     mat_roll = view_as_windows(mat_to_roll, window_shape)[:,0,0:n_compared_rows,:]
     
     bad_segments = np.vstack((np.arange(n_rolls-n_compared_rows+1,n_rolls), np.arange(n_compared_rows-2,-1, -1))).T
+    if false_link > -1:
+        h_start = false_link
+        h_end = h_start - n_rolls
+        bad_segments_arm_trunk = np.vstack((np.arange(0,n_rolls), np.arange(h_start,h_end, -1))).T
+        bad_segments_arm_trunk = bad_segments_arm_trunk[bad_segments_arm_trunk[:,1]%n_rolls < n_compared_rows ,:]
+        bad_segments = np.vstack((bad_segments, bad_segments_arm_trunk)).astype(int)
     ############################
     # for i in range(n_rolls):
     #     new_layer = np.roll(arr_to_roll, -i, axis=0)
@@ -340,31 +346,31 @@ class kpts_to_bbox(Node):
         logging.basicConfig(level=logging.DEBUG)
 
         self.initialize_variables()
-
-        # # get the robot description
-        # caught = 0
-        # description_node = robot_description()
-        # self.logger.info('Waiting for robot_description message...')
-        # while not caught:
-        #     rclpy.spin_once(description_node)
-        #     caught = description_node.caught
-        #     time.sleep(0.01)
-        # self.robot = description_node.robot
-        # self.logger.info('Robot model loaded!')
-
-        self.subscription_data = self.create_subscription(
+        
+        # self.subscription_arms_pos = self.create_subscription(
+        #     Array2d,      # PoseArray, Array2d
+        #     'arms_cartesian_pos',
+        #     self.arms_pos_callback,
+        #     10)
+        
+        # self.subscription_trunk_pos = self.create_subscription(
+        #     Array2d,      # PoseArray, Array2d
+        #     'trunk_cartesian_pos',
+        #     self.trunk_pos_callback,
+        #     10)
+        
+        self.subscription_body_pos = self.create_subscription(
             Array2d,      # PoseArray, Array2d
-            'kpt_data',
-            self.data_callback,
+            'body_cartesian_pos',
+            self.body_pos_callback,
             10)
-        self.subscription_data  # prevent unused variable warning
 
         self.subscription_robot_pos = self.create_subscription(
             Array2d,      # PoseArray, Array2d
             'robot_cartesian_pos',
             self.robot_pos_callback,
             10)
-        self.subscription_data  # prevent unused variable warning
+
 
         # self.robot_joint_state = self.create_subscription(
         #     JointState,
@@ -413,7 +419,9 @@ class kpts_to_bbox(Node):
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
-        self.offset = np.array([-0.0, 0., 0.0]) # position offset to correct zed bullshit
+        # self.arms_cartesian_positions = np.zeros((6, 3))
+        # self.trunk_cartesian_positions = np.zeros((7, 3))
+        self.body_cartesian_positions = np.zeros((12, 3))
 
         # publishing stats
         self.pub_counter = 0
@@ -421,146 +429,98 @@ class kpts_to_bbox(Node):
         self.t0 = time.time()
 
         # debugging
-        self.debug_t = time.time()
-        self.debug_dt = 0.
-        self.debug_dist_loops = 0
+        # self.debug_t = time.time()
+        # self.debug_dt = 0.
+        # self.debug_dist_loops = 0
         
 
     def dist_callback(self):
         
-        t0 = time.time()
-        
+        if np.any(self.body_cartesian_positions) and np.any(self.robot_cartesian_positions):
 
+            # arms = self.arms_cartesian_positions
+            # trunk = self.trunk_cartesian_positions
 
-        if bool(self.bodies):
-            # if you move out of frame too long, you will be assigned a new body ID
-            # so we also need to increment it here
-
-
-            # Scan to find currently active bodies:
-            deceased = []
-            for subject in self.bodies:
-                ct = time.time()
-                # expect bodies to be updated at 50 Hz
-                if ct - self.bodies[subject][3][0]>0.02 or not np.any(self.bodies[subject][0]):
-                    deceased.append(subject)
-            for body in deceased: del self.bodies[body] 
-
-        # t1 = time.time()
-        # dt = t1 - t0
-        # if dt>0.05:
-        #     self.logger.info("dist_callback 1 takes " + str(np.round(dt, 4)) + " seconds")   
-
-
-        if bool(self.bodies):
-            # Switch to using oldest known body
-            subjects = list(self.bodies.keys())
-            subject = np.min(np.array(subjects).astype(int))
-            self.subject = str(subject)
-
-        if not bool(self.bodies):
-            t0 = time.time()
-            dt = t0 - self.debug_t
-            # self.debug_dt = self.debug_dt + dt
-            self.debug_dist_loops = self.debug_dist_loops + 1
-            self.debug_t = t0
-            self.debug_dt = 0.
-
-            # if self.debug_dt>0.05:
-            #     self.logger.info("dist_callback took " + str(np.round(self.debug_dt, 4)) + " seconds total")
-            #     self.logger.info("It ran "+str(self.debug_dist_loops)+" times without getting a good body") 
-            #     self.debug_dt = 0.
-            #     self.debug_dist_loops = 0
-
-        # t2 = time.time()
-        # dt = t2 - t1
-        # if dt>0.05:
-        #     self.logger.info("dist_callback 2 takes " + str(np.round(dt, 4)) + " seconds") 
-        
-
-        if bool(self.bodies):
-
-            self.debug_dt = t0 - self.debug_t
-            self.debug_t = t0
-
-            # if not np.any(self.bodies[self.subject][0]) or self.bodies[self.subject][3][0]>5 :
-            #     # sometimes the first subject sent is 1, idk why
-            #     for i in range(3):
-            #         new_subject = str(int(self.subject)+i)
-            #         if new_subject in self.bodies:
-            #             self.subject = new_subject
-            #             break
             
-                # make one line from the left hand to the right
-            arms = np.concatenate([np.flip(self.bodies[self.subject][0], axis=0), self.bodies[self.subject][1]])
-            trunk = self.bodies[self.subject][2]
+
+            body_pos = self.body_cartesian_positions
             robot_pos = self.robot_cartesian_positions
 
-            arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos, self.max_dist) # self.placeholder_Pe, robot_pos
-            trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
+            # body = np.vstack((arms, trunk))
+            # false_link = len(arms)
+            dist, direc, t, u, c_r_b, c_b_r = link_dists(body_pos, robot_pos, self.max_dist, self.false_link)
+
+            # arms_dist, arms_direc, arms_t, arms_u, c_r_a, c_a_r = link_dists(arms, robot_pos, self.max_dist) # self.placeholder_Pe, robot_pos
+            # trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
             # self.placeholder_Pe, robot_pos
 
-            ###############
-            # Plotting the distances
-            class geom(): pass
-            geom.arm_pos = arms
-            geom.trunk_pos = trunk
-            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-            geom.arm_cp_idx = c_a_r
-            geom.u = arms_u
-            geom.trunk_cp_idx = c_t_r
-            geom.v = trunk_u
-            geom.robot_cp_arm_idx = c_r_a
-            geom.s = arms_t
-            geom.robot_cp_trunk_idx = c_r_t
-            geom.t = trunk_t
+            # ###############
+            # # Plotting the distances
+            # class geom(): pass
+            # geom.arm_pos = arms
+            # geom.trunk_pos = trunk
+            # geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            # geom.arm_cp_idx = c_a_r
+            # geom.u = arms_u
+            # geom.trunk_cp_idx = c_t_r
+            # geom.v = trunk_u
+            # geom.robot_cp_arm_idx = c_r_a
+            # geom.s = arms_t
+            # geom.robot_cp_trunk_idx = c_r_t
+            # geom.t = trunk_t
 
-            self.fig = visuals.plot_skeletons(self.fig, geom)
+            # self.fig = visuals.plot_skeletons(self.fig, geom)
 
-            ###############
+            # ###############
 
-            # only continue if the safety bubbles have been breached
-            if not np.any(arms_dist):
-                body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
-                            't':trunk_t      , 'u':trunk_u,
-                            'closest_r':c_r_t        , 'closest_b':c_t_r}
-            elif not np.any(trunk_dist):
-                body_geom = {'dist':arms_dist, 'direc':arms_direc,
-                            't':arms_t      , 'u':arms_u,
-                            'closest_r':c_r_a        , 'closest_b':c_a_r}
-            else:
-                # min_dist_arms = np.min(arms_dist)
-                # min_dist_trunk = np.min(trunk_dist)
-                # min_dist = min(min_dist_arms, min_dist_trunk)
-                # self.get_logger().info('Minimum distance:')
-                # self.get_logger().info(str(min_dist))
+            # # only continue if the safety bubbles have been breached
+            # if not np.any(arms_dist):
+            #     body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
+            #                 't':trunk_t      , 'u':trunk_u,
+            #                 'closest_r':c_r_t        , 'closest_b':c_t_r}
+            # elif not np.any(trunk_dist):
+            #     body_geom = {'dist':arms_dist, 'direc':arms_direc,
+            #                 't':arms_t      , 'u':arms_u,
+            #                 'closest_r':c_r_a        , 'closest_b':c_a_r}
+            # else:
+            #     # min_dist_arms = np.min(arms_dist)
+            #     # min_dist_trunk = np.min(trunk_dist)
+            #     # min_dist = min(min_dist_arms, min_dist_trunk)
+            #     # self.get_logger().info('Minimum distance:')
+            #     # self.get_logger().info(str(min_dist))
 
-                # # if only using the minimum distance
-                # if min_dist_arms < min_dist_trunk:
-                #     body_geom = {'dist':arms_dist, 'direc':arms_direc,
-                #                 't':arms_t      , 'u':arms_u,
-                #                 'closest_r':c_r_a        , 'closest_b':c_a_r}
-                # else:
-                #     body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
-                #                 't':trunk_t      , 'u':trunk_u,
-                #                 'closest_r':c_r_t        , 'closest_b':c_t_r}
+            #     # # if only using the minimum distance
+            #     # if min_dist_arms < min_dist_trunk:
+            #     #     body_geom = {'dist':arms_dist, 'direc':arms_direc,
+            #     #                 't':arms_t      , 'u':arms_u,
+            #     #                 'closest_r':c_r_a        , 'closest_b':c_a_r}
+            #     # else:
+            #     #     body_geom = {'dist':trunk_dist, 'direc':trunk_direc,
+            #     #                 't':trunk_t      , 'u':trunk_u,
+            #     #                 'closest_r':c_r_t        , 'closest_b':c_t_r}
                     
-                # if using every distance under max_dist
-                dist = np.hstack((arms_dist, trunk_dist))
-                direc = np.concatenate((arms_direc, trunk_direc), axis = 0)
-                t = np.hstack((arms_t, trunk_t))
-                u = np.hstack((arms_u, trunk_u))
-                closest_r = np.hstack((c_r_a, c_r_t))
-                closest_b = np.hstack((c_a_r, c_t_r+len(c_a_r)))
-                body_geom = {'dist':dist, 'direc':direc,
-                                't':t      , 'u':u,
-                                'closest_r':closest_r        , 'closest_b':closest_b}
-                # forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
+            #     # if using every distance under max_dist
+            #     dist = np.hstack((arms_dist, trunk_dist))
+            #     direc = np.concatenate((arms_direc, trunk_direc), axis = 0)
+            #     t = np.hstack((arms_t, trunk_t))
+            #     u = np.hstack((arms_u, trunk_u))
+            #     closest_r = np.hstack((c_r_a, c_r_t))
+            #     closest_b = np.hstack((c_a_r, c_t_r+len(c_a_r)))
+            #     body_geom = {'dist':dist, 'direc':direc,
+            #                     't':t      , 'u':u,
+            #                     'closest_r':closest_r        , 'closest_b':closest_b}
+            #     # forces = self.force_estimator(body_geom, robot_pos)    # self.placeholder_Pe, robot_pos
 
-                # t3 = time.time()
-                # dt = t3 - t2
-                # if dt>0.05:
-                #     self.logger.info("dist_callback 3 takes " + str(np.round(dt, 4)) + " seconds") 
+            #     # t3 = time.time()
+            #     # dt = t3 - t2
+            #     # if dt>0.05:
+            #     #     self.logger.info("dist_callback 3 takes " + str(np.round(dt, 4)) + " seconds") 
+
+
+  
+            closest_r = c_r_b
+            closest_b = c_b_r
+            body_geom = {'dist':dist, 'direc':direc, 't':t , 'u':u, 'closest_r':closest_r, 'closest_b':closest_b}
 
             if time.time()>5:
 
@@ -571,6 +531,8 @@ class kpts_to_bbox(Node):
             # 
 
                 self.generate_distance_message(body_geom, robot_pos) 
+            self.arms_cartesian_positions = np.zeros((6, 3))
+            self.trunk_cartesian_positions = np.zeros((6, 3))
 
 
 
@@ -669,44 +631,34 @@ class kpts_to_bbox(Node):
         #     self.logger.info("generate_distance_message takes " + str(np.round(dt, 4)) + " seconds") 
 
 
-    def data_callback(self, msg):
-
-        ################
-        # limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
-        # Reshape message into array
-        t0 = time.time()
-        n_rows = msg.height
-        n_cols = msg.width
-        msg_array = np.array(msg.array)
-        kpt_array = np.reshape(msg_array,(n_rows,n_cols))
-        for body in np.unique(kpt_array[:,0]):
-            body_kpts = kpt_array[kpt_array[:,0]==body,1:]
-            if not str(int(body)) in self.bodies:
-                self.bodies[str(int(body))] = [[], [], [], [time.time()]]
-            for limb in np.unique(body_kpts[:,0]):
-                limb_kpts = body_kpts[body_kpts[:,0]==limb,1:]
-                # print(limb_kpts)
-                offset_mat = np.tile(self.offset, (len(limb_kpts),1))
-                limb_kpts = limb_kpts + offset_mat
-                # remove rows with nan
-                limb_kpts = limb_kpts[~np.isnan(limb_kpts).any(axis=1), :]
-                # print(limb_kpts)
-                self.bodies[str(int(body))][int(limb)] = limb_kpts
-                self.bodies[str(int(body))][3][0] = time.time()
-
-        # t1 = time.time()
-        # dt = t1 - t0
-        # if dt>0.05:
-        #     self.logger.info("data_callback takes " + str(np.round(dt, 4)) + " seconds")   
-
-        # self.dist_callback()
-
     def robot_pos_callback(self, msg):
 
         n_rows = msg.height
         n_cols = msg.width
         msg_array = np.array(msg.array)
         self.robot_cartesian_positions = np.reshape(msg_array,(n_rows,n_cols))
+
+    # def arms_pos_callback(self, msg):
+
+    #     n_rows = msg.height
+    #     n_cols = msg.width
+    #     msg_array = np.array(msg.array)
+    #     self.arms_cartesian_positions = np.reshape(msg_array,(n_rows,n_cols))
+
+    # def trunk_pos_callback(self, msg):
+
+    #     n_rows = msg.height
+    #     n_cols = msg.width
+    #     msg_array = np.array(msg.array)
+    #     self.trunk_cartesian_positions = np.reshape(msg_array,(n_rows,n_cols))
+
+    def body_pos_callback(self, msg):
+
+        n_rows = msg.height
+        n_cols = msg.width
+        msg_array = np.array(msg.array)
+        self.false_link = msg_array[-1]
+        self.body_cartesian_positions = np.reshape(msg_array[:-1],(n_rows,n_cols))
 
     
     def publishing_stats(self):
@@ -719,14 +671,6 @@ class kpts_to_bbox(Node):
 
         if dt>0.5:
             self.get_logger().info("Distances published after "+str(np.round(dt, 3))+" seconds")
-            self.get_logger().info("It took "+str(t-self.debug_t)+" seconds to run dist_callback")
-            self.get_logger().info("Dist had been spinning on empty for "+str(self.debug_dist_loops)+" cycles")
-            self.get_logger().info("Dist was first called "+str(self.debug_dt)+" seconds after it last ended")
-            
-        self.debug_dist_loops = 0
-
-        self.debug_t = time.time()
-        self.debug_dt = 0.
 
         if self.Dt > 10:
             pub_freq = np.round(self.pub_counter / self.Dt, 3)
