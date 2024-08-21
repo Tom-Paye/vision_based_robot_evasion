@@ -454,8 +454,8 @@ class kpts_to_bbox(Node):
             # trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
             # self.placeholder_Pe, robot_pos
 
-            # ###############
-            # # Plotting the distances
+            ###############
+            # Plotting the distances
             # class geom(): pass
             # geom.arm_pos = arms
             # geom.trunk_pos = trunk
@@ -469,9 +469,17 @@ class kpts_to_bbox(Node):
             # geom.robot_cp_trunk_idx = c_r_t
             # geom.t = trunk_t
 
-            # self.fig = visuals.plot_skeletons(self.fig, geom)
+            class geom(): pass
+            geom.body_pos = body_pos
+            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            geom.body_cp_idx = c_b_r
+            geom.u = u
+            geom.robot_cp_body_idx = c_r_b
+            geom.s = t
 
-            # ###############
+            self.fig = visuals.plot_skeletons(self.fig, geom)
+
+            ###############
 
             # # only continue if the safety bubbles have been breached
             # if not np.any(arms_dist):
