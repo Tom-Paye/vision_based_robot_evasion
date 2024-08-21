@@ -3,16 +3,16 @@
 import rclpy
 import rclpy.callback_groups
 from rclpy.node import Node
-from geometry_msgs.msg import PoseArray
-from geometry_msgs.msg import Pose
-from geometry_msgs.msg import Point
-from geometry_msgs.msg import TransformStamped
-from geometry_msgs.msg import Quaternion
-from tf2_msgs.msg import TFMessage
-from std_msgs.msg import String
-from sensor_msgs.msg import JointState
-from urdf_parser_py.urdf import URDF
-from urdf_parser_py.urdf import Robot
+# from geometry_msgs.msg import PoseArray
+# from geometry_msgs.msg import Pose
+# from geometry_msgs.msg import Point
+# from geometry_msgs.msg import TransformStamped
+# from geometry_msgs.msg import Quaternion
+# from tf2_msgs.msg import TFMessage
+# from std_msgs.msg import String
+# from sensor_msgs.msg import JointState
+# from urdf_parser_py.urdf import URDF
+# from urdf_parser_py.urdf import Robot
 # import messages_fr3
 from messages_fr3.msg import Array2d
 
@@ -25,13 +25,14 @@ import math
 import time
 import copy
 import logging
-from pathlib import Path
+# from pathlib import Path
 from skimage.util.shape import view_as_windows
 
-import subprocess
-import tempfile
-from urdfpy import URDF
-import trimesh
+# import subprocess
+# import tempfile
+# from urdfpy import URDF
+# import trimesh
+# import threading
 
 # import tf2_ros
 # import tf_transformations
@@ -59,74 +60,6 @@ TODO: Create clever law combining effects of distance and relative speed to appl
 """
 
 
-
-class robot_description(Node):
-
-    def __init__(self):
-        super().__init__('robot_description')
-        self.caught = 0
-        self.robot_des = self.create_subscription(
-            String,
-            'robot_description',
-            self.description_callback,
-            10)
-        # while(rclpy.wait_for_message(1)):
-        #     time.sleep(0.01)
-        # rclpy.rclpy.rclpy.wait_for_message(1)
-        # while not rlcpy.test
-
-
-    def description_callback(self, des_message):
-        # only published to once, at the launch of the controller
-
-        a = des_message
-        robot = Robot.from_xml_string(a.data)
-        # Check if robot model is valid
-        robot.check_valid()
-        # Print the robot model
-        # print(robot)
-        self.robot = robot
-        self.caught = 1
-        # urdf file read : /home/tom/franka_ros2_ws/install/franka_description/share/franka_description/robots/panda_arm.urdf.xacro
-
-        # Call xacro to convert xacro to urdf
-    # subprocess.run(['ros2', 'run', 'xacro', 'xacro', xacro_path, '-o', urdf_path], check=True)
-    
-    # def the_rest():    
-    #     link_poses = self.compute_robot_pose(robot, node)
-
-    #     # Now you can use the link_poses dictionary to visualize or analyze the robot's current pose.
-    #     for link_name, pose in link_poses.items():
-    #         print(f"Link: {link_name}")
-    #         print(pose)
-    #     a=2
-
-
-    
-def calculate_transforms(robot, tf_world):
-    link_poses = {}
-    legacy_link = np.eye(4)
-    for link in robot.links:
-        link_poses[link.name] = legacy_link
-        if link.name in tf_world:
-            link_poses[link.name] = create_transform_matrix(tf_world[link.name][0], tf_world[link.name][1])
-        legacy_link = link_poses[link.name]
-    return link_poses 
-
-
-def create_transform_matrix(translation, rotation):    
-    trans_matrix = np.eye(4)
-    trans_matrix[:3, 3] = translation
-
-    rot = R.from_quat(rotation)
-    trans_matrix[:3, :3] = rot.as_matrix()
-
-    return trans_matrix
-
-
-
-
-    
 def link_dists(pos_body, pos_robot, max_dist):
     """
     Given the positions of two bodies, this function returns:
@@ -401,28 +334,35 @@ def link_dists(pos_body, pos_robot, max_dist):
 class kpts_to_bbox(Node):
 
     def __init__(self):
-        super().__init__('minimal_subscriber')
+        super().__init__('kpts_to_bbox')
         
         self.logger = logging.getLogger('kpts_to_bbox')
         logging.basicConfig(level=logging.DEBUG)
 
         self.initialize_variables()
 
-        # get the robot description
-        caught = 0
-        description_node = robot_description()
-        self.logger.info('Waiting for robot_description message...')
-        while not caught:
-            rclpy.spin_once(description_node)
-            caught = description_node.caught
-            time.sleep(0.01)
-        self.robot = description_node.robot
-        self.logger.info('Robot model loaded!')
+        # # get the robot description
+        # caught = 0
+        # description_node = robot_description()
+        # self.logger.info('Waiting for robot_description message...')
+        # while not caught:
+        #     rclpy.spin_once(description_node)
+        #     caught = description_node.caught
+        #     time.sleep(0.01)
+        # self.robot = description_node.robot
+        # self.logger.info('Robot model loaded!')
 
         self.subscription_data = self.create_subscription(
             Array2d,      # PoseArray, Array2d
             'kpt_data',
             self.data_callback,
+            10)
+        self.subscription_data  # prevent unused variable warning
+
+        self.subscription_robot_pos = self.create_subscription(
+            Array2d,      # PoseArray, Array2d
+            'robot_cartesian_pos',
+            self.robot_pos_callback,
             10)
         self.subscription_data  # prevent unused variable warning
 
@@ -432,11 +372,11 @@ class kpts_to_bbox(Node):
         #     self.get_joint_velocities(),
         #     10)
         
-        self.robot_joint_state = self.create_subscription(
-            TFMessage,
-            'tf',
-            self.transform_callback,
-            10,)
+        # self.robot_joint_state = self.create_subscription(
+        #     TFMessage,
+        #     'tf',
+        #     self.transform_callback,
+        #     10,)
         
         
         # link_poses = self.compute_robot_pose(robot, node)
@@ -473,7 +413,7 @@ class kpts_to_bbox(Node):
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
-        self.offset = np.array([-0.1, 0., 0.2]) # position offset to correct zed bullshit
+        self.offset = np.array([-0.0, 0., 0.0]) # position offset to correct zed bullshit
 
         # publishing stats
         self.pub_counter = 0
@@ -560,24 +500,24 @@ class kpts_to_bbox(Node):
             trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
             # self.placeholder_Pe, robot_pos
 
-            # ###############
-            # # Plotting the distances
-            # class geom(): pass
-            # geom.arm_pos = arms
-            # geom.trunk_pos = trunk
-            # geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-            # geom.arm_cp_idx = c_a_r
-            # geom.u = arms_u
-            # geom.trunk_cp_idx = c_t_r
-            # geom.v = trunk_u
-            # geom.robot_cp_arm_idx = c_r_a
-            # geom.s = arms_t
-            # geom.robot_cp_trunk_idx = c_r_t
-            # geom.t = trunk_t
+            ###############
+            # Plotting the distances
+            class geom(): pass
+            geom.arm_pos = arms
+            geom.trunk_pos = trunk
+            geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
+            geom.arm_cp_idx = c_a_r
+            geom.u = arms_u
+            geom.trunk_cp_idx = c_t_r
+            geom.v = trunk_u
+            geom.robot_cp_arm_idx = c_r_a
+            geom.s = arms_t
+            geom.robot_cp_trunk_idx = c_r_t
+            geom.t = trunk_t
 
-            # self.fig = visuals.plot_skeletons(self.fig, geom)
+            self.fig = visuals.plot_skeletons(self.fig, geom)
 
-            # ###############
+            ###############
 
             # only continue if the safety bubbles have been breached
             if not np.any(arms_dist):
@@ -622,15 +562,15 @@ class kpts_to_bbox(Node):
                 # if dt>0.05:
                 #     self.logger.info("dist_callback 3 takes " + str(np.round(dt, 4)) + " seconds") 
 
-                if time.time()>5:
+            if time.time()>5:
 
-                #     # forces = np.zeros((7, 6))
-                #     # forces[3, 2] = 20
+            #     # forces = np.zeros((7, 6))
+            #     # forces[3, 2] = 20
 
-                #     self.generate_repulsive_force_message(forces)       
-                # 
+            #     self.generate_repulsive_force_message(forces)       
+            # 
 
-                    self.generate_distance_message(body_geom, robot_pos) 
+                self.generate_distance_message(body_geom, robot_pos) 
 
 
 
@@ -671,25 +611,6 @@ class kpts_to_bbox(Node):
 
 
 
-        # #####################
-
-        # for i, force in enumerate(dists):
-        #     vec = direc[i,:]
-        #     seg = application_segments[i]
-        #     dist = application_dist[i]
-
-        #     force = self.max_dist - self.min_dist - np.abs(force-self.min_dist) #/(self.max_dist - self.min_dist)
-        #     force = np.clip(force,0,self.max_dist - self.min_dist)
-            
-
-        #     force_vec = force * vec
-        #     moment = np.zeros(3)
-
-        #     if dist > 0:
-        #         lever = levers[seg,:]
-        #         moment = np.cross(lever*dist, force_vec)
-            
-        #     full_force_vec[seg,:] = full_force_vec[seg,:] + np.hstack((force_vec, moment))
 
         ####################ACCOUNT FOR INPUT OF SIZE 13###################
         # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
@@ -750,7 +671,6 @@ class kpts_to_bbox(Node):
 
     def data_callback(self, msg):
 
-
         ################
         # limb_dict = {'left':0, 'right':1, 'trunk':2, '_stop':-1}
         # Reshape message into array
@@ -781,89 +701,13 @@ class kpts_to_bbox(Node):
 
         # self.dist_callback()
 
+    def robot_pos_callback(self, msg):
 
-    def transform_callback(self, tf_message):
-        
-        t0 = time.time()
+        n_rows = msg.height
+        n_cols = msg.width
+        msg_array = np.array(msg.array)
+        self.robot_cartesian_positions = np.reshape(msg_array,(n_rows,n_cols))
 
-        robot_translation = np.zeros((10,3))
-        robot_rotation = np.zeros((10,4))
-        robot_rotation[:,-1] = np.ones(10)
-        joint_name = [None] * 10
-
-        total_trans = np.zeros(3)
-        total_rot = np.array([0, 0, 0, 1])
-        trm = R.from_quat(total_rot)
-        idx = 0
-        finger_rot_quat = np.zeros((2, 4))
-        finger_rot_quat[:,-1] = np.ones(2)
-        finger_trans = np.zeros((2, 3))
-
-        for transform in tf_message.transforms:
-            rot_ros = transform.transform.rotation
-            trans_ros = transform.transform.translation
-            id = transform.child_frame_id
-
-            vec_t = np.array([trans_ros.x, trans_ros.y, trans_ros.z])
-            vec_r = np.array([rot_ros.x, rot_ros.y, rot_ros.z, rot_ros.w])
-            
-
-            if id[-1].isnumeric():
-                i = int(id[-1])-1
-
-                quat_rot = trm.apply(vec_t)               # current translation, reoriented into world frame
-                total_trans = total_trans + quat_rot        # total translation in WF
-            
-                srm = R.from_quat(vec_r)                    # rotation quat of current index in Current Frame
-                trm = trm * srm                             # rotation quat of current index in WF               
-                total_rot_quat = trm.as_quat()
-
-                robot_rotation[idx+1] = total_rot_quat        # total rot and trans are applied to the next joint
-                robot_translation[idx+1] = total_trans
-                idx = idx + 1
-            else:
-                if id == 'panda_leftfinger':
-                    i = -3
-
-                    finger_rot_quat[0] = vec_r
-                    finger_trans[0] = vec_t
-
-                else:
-                    i = -2
-
-                finger_trans[1] = vec_t
-                finger_rot_quat[1] = vec_r
-
-            joint_name[i+1] = id
-
-        # Deal with the fingers separately to not have to screw with the for loop
-        robot_rotation[-2] = robot_rotation[-3]
-        quat_rot = R.from_quat(robot_rotation[-3]).apply(finger_trans[0])
-        robot_translation[-1] =  robot_translation[-3] + quat_rot
-
-        robot_rotation[-1] = robot_rotation[-3]
-        quat_rot = R.from_quat(robot_rotation[-3]).apply(finger_trans[1])
-        robot_translation[-1] =  robot_translation[-3] + quat_rot
-
-        tf_world = {}
-        for i, joint in enumerate(joint_name[1:]):
-            tf_world[joint] = [robot_translation[i+1], robot_rotation[i+1]]
-        
-        link_poses = calculate_transforms(self.robot, tf_world)
-        pos_world = np.array(list(link_poses.values()))[:, 0:3, -1]
-
-        self.robot_cartesian_positions = pos_world
-
-        # apply robot rotations to each robot axis, assuming that axis is locally [0, 0, 1]
-        joint_axes = np.zeros((7, 3))
-        joint_axes[:,-1] = np.ones(7)
-        self.axis_rot = R.from_quat(robot_rotation[1:-2]).apply(joint_axes)
-
-        # t1 = time.time()
-        # dt = t1 - t0
-        # if dt>0.05:
-        #     self.logger.info("transform_callback takes " + str(np.round(dt, 4)) + " seconds")
-        # return link_poses
     
     def publishing_stats(self):
 
@@ -892,8 +736,16 @@ class kpts_to_bbox(Node):
 
     
 
-        
+ 
+
    
+
+    
+
+
+
+
+
 
 
     
@@ -905,17 +757,31 @@ def main(args = None):
     rclpy.init(args=args)
 
     bbox_generator = kpts_to_bbox()
+    # executor = rclpy.executors.MultiThreadedExecutor()
+    
+    # executor.add_node(bbox_generator)
+    # executor.add_node(pose_publisher)
 
+    # rclpy.spin(pose_publisher)
     rclpy.spin(bbox_generator)
 
+    # executor_thread = threading.Thread(target=executor.spin, daemon=True)
+    # executor_thread.start()
 
-
+    # rate = pose_publisher.create_rate(2)
+    # try:
+    #     while rclpy.ok():
+    #         # print('Help me body, you are my only hope')
+    #         rate.sleep()
+    # except KeyboardInterrupt:
+    #     pass
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    bbox_generator.destroy_node()
+    # bbox_generator.destroy_node()
     rclpy.shutdown()
+    # executor_thread.join()
     
     print('done')
     

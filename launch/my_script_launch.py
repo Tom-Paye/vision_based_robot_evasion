@@ -28,11 +28,11 @@ def generate_launch_description():
 
     ld = LaunchDescription([
         
-        # Node(
-        #     package='vision_based_robot_evasion',
-        #     executable='urdf_relay.py',
-        #     name='urdf_relay'
-        # ),
+        Node(
+            package='vision_based_robot_evasion',
+            executable='robot_pose.py',
+            name='robot_pose'
+        ),
         Node(
             package='vision_based_robot_evasion',
             executable='img_to_kpts.py',

@@ -37,6 +37,9 @@ TODO:
   - / improve location accuracy
   - / get an adapter so that all devices can be connected at once
   - debug img_to_kpts to figure out why the basis suddenly seems to change from time to time
+  - performance increase : limit imgs_to_kpts to 30 fps to free up cpu, since kpts_to_bbox is the bottleneck
+  - separate kpts_to_bbox into multiple nodes in order to enforce concurrent callbacks: https://robotics.stackexchange.com/questions/106026/ros2-multi-nodes-each-on-a-thread-in-same-process
+  
 
 3rd goal: create bubble
   - /  calculate the distances and directions between he robot and human
