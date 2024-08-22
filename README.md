@@ -47,8 +47,10 @@ TODO:
   - /  determine where on the robot to exert pseudo-force
   - determine force application policy (repulsion, dodging)
   - Justify the safety of the strategy
-  - debug kpts to bbox to find out why it's so inefficient
-  - output forces for every distance smaller than the bubble radius, to prevent bang bang oscillation
+  - /  debug kpts to bbox to find out why it's so inefficient
+  - /  output forces for every distance smaller than the bubble radius, to prevent bang bang       oscillation
+  - Add a multiplicative factor to the force in the case of few repulsion interactions in order to
+    enable stronger repulsion of the hand without overreacting when the full body is near
 
 4th goal: fetch robot positions
   - / use Curdin's controller to connect to the robot
@@ -77,6 +79,7 @@ TODO:
   - /add damping term to the force generator
   - add better prioritization between goals and repulsion. Null space?
   - instead of cartesian repulsion forces, it may be more intelligent to apply rotational impedance forces on every joint instead
+  - add a component in the null space of the goal (NOT REPULSION) to bring the robot away from singularities
 
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2

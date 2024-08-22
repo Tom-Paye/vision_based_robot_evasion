@@ -612,6 +612,13 @@ class kpts_to_bbox(Node):
 
         full_force_vec = np.nan_to_num(full_force_vec)
 
+        # rescale spring forces to make them stronger if few kpts are exerting force
+        # the idea is that forces should be weak enough to not cause problems when the full body 
+        # exerts them, but get strong enough that a single hand can push anything away
+        num_interactions = len(dists)
+        multiplier = 3 / np.min(3, 3-num_interactions)
+        full_force_vec = full_force_vec * multiplier
+
         
 
 
