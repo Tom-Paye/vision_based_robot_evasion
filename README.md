@@ -67,13 +67,13 @@ TODO:
   - There is more to this task than simply throwing a force at the controller to untangle. The controller only applies the component of the force which actually aligns with the joint. So you need great forces in order to rotate a joint the right way for it to permit another joint to do the movement you want, but these great forces also instantly cause the enabled joint to violate velocity conditions
   - Recalculate joint forces intelligently to prioritize movement in the joints that enable the motion you want
   ==> create secondary task of orienting joints the right way
-  - add scaling so forces get smaller towards the EE, use the official franka scaling
-  - add damping term to the force generator
-  - Presence seems to induce rotation of the EE, I think that is due to the accumulated moments created when truncating the forces array // fixed in a messy way, need to revisit
+  - / add scaling so forces get smaller towards the EE, use the official franka scaling
+  - / add damping term to the force generator
+  -  /Presence seems to induce rotation of the EE, I think that is due to the accumulated moments created when truncating the forces array // fixed in a messy way, need to revisit
   Problem : forces calculated here only affect a single joint, typically the EE. But, inverse kinematics disproportionately affect joints closer to the EE, while those near the base barely move at all.
   This means some directions of movement will have much higher gain compared to others.
   Solution: Perform pseudo-inverse kinematics preprocessing to feed forces onto all joints of the robot
-  - disable broadcasting old forces TODO:
+  - / disable broadcasting old forces
   - the base position the robot wants to be in is not defined in the cartesian way, but in joint space. this means that the robot tries to keep every angle the same indepentently. So if my controller happens to point in the right direction on the right joint, it can interfere constructively with the base command and cause a velocity violation despite the robot not really adopting a good pose
   - reduce distance at which the force starts being applied
   - /add damping term to the force generator
@@ -84,15 +84,25 @@ TODO:
 6th goal: Perform robot control to apply the calculated force
   -  / Talk to Curdin's controller over ros2
 
-7th goal : redo fusion so it actually runs instead of stuttering pathetically
+7th goal : / redo fusion so it actually runs instead of stuttering pathetically
 
 8th goal: incorporate 3D models, or show that it is unnecessary
   - body fitting models which are accurate and SAFE
   - infer body proportions using learned estimators?
 
 9th goal: Make it run smoothly
-  - Look for bottlenecks in CPU, GPU, RAM and disable power saving policy
-  - Check for waiting behavior between the nodes, make sure they are completely independent
+  - / Look for bottlenecks in CPU, GPU, RAM and disable power saving policy
+  - / Check for waiting behavior between the nodes, make sure they are completely independent
+
+10th goal : Package for use by others
+  - Centralize all runtime parameters for easier tuning
+  - Write doc
+  - homogenize spring forces with Curdin
+
+11th goal : Smarter repulsion
+  - vary repulsion distances according to position request and joint speed, to limit unnecessary movement and enable handoffs
+  - add a force component returning the robot to its 'neutral' state, steering away from singular positions
+  - kalman filter the input bodies to get accurate cartesian speeds and further refine the damper between body and robot
 
 For optimal performance:
 Cameras high up

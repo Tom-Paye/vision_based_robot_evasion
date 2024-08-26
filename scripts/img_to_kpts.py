@@ -194,7 +194,7 @@ def init_zed_params(user_params):
     zed_params.init.coordinate_units = sl.UNIT.METER
     zed_params.init.depth_mode = sl.DEPTH_MODE.NEURAL  # PERFORMANCE, NEURAL, ULTRA
     zed_params.init.camera_resolution = sl.RESOLUTION.HD720
-    zed_params.init.camera_fps = 30
+    # zed_params.init.camera_fps = 30
 
     if user_params.video_src == 'SVO' and user_params.real_time == True:
         zed_params.init.svo_real_time_mode = True
