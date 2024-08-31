@@ -84,6 +84,16 @@ def generate_launch_description():
             #     PythonLaunchDescriptionSource([PathJoinSubstitution(
             #         [FindPackageShare('cartesian_impedance_control'), 'run', 'user_input_server'])]),
             # )
+        ]),
+
+        TimerAction(period=30., actions = [
+            IncludeLaunchDescription(
+                Node(
+                    package='vision_based_robot_evasion',
+                    executable='run_stats.py',
+                    name='run_stats',
+                ),
+            )
         ])
         ######################################
         

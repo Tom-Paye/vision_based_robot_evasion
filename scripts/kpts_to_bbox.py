@@ -16,7 +16,7 @@ from rclpy.node import Node
 # import messages_fr3
 from messages_fr3.msg import Array2d
 
-import vision_based_robot_evasion.kalman as kalman
+import scripts.run_stats as run_stats
 import vision_based_robot_evasion.visuals as visuals
 
 import numpy as np
@@ -414,7 +414,7 @@ class kpts_to_bbox(Node):
                                         [1., -.1, .6],
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
-        self.max_dist = 0.5      # distance at which the robot feels a force exerted by proximity to a human
+        self.max_dist = 0.25      # distance at which the robot feels a force exerted by proximity to a human
         self.min_dist = 0.05     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
@@ -568,7 +568,12 @@ class kpts_to_bbox(Node):
 
 
         #####################
-        spring_dists = np.clip(self.max_dist - self.min_dist - np.abs(dists-self.min_dist), 0, self.max_dist - self.min_dist)
+        # spring_dists = np.clip(self.max_dist - self.min_dist - np.abs(dists-self.min_dist), 0, self.max_dist - self.min_dist)
+
+        low_mask = dists<self.min_dist
+        high_mask = 1-low_mask
+        spring_dists = -dists + self.max_dist*(np.ones(len(dists))+low_mask*(dists/self.min_dist - 1))  # this should return an actual distance in [m]
+
         spring_vecs = spring_dists[:, np.newaxis] * direc
 
         # add and group spring vectors by joint
@@ -615,12 +620,17 @@ class kpts_to_bbox(Node):
         # rescale spring forces to make them stronger if few kpts are exerting force
         # the idea is that forces should be weak enough to not cause problems when the full body 
         # exerts them, but get strong enough that a single hand can push anything 
-        if np.any(dists):
-            num_interactions = len(dists)
-            num_desired_interactions = 5
-            multiplier = num_desired_interactions / np.min(\
-                num_desired_interactions, num_desired_interactions-num_interactions)
+        num_interactions = len(application_segments)
+        if num_interactions>0:
+            num_desired_interactions = 10           # Theoretical max is num_body_links * num_robot_links, so around 7*18 = 100. kwik mafs.
+            denom = min(num_desired_interactions, num_interactions)
+            multiplier = num_desired_interactions / denom
+            # self.logger.info('number of interactions: {0}'.format(num_interactions))
+            # self.logger.info(str(multiplier))
+            # self.logger.info(str(self.logger.info('multiplier: {0}'.format(multiplier))))
+            # self.logger.info(str(multiplier))
             full_force_vec = full_force_vec * multiplier
+            # full_force_vec = np.tile(full_force_vec,(multiplier, 1))
 
         
 
@@ -640,6 +650,8 @@ class kpts_to_bbox(Node):
             force_message.array = list(forces_flattened.astype(float))
             [force_message.height, force_message.width]  = np.shape(forces.T)
             self.force_publisher_.publish(force_message)
+
+            # self.logger.info(str(forces))
 
             self.publishing_stats()
 

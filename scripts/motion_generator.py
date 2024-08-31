@@ -51,7 +51,7 @@ class motion_client(Node):
 
         x = 0.5
         y = radius * np.cos(travel)
-        z = 0.4 # radius * np.sin(travel) + 0.4
+        z = 0.5 # radius * np.sin(travel) + 0.4
         roll = 3.14
         pitch = 0.
         yaw = 0.

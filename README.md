@@ -107,3 +107,10 @@ TODO:
 For optimal performance:
 Cameras high up
 Not a black t-shirt!
+
+presentation : 
+Video with evasion for all joints, example with use case
+benchmark code  and show times
+How does it scale in complexity with the keypoint numbers
+How does it compare with path planning
+drawback and intuitive problems with the behaviour

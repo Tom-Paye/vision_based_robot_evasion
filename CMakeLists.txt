@@ -45,6 +45,7 @@ install(PROGRAMS
   scripts/kpts_to_bbox.py
   scripts/motion_generator.py
   scripts/robot_pose.py
+  scripts/run_stats.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
