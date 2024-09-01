@@ -103,6 +103,7 @@ TODO:
   - vary repulsion distances according to position request and joint speed, to limit unnecessary movement and enable handoffs
   - add a force component returning the robot to its 'neutral' state, steering away from singular positions
   - kalman filter the input bodies to get accurate cartesian speeds and further refine the damper between body and robot
+  - shift the wait for new kpts from the controller to the planner --> plan with new robot position info even if no new body data, for better tracking. But put a timeout so we forget very old bodies
 
 For optimal performance:
 Cameras high up

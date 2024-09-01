@@ -86,15 +86,15 @@ def generate_launch_description():
             # )
         ]),
 
-        TimerAction(period=30., actions = [
-            IncludeLaunchDescription(
-                Node(
-                    package='vision_based_robot_evasion',
-                    executable='run_stats.py',
-                    name='run_stats',
-                ),
-            )
-        ])
+        # TimerAction(period=30., actions = [
+
+        #         Node(
+        #             package='vision_based_robot_evasion',
+        #             executable='run_stats.py',
+        #             name='run_stats',
+
+        #     )
+        # ])
         ######################################
         
     ])

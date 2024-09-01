@@ -42,11 +42,14 @@ class archivist(Node):
 
     def kpt_listener(self, message):
         self.time_kpt.append(time.time_ns())
+        # print('kpt message received!')
+        # a = message
 
     def dist_listener(self, message):
         self.time_dist.append(time.time_ns())
         self.kpt_dist_delay.append(self.time_dist[-1]-self.time_kpt[-1])
-        print('dist_message received!')
+        # print('dist message received!')
+        # a = message
 
     
     def compile_data(self):
@@ -113,7 +116,7 @@ def main():
 
     node = archivist()
     
-    rclpy.spin_once(node)
+    rclpy.spin(node)
 
     node.destroy_node()
     rclpy.shutdown()

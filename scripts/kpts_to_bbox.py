@@ -414,7 +414,7 @@ class kpts_to_bbox(Node):
                                         [1., -.1, .6],
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
-        self.max_dist = 0.25      # distance at which the robot feels a force exerted by proximity to a human
+        self.max_dist = 0.3      # distance at which the robot feels a force exerted by proximity to a human
         self.min_dist = 0.05     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
@@ -422,6 +422,9 @@ class kpts_to_bbox(Node):
         # self.arms_cartesian_positions = np.zeros((6, 3))
         # self.trunk_cartesian_positions = np.zeros((7, 3))
         self.body_cartesian_positions = np.zeros((12, 3))
+
+        # body info timeout
+        self.body_timestamp = time.time_ns()
 
         # publishing stats
         self.pub_counter = 0
@@ -539,8 +542,13 @@ class kpts_to_bbox(Node):
             # 
 
                 self.generate_distance_message(body_geom, robot_pos) 
-            self.arms_cartesian_positions = np.zeros((6, 3))
-            self.trunk_cartesian_positions = np.zeros((6, 3))
+            # self.arms_cartesian_positions = np.zeros((6, 3))
+            # self.trunk_cartesian_positions = np.zeros((6, 3))
+            
+            # reset the body object if the camera takes more than 1/20 Hz = 0.05s to send info
+            current_time = time.time_ns()
+            if current_time-self.body_timestamp > 5e7:
+                self.body_cartesian_positions = np.zeros((12, 3))
 
 
 
@@ -653,7 +661,7 @@ class kpts_to_bbox(Node):
 
             # self.logger.info(str(forces))
 
-            self.publishing_stats()
+            # self.publishing_stats()
 
         # t1 = time.time()
         # dt = t1 - t0
@@ -689,6 +697,7 @@ class kpts_to_bbox(Node):
         msg_array = np.array(msg.array)
         self.false_link = msg_array[-1]
         self.body_cartesian_positions = np.reshape(msg_array[:-1],(n_rows,n_cols))
+        self.body_timestamp = time.time_ns()
 
     
     def publishing_stats(self):
