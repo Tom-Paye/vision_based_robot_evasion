@@ -415,7 +415,7 @@ class kpts_to_bbox(Node):
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
         self.max_dist = 0.3      # distance at which the robot feels a force exerted by proximity to a human
-        self.min_dist = 0.05     # distance at which the robot is most strongly pushed back by a human
+        self.min_dist = 0.00     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
         self.robot_cartesian_positions = np.zeros((7, 3))
@@ -578,9 +578,10 @@ class kpts_to_bbox(Node):
         #####################
         # spring_dists = np.clip(self.max_dist - self.min_dist - np.abs(dists-self.min_dist), 0, self.max_dist - self.min_dist)
 
-        low_mask = dists<self.min_dist
-        high_mask = 1-low_mask
-        spring_dists = -dists + self.max_dist*(np.ones(len(dists))+low_mask*(dists/self.min_dist - 1))  # this should return an actual distance in [m]
+        # low_mask = dists<self.min_dist
+        # high_mask = 1-low_mask
+        # spring_dists = -dists + self.max_dist*(np.ones(len(dists))+low_mask*(dists/self.min_dist - 1))  # this should return an actual distance in [m]
+        spring_dists = np.clip(self.max_dist - dists, 0, self.max_dist)
 
         spring_vecs = spring_dists[:, np.newaxis] * direc
 
@@ -630,7 +631,7 @@ class kpts_to_bbox(Node):
         # exerts them, but get strong enough that a single hand can push anything 
         num_interactions = len(application_segments)
         if num_interactions>0:
-            num_desired_interactions = 10           # Theoretical max is num_body_links * num_robot_links, so around 7*18 = 100. kwik mafs.
+            num_desired_interactions = 12           # Theoretical max is num_body_links * num_robot_links, so around 7*18 = 100. kwik mafs.
             denom = min(num_desired_interactions, num_interactions)
             multiplier = num_desired_interactions / denom
             # self.logger.info('number of interactions: {0}'.format(num_interactions))
@@ -661,7 +662,7 @@ class kpts_to_bbox(Node):
 
             # self.logger.info(str(forces))
 
-            # self.publishing_stats()
+            self.publishing_stats()
 
         # t1 = time.time()
         # dt = t1 - t0
