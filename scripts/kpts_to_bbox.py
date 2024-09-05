@@ -15,6 +15,7 @@ from rclpy.node import Node
 # from urdf_parser_py.urdf import Robot
 # import messages_fr3
 from messages_fr3.msg import Array2d
+from messages_fr3.msg import IrregularDistArray
 
 import scripts.run_stats as run_stats
 import vision_based_robot_evasion.visuals as visuals
@@ -387,7 +388,9 @@ class kpts_to_bbox(Node):
         
         # link_poses = self.compute_robot_pose(robot, node)
         
-        self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
+        # self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
+        self.force_publisher_ = self.create_publisher(IrregularDistArray, 'repulsion_forces', 10)
+        
 
         # a = rclpy.callback_groups.ReentrantCallbackGroup()
         self.timer = self.create_timer(0.001, self.dist_callback)
@@ -593,76 +596,104 @@ class kpts_to_bbox(Node):
         # remove the 1st joint, which is the ground
         full_force_vec[:, 0:3] = np.array(joint_springs)[1:]
 
-
-
-
-        ####################ACCOUNT FOR INPUT OF SIZE 13###################
-        # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
-        for i in range(len(full_force_vec)-7):
-            l = link_lengths[-i-1]
-            if l == 0:
-                length_multiplier = np.eye(6)
-            else:
-                # length_multiplier_force = np.concatenate((np.eye(3), -np.eye(3)/l), axis=0)
-                length_multiplier_force = np.concatenate((np.eye(3), np.zeros((3, 3))), axis=0)
-                # length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
-                # consider that the links towards the EE are short enough to be the same point,
-                # else the fingers will cause moment trouble
-                length_multiplier_moment = np.concatenate((np.zeros((3, 3)), np.zeros((3, 3))), axis=0)
-                length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-            full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1].T
         
-        # # Remove joint 0, apply only its torque to link 1
-        # l = link_lengths[0]
-        # if l == 0:
-        #     length_multiplier = np.eye(6)
-        # else:
-        #     length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
-        #     length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
-        #     length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-        # full_force_vec[1] += length_multiplier @ full_force_vec[0]   
+        ############################### treat springs individually
+        dist_vecs = np.nan_to_num(dists[:, np.newaxis] * direc)
+        # dist_vecs = np.nan_to_num(spring_vecs)
 
-        full_force_vec = full_force_vec[0:7]
+        dist_vecs_by_joint = [[] for i in range(7)]
+        list_lengths = []
+        for i in range(1,8):
+            vec = dist_vecs[application_segments == i]
+            dist_vecs_by_joint[i-1].append(vec)
+            list_lengths.append(len(vec))
+        for i in range(8, len(robot_pose)):
+            vec = dist_vecs[application_segments == i]
+            dist_vecs_by_joint[6].append(vec)
+            list_lengths[6] = list_lengths[6] + 1
 
-        full_force_vec = np.nan_to_num(full_force_vec)
+        if np.any(dist_vecs):
 
-        # rescale spring forces to make them stronger if few kpts are exerting force
-        # the idea is that forces should be weak enough to not cause problems when the full body 
-        # exerts them, but get strong enough that a single hand can push anything 
-        num_interactions = len(application_segments)
-        if num_interactions>0:
-            num_desired_interactions = 12           # Theoretical max is num_body_links * num_robot_links, so around 7*18 = 100. kwik mafs.
-            denom = min(num_desired_interactions, num_interactions)
-            multiplier = num_desired_interactions / denom
-            # self.logger.info('number of interactions: {0}'.format(num_interactions))
-            # self.logger.info(str(multiplier))
-            # self.logger.info(str(self.logger.info('multiplier: {0}'.format(multiplier))))
-            # self.logger.info(str(multiplier))
-            full_force_vec = full_force_vec * multiplier
-            # full_force_vec = np.tile(full_force_vec,(multiplier, 1))
+            dists_flattened = dist_vecs.flatten(order='C')
 
-        
-
-
-        # transform to message
-        forces = full_force_vec
-
-        # force_scaling = np.array([87., 87., 87., 87., 12., 12., 12.]) / (self.max_dist - self.min_dist)
-        # total_force = force_scaling[:, np.newaxis] * full_force_vec
-        # self.logger.info("Total force requested: " + str(total_force) + " N / Nm")
-
-        if np.any(forces):
-
-            forces_flattened = forces.flatten(order='C')
-
-            force_message = Array2d()
-            force_message.array = list(forces_flattened.astype(float))
-            [force_message.height, force_message.width]  = np.shape(forces.T)
-            self.force_publisher_.publish(force_message)
-
-            # self.logger.info(str(forces))
-
+            dist_message = IrregularDistArray()
+            dist_message.array = list(dists_flattened.astype(float))
+            dist_message.dimension2  = list_lengths
+            self.force_publisher_.publish(dist_message)
             self.publishing_stats()
+            # self.logger.info(str(dist_vecs))
+
+        
+
+        # ###############################
+
+        # ####################ACCOUNT FOR INPUT OF SIZE 13###################
+        # # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
+        # for i in range(len(full_force_vec)-7):
+        #     l = link_lengths[-i-1]
+        #     if l == 0:
+        #         length_multiplier = np.eye(6)
+        #     else:
+        #         # length_multiplier_force = np.concatenate((np.eye(3), -np.eye(3)/l), axis=0)
+        #         length_multiplier_force = np.concatenate((np.eye(3), np.zeros((3, 3))), axis=0)
+        #         # length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
+        #         # consider that the links towards the EE are short enough to be the same point,
+        #         # else the fingers will cause moment trouble
+        #         length_multiplier_moment = np.concatenate((np.zeros((3, 3)), np.zeros((3, 3))), axis=0)
+        #         length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
+        #     full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1].T
+        
+        # # # Remove joint 0, apply only its torque to link 1
+        # # l = link_lengths[0]
+        # # if l == 0:
+        # #     length_multiplier = np.eye(6)
+        # # else:
+        # #     length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
+        # #     length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
+        # #     length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
+        # # full_force_vec[1] += length_multiplier @ full_force_vec[0]   
+
+        # full_force_vec = full_force_vec[0:7]
+
+        # full_force_vec = np.nan_to_num(full_force_vec)
+
+        # # rescale spring forces to make them stronger if few kpts are exerting force
+        # # the idea is that forces should be weak enough to not cause problems when the full body 
+        # # exerts them, but get strong enough that a single hand can push anything 
+        # num_interactions = len(application_segments)
+        # if num_interactions>0:
+        #     num_desired_interactions = 12           # Theoretical max is num_body_links * num_robot_links, so around 7*18 = 100. kwik mafs.
+        #     denom = min(num_desired_interactions, num_interactions)
+        #     multiplier = num_desired_interactions / denom
+        #     # self.logger.info('number of interactions: {0}'.format(num_interactions))
+        #     # self.logger.info(str(multiplier))
+        #     # self.logger.info(str(self.logger.info('multiplier: {0}'.format(multiplier))))
+        #     # self.logger.info(str(multiplier))
+        #     full_force_vec = full_force_vec * multiplier
+        #     # full_force_vec = np.tile(full_force_vec,(multiplier, 1))
+
+        
+
+
+        # # transform to message
+        # forces = full_force_vec
+
+        # # force_scaling = np.array([87., 87., 87., 87., 12., 12., 12.]) / (self.max_dist - self.min_dist)
+        # # total_force = force_scaling[:, np.newaxis] * full_force_vec
+        # # self.logger.info("Total force requested: " + str(total_force) + " N / Nm")
+
+        # if np.any(forces):
+
+        #     forces_flattened = forces.flatten(order='C')
+
+        #     force_message = Array2d()
+        #     force_message.array = list(forces_flattened.astype(float))
+        #     [force_message.height, force_message.width]  = np.shape(forces.T)
+        #     self.force_publisher_.publish(force_message)
+
+        #     # self.logger.info(str(forces))
+
+            # self.publishing_stats()
 
         # t1 = time.time()
         # dt = t1 - t0
