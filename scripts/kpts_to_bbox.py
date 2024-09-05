@@ -599,29 +599,35 @@ class kpts_to_bbox(Node):
         
         ############################### treat springs individually
         dist_vecs = np.nan_to_num(dists[:, np.newaxis] * direc)
+        dist_vecs = np.hstack((dist_vecs, dist_vecs*0))
+        # self.logger.info('np.shape(dist_vecs)')
+        # self.logger.info(str(np.shape(dist_vecs)))
         # dist_vecs = np.nan_to_num(spring_vecs)
 
-        dist_vecs_by_joint = [[] for i in range(7)]
+
         list_lengths = []
-        for i in range(1,8):
+
+        dists_flattened = np.array([])
+        for i in range(1, 8):
             vec = dist_vecs[application_segments == i]
-            dist_vecs_by_joint[i-1].append(vec)
+            dists_flattened = np.append(dists_flattened, vec)
             list_lengths.append(len(vec))
         for i in range(8, len(robot_pose)):
             vec = dist_vecs[application_segments == i]
-            dist_vecs_by_joint[6].append(vec)
-            list_lengths[6] = list_lengths[6] + 1
+            dists_flattened = np.append(dists_flattened, vec)
+            list_lengths[6] = list_lengths[6] + len(vec)
 
-        if np.any(dist_vecs):
+        dists_flattened = np.nan_to_num(dists_flattened).round(3)
 
-            dists_flattened = dist_vecs.flatten(order='C')
+        if np.any(dists_flattened):
 
             dist_message = IrregularDistArray()
             dist_message.array = list(dists_flattened.astype(float))
             dist_message.dimension2  = list_lengths
             self.force_publisher_.publish(dist_message)
             self.publishing_stats()
-            # self.logger.info(str(dist_vecs))
+            # self.logger.info('list_lengths')
+            # self.logger.info(str(list_lengths))
 
         
 
