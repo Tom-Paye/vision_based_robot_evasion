@@ -113,7 +113,7 @@ class robot_pose(Node):
         self.robot_pos_publisher_ = self.create_publisher(Array2d, 'robot_cartesian_pos', 10)
         # self.arms_publisher_ = self.create_publisher(Array2d, 'arms_cartesian_pos', 10)
         # self.trunk_publisher_ = self.create_publisher(Array2d, 'trunk_cartesian_pos', 10)
-        self.body_publisher_ = self.create_publisher(Array2d, 'body_cartesian_pos', 10)
+        self.body_cartesian_pos = self.create_publisher(Array2d, 'body_cartesian_pos', 10)
 
 
     def robot_callback(self, tf_message):
@@ -248,8 +248,8 @@ class robot_pose(Node):
             deceased = []
             for subject in self.bodies:
                 ct = time.time()
-                # expect bodies to be updated at 30 Hz, with a little leeway
-                if ct - self.bodies[subject][3][0]>0.04 or not np.any(self.bodies[subject][0]):
+                # expect bodies to be updated at 10 Hz, with a little leeway
+                if ct - self.bodies[subject][3][0]>0.01 or not np.any(self.bodies[subject][0]):
                     deceased.append(subject)
             for body in deceased: del self.bodies[body] 
 
@@ -285,7 +285,7 @@ class robot_pose(Node):
         body_message = Array2d()
         body_message.array = list(body_flattened.astype(float))
         [body_message.height, body_message.width]  = np.shape(body)
-        self.body_publisher_.publish(body_message)
+        self.body_cartesian_pos.publish(body_message)
 
         # self.logger.info('published body pos')
 

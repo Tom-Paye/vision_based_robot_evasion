@@ -390,12 +390,12 @@ class kpts_to_bbox(Node):
         
         # self.force_publisher_ = self.create_publisher(Array2d, 'repulsion_forces', 10)
         self.force_publisher_ = self.create_publisher(IrregularDistArray, 'repulsion_forces', 10)
-        self.Ipot_publisher_ = self.create_publisher(IrregularDistArray, 'repulsion_Ipot', 10)
-        self.Damper_publisher_ = self.create_publisher(IrregularDistArray, 'repulsion_Damper', 10)
+        self.Ipot_publisher_ = self.create_publisher(Array2d, 'repulsion_Ipot', 10)
+        self.Damping_publisher_ = self.create_publisher(Array2d, 'repulsion_Damper', 10)
         
 
         # a = rclpy.callback_groups.ReentrantCallbackGroup()
-        self.timer = self.create_timer(0.001, self.dist_callback)
+        self.timer = self.create_timer(0.01, self.dist_callback)
         # self.timer = self.create_timer(0.01, self.kalman_callback)
         
     
@@ -419,7 +419,7 @@ class kpts_to_bbox(Node):
                                         [1., -.1, .6],
                                         [1., .1, .6],])    # placeholder end effector positions
         self.fig = 0
-        self.max_dist = 0.3      # distance at which the robot feels a force exerted by proximity to a human
+        self.max_dist = 0.4      # distance at which the robot feels a force exerted by proximity to a human
         self.min_dist = 0.00     # distance at which the robot is most strongly pushed back by a human
         self.joint_pos = [0., -0.8, 0., 2.36, 0., 1.57, 0.79]
         self.joint_vel = [0., -0.0, 0., -0., 0., 0., 0.]
@@ -429,9 +429,11 @@ class kpts_to_bbox(Node):
         self.body_cartesian_positions = np.zeros((12, 3))
 
         # Spring and damping forces
-        Max_force_per_spring = 4.                           # [N]
+        Max_force_per_spring = 12.                          # [N]
         self.K = Max_force_per_spring / self.max_dist       # [N/m]
-        self.D = 3 * np.sqrt(self.K)                        # [Ns/m]
+        self.D = 1.2 * np.sqrt(self.K)                      # [Ns/m]
+
+        self.force_rescaling = np.array([2, 2, 2, 1, 1, 1, 1])
 
         # body info timeout
         self.body_timestamp = time.time_ns()
@@ -551,13 +553,14 @@ class kpts_to_bbox(Node):
             #     self.generate_repulsive_force_message(forces)       
             # 
 
-                self.generate_distance_message(body_geom, robot_pos) 
+                # self.generate_distance_message(body_geom, robot_pos)
+                self.generate_spring_forces_and_dampers(body_geom, robot_pos)
             # self.arms_cartesian_positions = np.zeros((6, 3))
             # self.trunk_cartesian_positions = np.zeros((6, 3))
             
-            # reset the body object if the camera takes more than 1/20 Hz = 0.05s to send info
+            # reset the body object if the camera takes more than 1/00 Hz = 0.1s to send info
             current_time = time.time_ns()
-            if current_time-self.body_timestamp > 5e7:
+            if current_time-self.body_timestamp > 1e8:
                 self.body_cartesian_positions = np.zeros((12, 3))
 
 
@@ -728,61 +731,110 @@ class kpts_to_bbox(Node):
         application_segments = body_geom['closest_r']   # segment on which the force is applied
         application_dist = body_geom['t']               # fraction of each segment at which each force is applied
 
+        if not np.any(application_segments):
+            return
+
         levers = np.diff(robot_pose, axis = 0)          # vectors pointing along the robot links
-        link_lengths = np.linalg.norm(levers, axis=1)
+        link_lengths = np.linalg.norm(levers, axis=1) + 0.0000001
         
 
         dists = copy.copy(body_geom['dist'])
 
-        full_force_vec = np.zeros([len(robot_pose)-1, 6])
-
         Fpot_norm = self.K * np.clip(self.max_dist - dists, 0, self.max_dist)
 
-        direc = np.vstack((direc, direc*0))
+        direc = np.hstack((direc, direc*0))
 
         # Add aditional moments on every joint for the forces applied partway along the link
+        
         Mpot_application_segments = application_segments[application_dist>0]        # segment on which a moment is applied
         
-        Mpot_norm = Fpot_norm[application_dist>0] * link_lengths[Mpot_application_segments]\
-              * application_dist[Mpot_application_segments]
+        if np.any(Mpot_application_segments):
+            Mpot_norm = Fpot_norm[application_dist>0] * link_lengths[Mpot_application_segments]\
+                * application_dist[application_dist>0]
+            
+            Mpot_levers_unit = np.nan_to_num(levers[Mpot_application_segments, :] / link_lengths[Mpot_application_segments, None])
+
+            Mpot_direc = np.cross(Mpot_levers_unit, direc[application_dist>0, 0:3][0])
+            Mpot_direc = np.hstack((Mpot_direc*0, Mpot_direc))
         
-        Mpot_levers_unit = levers[application_segments] / link_lengths[application_segments]
-
-        Mpot_direc = np.cross(Mpot_levers_unit, direc[application_dist>0])
-        Mpot_direc = np.vstack((Mpot_direc*0, Mpot_direc))
-
-        # Stack forces and moments into a single array
-        Ipot_norm = np.vstack((Fpot_norm, Mpot_norm))
-
-        Ipot_direc = np.vstack((direc, Mpot_direc))
         
 
-        Ipot_application_segments = np.vstack((application_segments, Mpot_application_segments))
+            # Stack forces and moments into a single array
+            Ipot_norm = np.hstack((Fpot_norm, Mpot_norm))
+
+            Ipot_direc = np.vstack((direc, Mpot_direc))
+            
+
+            Ipot_application_segments = np.hstack((application_segments, Mpot_application_segments))
+            # we add Mpot_application_segments+1 to apply the moment at the other end of the link, so the joint we care about reacts to it
+
+        else:
+            Ipot_norm, Ipot_direc, Ipot_application_segments = Fpot_norm, direc, application_segments
 
         # Add up all forces into a single vector
         Ipot_total = np.zeros((7, 6))
         for i in range(6):
-            Ipot_part = Ipot_norm[Ipot_application_segments == i+1] * Ipot_direc[Ipot_direc == i+1,:]
-            Ipot_total[i] = np.sum(Ipot_part, axis=0)
+            mask = Ipot_application_segments == i+1
+            if np.any(mask):
+                Ipot_part = Ipot_norm[mask, None] * Ipot_direc[mask,:]
+                Ipot_total[i] = np.sum(Ipot_part, axis=0)
+
         for i in range(6, len(application_segments)):
-            Ipot_part = Ipot_norm[Ipot_application_segments == i+1] * Ipot_direc[Ipot_direc == i+1,:]
-            Ipot_total[6] = Ipot_total[6] + np.sum(Ipot_temp, axis=0)
+            mask = Ipot_application_segments == i+1
+            if np.any(mask):
+                Ipot_part = Ipot_norm[mask, None] * Ipot_direc[mask,:]
+                Ipot_total[6] = Ipot_total[6] + np.sum(Ipot_part, axis=0)
+
+        # Ipot_total = Ipot_total * self.K
 
 
         # Calculate the system of dampers to operate on each joint
         Damping_moment_scaling = np.ones(len(Ipot_norm))
-        Damping_moment_scaling[-len(Mpot_norm):] = link_lengths[Mpot_application_segments]\
-              * application_dist[Mpot_application_segments]
+        if np.any(Mpot_application_segments):
+            Damping_moment_scaling[-len(Mpot_norm):] = link_lengths[Mpot_application_segments]\
+                * application_dist[application_dist>0]
 
         Damping_total = np.zeros((7, 6))
         for i in range(6):
-            Damping_part = Ipot_direc[Ipot_direc == i+1,:] * Damping_moment_scaling[Ipot_direc == i+1,:]
-            Damping_total[i] = np.sum(Damping_part, axis=0)
+            mask = Ipot_application_segments == i+1
+            if np.any(mask):
+                Damping_part = np.abs(Ipot_direc[mask,:]) * Damping_moment_scaling[mask,None]
+                Damping_total[i] = np.sum(Damping_part, axis=0)
         for i in range(6, len(application_segments)):
-            Damping_part = Ipot_direc[Ipot_direc == i+1,:] * Damping_moment_scaling[Ipot_direc == i+1,:]
-            Damping_total[6] = Damping_total[6] + np.sum(Ipot_part, axis=0)
+            mask = Ipot_application_segments == i+1
+            if np.any(mask):
+                Damping_part = np.abs(Ipot_direc[mask,:]) * Damping_moment_scaling[mask,None]
+                Damping_total[6] = Damping_total[6] + np.sum(Damping_part, axis=0)
 
         Damping_total = Damping_total * self.D
+
+        ##### rescale everything to act as if the same number of forces was always being applied
+        num_wanted_forces = 15
+        num_actual_forces = len(Ipot_norm)
+
+        if num_actual_forces>0:
+            rescale_factor = num_wanted_forces / num_actual_forces
+
+            Ipot_total = Ipot_total * rescale_factor
+            Damping_total = Damping_total * rescale_factor
+
+        #####
+
+        ##### Rescale forces so those acting on the joints closer to base are stronger
+
+        Ipot_total = Ipot_total * self.force_rescaling[:, None]
+        Damping_total = Damping_total * self.force_rescaling[:, None]
+
+        #####
+        
+        
+        # ##### Create fake forces and dampers for testing
+        # Ipot_total = np.zeros((7, 6))
+        # Ipot_total[0, 5] = 10
+
+        # Damping_total = np.zeros((7, 6))
+        # Damping_total[0, 5] = 10
+        # #####
 
 
         if np.any(Ipot_total):
@@ -794,7 +846,7 @@ class kpts_to_bbox(Node):
             [Ipot_message.height, Ipot_message.width]  = np.shape(Ipot_total.T)
             self.Ipot_publisher_.publish(Ipot_message)
 
-            # self.logger.info(str(Ipot))
+            # self.logger.info(str(Ipot_total))
 
 
             Damping_flattened = Damping_total.flatten(order='C')
@@ -804,7 +856,8 @@ class kpts_to_bbox(Node):
             [Damping_message.height, Damping_message.width]  = np.shape(Damping_total.T)
             self.Damping_publisher_.publish(Damping_message)
 
-            # self.logger.info(str(Damping))
+            # self.logger.info('Damping_total')
+            # self.logger.info(str(Damping_total))
 
             self.publishing_stats()
 
