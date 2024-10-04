@@ -174,11 +174,11 @@ class robot_pose(Node):
         # increase their offset to account for the fingertips being further away than the finger joints 
         robot_rotation[-2] = robot_rotation[-3]
         quat_rot = R.from_quat(robot_rotation[-3]).apply(finger_trans[0])
-        robot_translation[-2] =  robot_translation[-3] + quat_rot * 1.5
+        robot_translation[-2] =  robot_translation[-3] + quat_rot * 2.5
 
         robot_rotation[-1] = robot_rotation[-3]
         quat_rot = R.from_quat(robot_rotation[-3]).apply(finger_trans[1])
-        robot_translation[-1] =  robot_translation[-3] + quat_rot * 1.5
+        robot_translation[-1] =  robot_translation[-3] + quat_rot * 2.5
 
         tf_world = {}
         for i, joint in enumerate(joint_name[1:]):

@@ -429,11 +429,12 @@ class kpts_to_bbox(Node):
         self.body_cartesian_positions = np.zeros((12, 3))
 
         # Spring and damping forces
-        Max_force_per_spring = 12.                          # [N]
+        Max_force_per_spring = 10.                          # [N]
         self.K = Max_force_per_spring / self.max_dist       # [N/m]
         self.D = 1.2 * np.sqrt(self.K)                      # [Ns/m]
 
-        self.force_rescaling = np.array([2, 2, 2, 1, 1, 1, 1])
+        self.force_rescaling = np.array([1.4, 1.4, 1.2, 1.2, 1., 1., 1.])        # to increase the fores on joints near the base
+        self.num_wanted_forces = 25.                         # to push the robot away enough, but not so much that it flips out
 
         # body info timeout
         self.body_timestamp = time.time_ns()
@@ -469,20 +470,20 @@ class kpts_to_bbox(Node):
             # trunk_dist, trunk_direc, trunk_t, trunk_u, c_r_t, c_t_r = link_dists(trunk, robot_pos, self.max_dist)
             # self.placeholder_Pe, robot_pos
 
-            ###############
-            # Plotting the distances
+            ##############
+            # # Plotting the distances
             # class geom(): pass
-            # geom.arm_pos = arms
-            # geom.trunk_pos = trunk
+            # geom.arm_pos = body_pos
+            # geom.trunk_pos = body_pos
             # geom.robot_pos = robot_pos  # self.placeholder_Pe, robot_pos
-            # geom.arm_cp_idx = c_a_r
-            # geom.u = arms_u
-            # geom.trunk_cp_idx = c_t_r
-            # geom.v = trunk_u
-            # geom.robot_cp_arm_idx = c_r_a
-            # geom.s = arms_t
-            # geom.robot_cp_trunk_idx = c_r_t
-            # geom.t = trunk_t
+            # geom.arm_cp_idx = c_b_r
+            # geom.u = u
+            # geom.trunk_cp_idx = c_b_r
+            # geom.v = u
+            # geom.robot_cp_arm_idx = c_r_b
+            # geom.s = t
+            # geom.robot_cp_trunk_idx = c_r_b
+            # geom.t = t
 
             # class geom(): pass
             # geom.body_pos = body_pos
@@ -494,7 +495,7 @@ class kpts_to_bbox(Node):
 
             # self.fig = visuals.plot_skeletons(self.fig, geom)
 
-            ###############
+            ##############
 
             # # only continue if the safety bubbles have been breached
             # if not np.any(arms_dist):
@@ -808,24 +809,26 @@ class kpts_to_bbox(Node):
 
         Damping_total = Damping_total * self.D
 
-        ##### rescale everything to act as if the same number of forces was always being applied
-        num_wanted_forces = 15
-        num_actual_forces = len(Ipot_norm)
-
-        if num_actual_forces>0:
-            rescale_factor = num_wanted_forces / num_actual_forces
-
-            Ipot_total = Ipot_total * rescale_factor
-            Damping_total = Damping_total * rescale_factor
-
-        #####
-
         ##### Rescale forces so those acting on the joints closer to base are stronger
 
         Ipot_total = Ipot_total * self.force_rescaling[:, None]
         Damping_total = Damping_total * self.force_rescaling[:, None]
 
         #####
+        
+        ##### rescale everything to act as if the same number of forces was always being applied
+        
+        num_actual_forces = len(Ipot_norm)
+
+        if num_actual_forces>0:
+            rescale_factor = self.num_wanted_forces / num_actual_forces
+
+            Ipot_total = Ipot_total * rescale_factor
+            Damping_total = Damping_total * rescale_factor
+
+        #####
+
+        
         
         
         # ##### Create fake forces and dampers for testing

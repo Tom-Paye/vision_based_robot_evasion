@@ -1,26 +1,65 @@
-This project aims to use impedance based control to enforce evasion of human targets by a Franka Research 3 robot arm.
+This project aims to use artificial potential fields and impedance based control to enforce evasion of human targets by a Franka Research 3 robot arm.
 Perception of the environment, people, and objects is done through the use of two Zed2i stereo cameras.
 
-Currently works on an Ubuntu 22.04 RT kernel, uses Franka Robotics and Stereolabs software and APIs, ROS2 Humble and CUDA.
+Prerequisites:
 
-Currently implemented: body detection (camera fusion needs a rework) and link-wise distance estimation between the operator and robot.
+Currently works on an Ubuntu 22.04 RT kernel, uses Franka Robotics and Stereolabs software and APIs, ROS2 Humble and CUDA 12.4. The version of CUDA really just depends on the ZED API and your setup.
 
-Relies on Software from Frankaemika, Stereolabs, and Curdin Deplazes : https://github.com/CurdinDeplazes/cartesian_impedance_control,
+Relies on Software from Frankaemika, Stereolabs (including python packages pyzed), and Curdin Deplazes : https://github.com/CurdinDeplazes/cartesian_impedance_control,
 forked at https://github.com/lambdacitizen/cartesian_impedance_control.git
 
-Contents:
+This project must be built in the same ROS2 workspace as https://github.com/CurdinDeplazes/cartesian_impedance_control and https://github.com/CurdinDeplazes/messages_fr3
+
+Additional python environment modules:
+pathlib
+cv2
+cv_bridge
+logging
+time
+numpy
+json
+copy
+urdf_parser_py
+scipy
+urdfpy
+
+____________________
+
+Project contents:
 - img_to_kpts.py  : communicates with cameras / svo files, outputs the keypoints of the bodies detected via ROS2
-- kpts_to_bbox.py : listens via ROS2 to body position and robot state, determines distances and forces between both
+- robot_pose.py : calculates the world frame positions of the robot joints, filters body info to obtain only relevant data
+- kpts_to_bbox.py : calculates repulsion direction, spring force, and oriented spring constant
+- run_stats.py : must be launched separately, outputs stats on cycle speeds of different nodes
+- motion_generator.py : Uses the user input client to request robot positions and trajectories in CIC
 - Components for CV and OGL viewers
-- viewer.py       : Contains basic python functions for graphing and visualization
+- viewer.py       : Contains basic python functions for graphing and visualization, must be run separately or added to the launch file
+
+____________________
+
+Installation:
+- Clone this repo in the same ROS 2 workspace as franka_ros2, cartesian_impedance_control and messages_fr3
+- Adjust settings in img_to_kpts.py/init_user_params():
+  - in calib.json, replace the matrices with the camera to world frame transitions in camera frame c_T_cw
+  - if working off an SVO file rather than live camera feed, adjust the path to the file
+  - do not bother with the visualization settings, I am fairly certain that I broke it
+  - toggle the 'fusion' parameter to use the ZED fusion object rather than my workaround
+- Adjust the settings in kpts_to_bbox/kpts_to_bbox.initialize_variables(self)
+  - change publishing info within the publisher node itself to print out stats while the script runs
+  - uncomment the block of code titled "Plotting the distances" to display the body and robot
+    - the script called for visualization, visuals.py, can also be un-commented to also display interactions
+    WARNING: This visualization significantly slows down the pipeline
+- Modify whatever you want in the trajectory in motion_generator.py
+- launch/my_script_launch.py: toggle the comments for robot_ip and use_fake_hardware parameters to run the system virtually
 
 How to run:
+- ros2 launch vision_based_robot_evasion my my_script_launch.py
 
-- configure both python scripts to preferences
-- activate img_to_kpts.py: __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run my_cpp_py_pkg img_to_kpts.py
-- activate Curdin's controller:
-__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 launch cartesian_impedance_control cartesian_impedance_controller.launch.py
-- activate kpts_to_bbox.py: __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ros2 run my_cpp_py_pkg kpts_to_bbox.py
+
+
+
+
+
+____________________________________
 
 TODO:
 
@@ -32,24 +71,24 @@ TODO:
   - /  Output actual hand coordinates in ROS
   - (create config file to load ROS and local options)
   - /  (perform better calibration and data recordings)
-  - (make code easier to port: put all files in the same folder as the code)
-  - Perform 3rd party sensor fusion and qualified position detection, that still runs even if only one cam sees me
+  - / (make code easier to port: put all files in the same folder as the code)
+  - / Perform 3rd party sensor fusion and qualified position detection, that still runs even if only one cam sees me
   - / improve location accuracy
   - / get an adapter so that all devices can be connected at once
-  - debug img_to_kpts to figure out why the basis suddenly seems to change from time to time
-  - performance increase : limit imgs_to_kpts to 30 fps to free up cpu, since kpts_to_bbox is the bottleneck
-  - separate kpts_to_bbox into multiple nodes in order to enforce concurrent callbacks: https://robotics.stackexchange.com/questions/106026/ros2-multi-nodes-each-on-a-thread-in-same-process
+  - / debug img_to_kpts to figure out why the basis suddenly seems to change from time to time
+  - / performance increase : limit imgs_to_kpts to 30 fps to free up cpu, since kpts_to_bbox is the bottleneck
+  - / separate kpts_to_bbox into multiple nodes in order to enforce concurrent callbacks: https://robotics.stackexchange.com/questions/106026/ros2-multi-nodes-each-on-a-thread-in-same-process
   
 
 3rd goal: create bubble
   - /  calculate the distances and directions between he robot and human
   - /  vectorize these calculations to work on both entire bodies at once
   - /  determine where on the robot to exert pseudo-force
-  - determine force application policy (repulsion, dodging)
-  - Justify the safety of the strategy
+  - / determine force application policy (repulsion, dodging)
+  - / Justify the safety of the strategy
   - /  debug kpts to bbox to find out why it's so inefficient
   - /  output forces for every distance smaller than the bubble radius, to prevent bang bang       oscillation
-  - Add a multiplicative factor to the force in the case of few repulsion interactions in order to
+  - / Add a multiplicative factor to the force in the case of few repulsion interactions in order to
     enable stronger repulsion of the hand without overreacting when the full body is near
 
 4th goal: fetch robot positions
@@ -60,7 +99,7 @@ TODO:
 5th goal: Calculate jacobians to translate to moments of force
   - / check out frankaemika's jakobians
   - / how to create new jacobian along a link
-  - implement in python or C++?
+  - / implement in python or C++?
   - / hijack Curdin's code to generate the torques straight from the forces
   - / match forces to joint torques more correctly: test individual directions by sending fake forces
   - / reduce impedance parameters to more easily see results
