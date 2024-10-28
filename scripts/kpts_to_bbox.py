@@ -193,12 +193,6 @@ def link_dists(pos_body, pos_robot, max_dist, false_link=-1):
         bad_segments_arm_trunk = bad_segments_arm_trunk[bad_segments_arm_trunk[:,1]%n_rolls < n_compared_rows ,:]
         bad_segments = np.vstack((bad_segments, bad_segments_arm_trunk)).astype(int)
     ############################
-    # for i in range(n_rolls):
-    #     new_layer = np.roll(arr_to_roll, -i, axis=0)
-    #     new_layer = new_layer[0:n_compared_rows,:]
-    #     mat_roll[i,:] = new_layer
-    #     bad_segments.append([i, n_rolls-1 - i])
-    # bad_segments = np.array(bad_segments[n_rolls-n_compared_rows+1:]) # +1 because there is 1 less links than segments
 
     if n_joints_b > n_joints_r:
         joints_b = mat_roll         # [n_jts x n_jnts_2 x 3 coordinates]
@@ -348,17 +342,6 @@ class kpts_to_bbox(Node):
 
         self.initialize_variables()
         
-        # self.subscription_arms_pos = self.create_subscription(
-        #     Array2d,      # PoseArray, Array2d
-        #     'arms_cartesian_pos',
-        #     self.arms_pos_callback,
-        #     10)
-        
-        # self.subscription_trunk_pos = self.create_subscription(
-        #     Array2d,      # PoseArray, Array2d
-        #     'trunk_cartesian_pos',
-        #     self.trunk_pos_callback,
-        #     10)
         
         self.subscription_body_pos = self.create_subscription(
             Array2d,      # PoseArray, Array2d
@@ -371,19 +354,6 @@ class kpts_to_bbox(Node):
             'robot_cartesian_pos',
             self.robot_pos_callback,
             10)
-
-
-        # self.robot_joint_state = self.create_subscription(
-        #     JointState,
-        #     'franka/joint_states',
-        #     self.get_joint_velocities(),
-        #     10)
-        
-        # self.robot_joint_state = self.create_subscription(
-        #     TFMessage,
-        #     'tf',
-        #     self.transform_callback,
-        #     10,)
         
         
         # link_poses = self.compute_robot_pose(robot, node)
@@ -590,11 +560,6 @@ class kpts_to_bbox(Node):
 
 
         #####################
-        # spring_dists = np.clip(self.max_dist - self.min_dist - np.abs(dists-self.min_dist), 0, self.max_dist - self.min_dist)
-
-        # low_mask = dists<self.min_dist
-        # high_mask = 1-low_mask
-        # spring_dists = -dists + self.max_dist*(np.ones(len(dists))+low_mask*(dists/self.min_dist - 1))  # this should return an actual distance in [m]
         spring_dists = np.clip(self.max_dist - dists, 0, self.max_dist)
 
         spring_vecs = spring_dists[:, np.newaxis] * direc
@@ -639,83 +604,6 @@ class kpts_to_bbox(Node):
             self.publishing_stats()
             # self.logger.info('list_lengths')
             # self.logger.info(str(list_lengths))
-
-        
-
-        # ###############################
-
-        # ####################ACCOUNT FOR INPUT OF SIZE 13###################
-        # # For every joint after the last movable joint(link_1-7), apply its torque/forces to the previous joint
-        # for i in range(len(full_force_vec)-7):
-        #     l = link_lengths[-i-1]
-        #     if l == 0:
-        #         length_multiplier = np.eye(6)
-        #     else:
-        #         # length_multiplier_force = np.concatenate((np.eye(3), -np.eye(3)/l), axis=0)
-        #         length_multiplier_force = np.concatenate((np.eye(3), np.zeros((3, 3))), axis=0)
-        #         # length_multiplier_moment = np.concatenate((np.eye(3)*l, np.eye(3)), axis=0)
-        #         # consider that the links towards the EE are short enough to be the same point,
-        #         # else the fingers will cause moment trouble
-        #         length_multiplier_moment = np.concatenate((np.zeros((3, 3)), np.zeros((3, 3))), axis=0)
-        #         length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-        #     full_force_vec[-i-2] += length_multiplier @ full_force_vec[-i-1].T
-        
-        # # # Remove joint 0, apply only its torque to link 1
-        # # l = link_lengths[0]
-        # # if l == 0:
-        # #     length_multiplier = np.eye(6)
-        # # else:
-        # #     length_multiplier_force = np.concatenate((np.zeros((3,3)), np.zeros((3,3))), axis=0)
-        # #     length_multiplier_moment = np.concatenate((np.zeros((3,3)), np.eye(3)), axis=0)
-        # #     length_multiplier = np.concatenate((length_multiplier_force, length_multiplier_moment), axis=1)
-        # # full_force_vec[1] += length_multiplier @ full_force_vec[0]   
-
-        # full_force_vec = full_force_vec[0:7]
-
-        # full_force_vec = np.nan_to_num(full_force_vec)
-
-        # # rescale spring forces to make them stronger if few kpts are exerting force
-        # # the idea is that forces should be weak enough to not cause problems when the full body 
-        # # exerts them, but get strong enough that a single hand can push anything 
-        # num_interactions = len(application_segments)
-        # if num_interactions>0:
-        #     num_desired_interactions = 12           # Theoretical max is num_body_links * num_robot_links, so around 7*18 = 100. kwik mafs.
-        #     denom = min(num_desired_interactions, num_interactions)
-        #     multiplier = num_desired_interactions / denom
-        #     # self.logger.info('number of interactions: {0}'.format(num_interactions))
-        #     # self.logger.info(str(multiplier))
-        #     # self.logger.info(str(self.logger.info('multiplier: {0}'.format(multiplier))))
-        #     # self.logger.info(str(multiplier))
-        #     full_force_vec = full_force_vec * multiplier
-        #     # full_force_vec = np.tile(full_force_vec,(multiplier, 1))
-
-        
-
-
-        # # transform to message
-        # forces = full_force_vec
-
-        # # force_scaling = np.array([87., 87., 87., 87., 12., 12., 12.]) / (self.max_dist - self.min_dist)
-        # # total_force = force_scaling[:, np.newaxis] * full_force_vec
-        # # self.logger.info("Total force requested: " + str(total_force) + " N / Nm")
-
-        # if np.any(forces):
-
-        #     forces_flattened = forces.flatten(order='C')
-
-        #     force_message = Array2d()
-        #     force_message.array = list(forces_flattened.astype(float))
-        #     [force_message.height, force_message.width]  = np.shape(forces.T)
-        #     self.force_publisher_.publish(force_message)
-
-        #     # self.logger.info(str(forces))
-
-            # self.publishing_stats()
-
-        # t1 = time.time()
-        # dt = t1 - t0
-        # if dt>0.05:
-        #     self.logger.info("generate_distance_message takes " + str(np.round(dt, 4)) + " seconds") 
 
 
     def generate_spring_forces_and_dampers(self, body_geom, robot_pose):
@@ -883,19 +771,6 @@ class kpts_to_bbox(Node):
         msg_array = np.array(msg.array)
         self.robot_cartesian_positions = np.reshape(msg_array,(n_rows,n_cols))
 
-    # def arms_pos_callback(self, msg):
-
-    #     n_rows = msg.height
-    #     n_cols = msg.width
-    #     msg_array = np.array(msg.array)
-    #     self.arms_cartesian_positions = np.reshape(msg_array,(n_rows,n_cols))
-
-    # def trunk_pos_callback(self, msg):
-
-    #     n_rows = msg.height
-    #     n_cols = msg.width
-    #     msg_array = np.array(msg.array)
-    #     self.trunk_cartesian_positions = np.reshape(msg_array,(n_rows,n_cols))
 
     def body_pos_callback(self, msg):
 
@@ -947,31 +822,11 @@ def main(args = None):
     rclpy.init(args=args)
 
     bbox_generator = kpts_to_bbox()
-    # executor = rclpy.executors.MultiThreadedExecutor()
-    
-    # executor.add_node(bbox_generator)
-    # executor.add_node(pose_publisher)
 
-    # rclpy.spin(pose_publisher)
     rclpy.spin(bbox_generator)
 
-    # executor_thread = threading.Thread(target=executor.spin, daemon=True)
-    # executor_thread.start()
-
-    # rate = pose_publisher.create_rate(2)
-    # try:
-    #     while rclpy.ok():
-    #         # print('Help me body, you are my only hope')
-    #         rate.sleep()
-    # except KeyboardInterrupt:
-    #     pass
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
-    # bbox_generator.destroy_node()
+    
     rclpy.shutdown()
-    # executor_thread.join()
     
     print('done')
     
